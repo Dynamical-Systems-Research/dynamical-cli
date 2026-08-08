@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dynamical"
+  short_description: "Compile and run virtual laboratory campaigns"
+  default_prompt: "Use $dynamical to assemble and run a virtual laboratory campaign for this engineering objective."

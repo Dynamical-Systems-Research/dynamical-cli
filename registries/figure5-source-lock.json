@@ -1,0 +1,49 @@
+{
+  "schema_version": "dynamical.source_lock.v0.1",
+  "source_id": "matterix-figure-5-moesm4",
+  "article_doi": "10.1038/s43588-025-00924-4",
+  "url": "https://static-content.springer.com/esm/art%3A10.1038%2Fs43588-025-00924-4/MediaObjects/43588_2025_924_MOESM4_ESM.zip",
+  "archive_name": "43588_2025_924_MOESM4_ESM.zip",
+  "archive_sha256": "a67a46937c49771979aa38d12aab8ae00a33dd2143d5dc9f31c67295844b4b7e",
+  "license_status": "No explicit open-data license was found with the archive.",
+  "raw_redistribution_allowed": false,
+  "reference_row": {
+    "member": "fig5a_3.csv",
+    "simulation_time_s": 930.308,
+    "fluidA_mass_kg": 0.03375,
+    "fluidA_temperature_C": 36.39739227294922,
+    "fluidA_temperature_K": 309.5473922729492,
+    "interpretation": "One source simulation row. The timestamp is not an exposure duration or a physical measurement."
+  },
+  "members": {
+    "fig5a_1.csv": {
+      "bytes": 106103070,
+      "rows": 500000,
+      "sha256": "1311c79f5ce7d611aeea548438dffd307ebad38f6b1448901c51bac3ec12279e"
+    },
+    "fig5a_3.csv": {
+      "bytes": 100458432,
+      "rows": 500000,
+      "sha256": "da5661b40c79bac10c13d61b09dd8c6e500dd8f2cd2fbb76b48e360400eea859"
+    },
+    "fig5b_2.csv": {
+      "bytes": 2307847,
+      "rows": 9000,
+      "sha256": "8afdf0782a8b65e0925c7c7262c8ecc3c14ff90ac37ea9fa944bc44f66584edb"
+    },
+    "fig5b_real.csv": {
+      "bytes": 938817,
+      "rows": 6374,
+      "sha256": "7b7a735c22946c9ed554cb58147abe23b559e7f8bf0f38267738fdbc70b3b692"
+    },
+    "v_values_over_time.csv": {
+      "bytes": 566949,
+      "rows": 13093,
+      "sha256": "8ebf11cf84259f4be80582f9173d836030f05ee98943a1d7bed76108c9b56113"
+    }
+  },
+  "parser_rules": {
+    "fig5a_missing_trailing_fluidA_CCCl": "Treat a missing trailing fluidA/CCCl field as zero only. The source omits early trailing zero values.",
+    "row_count_excludes_header": true
+  }
+}

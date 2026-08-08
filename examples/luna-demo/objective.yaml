@@ -1,0 +1,24 @@
+engineering_objective: >-
+  From a source-backed 33.75 g thermal process, select one 0.25 kg physical
+  scale-transfer experiment.
+required_proof:
+  - An assessment that distinguishes what the source evidence can support from
+    what it cannot establish at the customer scale.
+  - Comparative simulator evidence that is sufficient to select among admissible
+    heating and measurement strategies for the physical scale-transfer experiment.
+  - One physical validation request that states the measurements needed to test
+    the remaining scale-transfer uncertainty.
+budget:
+  maximum_cost_usd: 0.0
+time_limit:
+  maximum_elapsed_seconds: 1200
+current_evidence: >-
+  The public Figure 5 source archive for DOI 10.1038/s43588-025-00924-4 is locked
+  as matterix-figure-5-moesm4 with archive SHA-256
+  a67a46937c49771979aa38d12aab8ae00a33dd2143d5dc9f31c67295844b4b7e. The
+  source simulation row used 0.03375 kg and records 309.5473922729492 K at
+  simulation time 930.308 s. The timestamp is not a measured dwell or exposure
+  duration. No 0.25 kg physical result, scale-transfer calibration, or
+  chemical-equivalence proof is provided at session start.
+dynamical_tool_access: >-
+  The installed Dynamical CLI is available in the disposable workspace.

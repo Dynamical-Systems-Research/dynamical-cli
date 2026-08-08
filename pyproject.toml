@@ -1,0 +1,50 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dynamical"
+version = "0.1.0"
+description = "Compile declarative laboratory facilities into backend-independent execution artifacts."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Dynamical Systems Research" }]
+dependencies = [
+  "pydantic>=2.11,<3",
+  "PyYAML>=6.0,<7",
+]
+
+[project.urls]
+Homepage = "https://github.com/Dynamical-Systems-Research/dynamical-cli"
+Repository = "https://github.com/Dynamical-Systems-Research/dynamical-cli"
+Issues = "https://github.com/Dynamical-Systems-Research/dynamical-cli/issues"
+
+[project.optional-dependencies]
+dev = [
+  "jsonschema>=4.23,<5",
+  "pytest>=8.3,<9",
+  "ruff>=0.12,<1",
+]
+
+[project.scripts]
+dynamical = "dynamical.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dynamical"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"registries/reference-capabilities.yaml" = "dynamical/data/reference-capabilities.yaml"
+"registries/figure5-source-lock.json" = "dynamical/data/figure5-source-lock.json"
+"manifests/matterix-heater-workstation.yaml" = "dynamical/data/matterix-heater-workstation.yaml"
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]

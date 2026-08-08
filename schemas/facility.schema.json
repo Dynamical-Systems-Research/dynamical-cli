@@ -1,0 +1,1665 @@
+{
+  "$defs": {
+    "AdapterBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "adapter_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Adapter Id",
+          "type": "string"
+        },
+        "adapter_version": {
+          "minLength": 1,
+          "title": "Adapter Version",
+          "type": "string"
+        },
+        "binding_schema_ref": {
+          "minLength": 1,
+          "title": "Binding Schema Ref",
+          "type": "string"
+        },
+        "configuration": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MatterixAdapterConfig"
+            },
+            {
+              "$ref": "#/$defs/IsaacAdapterConfig"
+            },
+            {
+              "$ref": "#/$defs/OpenUsdAdapterConfig"
+            },
+            {
+              "$ref": "#/$defs/ReplayAdapterConfig"
+            }
+          ],
+          "title": "Configuration"
+        },
+        "id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "subject_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Subject Id",
+          "type": "string"
+        },
+        "target": {
+          "enum": [
+            "matterix",
+            "isaac",
+            "openusd",
+            "replay"
+          ],
+          "title": "Target",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "target",
+        "subject_id",
+        "adapter_id",
+        "adapter_version",
+        "binding_schema_ref",
+        "configuration"
+      ],
+      "title": "AdapterBinding",
+      "type": "object"
+    },
+    "Agent": {
+      "additionalProperties": false,
+      "properties": {
+        "action_endpoint_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Action Endpoint Id",
+          "type": "string"
+        },
+        "asset_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Asset Id",
+          "type": "string"
+        },
+        "capability_ids": {
+          "items": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Capability Ids",
+          "type": "array"
+        },
+        "id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "asset_id",
+        "capability_ids",
+        "action_endpoint_id"
+      ],
+      "title": "Agent",
+      "type": "object"
+    },
+    "Asset": {
+      "additionalProperties": false,
+      "properties": {
+        "asset_kind": {
+          "minLength": 1,
+          "title": "Asset Kind",
+          "type": "string"
+        },
+        "collision": {
+          "$ref": "#/$defs/CollisionSpec"
+        },
+        "geometry": {
+          "$ref": "#/$defs/GeometrySpec"
+        },
+        "id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "manipulation_frames": {
+          "patternProperties": {
+            "^[A-Za-z][A-Za-z0-9_.-]{0,127}$": {
+              "$ref": "#/$defs/Pose"
+            }
+          },
+          "title": "Manipulation Frames",
+          "type": "object"
+        },
+        "physical_properties": {
+          "$ref": "#/$defs/PhysicalProperties"
+        },
+        "pose": {
+          "$ref": "#/$defs/Pose"
+        },
+        "source_refs": {
+          "items": {
+            "$ref": "#/$defs/SourceRef"
+          },
+          "title": "Source Refs",
+          "type": "array"
+        },
+        "workstation_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Workstation Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "workstation_id",
+        "asset_kind",
+        "geometry",
+        "pose"
+      ],
+      "title": "Asset",
+      "type": "object"
+    },
+    "BoundRange": {
+      "additionalProperties": false,
+      "properties": {
+        "maximum": {
+          "title": "Maximum",
+          "type": "number"
+        },
+        "minimum": {
+          "title": "Minimum",
+          "type": "number"
+        }
+      },
+      "required": [
+        "minimum",
+        "maximum"
+      ],
+      "title": "BoundRange",
+      "type": "object"
+    },
+    "CalibrationEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "applies_to_model_binding_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Applies To Model Binding Id",
+          "type": "string"
+        },
+        "condition_domain": {
+          "minProperties": 1,
+          "patternProperties": {
+            "^[A-Za-z][A-Za-z0-9_./:-]{0,191}$": {
+              "type": "string"
+            }
+          },
+          "title": "Condition Domain",
+          "type": "object"
+        },
+        "fit_artifact_ref": {
+          "minLength": 1,
+          "title": "Fit Artifact Ref",
+          "type": "string"
+        },
+        "fit_artifact_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Fit Artifact Sha256",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "limitations": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Limitations",
+          "type": "array"
+        },
+        "metrics": {
+          "items": {
+            "$ref": "#/$defs/CalibrationMetric"
+          },
+          "title": "Metrics",
+          "type": "array"
+        },
+        "source_artifact_ref": {
+          "minLength": 1,
+          "title": "Source Artifact Ref",
+          "type": "string"
+        },
+        "source_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Source Sha256",
+          "type": "string"
+        },
+        "split_rule_ref": {
+          "minLength": 1,
+          "title": "Split Rule Ref",
+          "type": "string"
+        },
+        "split_rule_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Split Rule Sha256",
+          "type": "string"
+        },
+        "supported_channel_ids": {
+          "items": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_./:-]{0,191}$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Supported Channel Ids",
+          "type": "array"
+        },
+        "validation_design": {
+          "enum": [
+            "within_trajectory",
+            "cross_condition",
+            "independent_facility_runs"
+          ],
+          "title": "Validation Design",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "source_artifact_ref",
+        "source_sha256",
+        "applies_to_model_binding_id",
+        "supported_channel_ids",
+        "condition_domain",
+        "split_rule_ref",
+        "split_rule_sha256",
+        "fit_artifact_ref",
+        "fit_artifact_sha256",
+        "validation_design",
+        "limitations"
+      ],
+      "title": "CalibrationEvidence",
+      "type": "object"
+    },
+    "CalibrationMetric": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Name",
+          "type": "string"
+        },
+        "split": {
+          "enum": [
+            "fit",
+            "guard",
+            "temporal_holdout",
+            "independent_test"
+          ],
+          "title": "Split",
+          "type": "string"
+        },
+        "unit": {
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "name",
+        "value",
+        "unit",
+        "split"
+      ],
+      "title": "CalibrationMetric",
+      "type": "object"
+    },
+    "ChannelSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_./:-]{0,191}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "maximum": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Maximum"
+        },
+        "minimum": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Minimum"
+        },
+        "unit": {
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        },
+        "value_type": {
+          "enum": [
+            "number",
+            "integer",
+            "boolean",
+            "string",
+            "vector3"
+          ],
+          "title": "Value Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "value_type",
+        "unit"
+      ],
+      "title": "ChannelSpec",
+      "type": "object"
+    },
+    "ChannelValue": {
+      "additionalProperties": false,
+      "properties": {
+        "channel_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_./:-]{0,191}$",
+          "title": "Channel Id",
+          "type": "string"
+        },
+        "unit": {
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "channel_id",
+        "value",
+        "unit"
+      ],
+      "title": "ChannelValue",
+      "type": "object"
+    },
+    "CollisionSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "shape": {
+          "default": "geometry",
+          "enum": [
+            "geometry",
+            "box",
+            "convex_hull",
+            "none"
+          ],
+          "title": "Shape",
+          "type": "string"
+        }
+      },
+      "title": "CollisionSpec",
+      "type": "object"
+    },
+    "Constraint": {
+      "additionalProperties": false,
+      "properties": {
+        "bound": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/$defs/BoundRange"
+            }
+          ],
+          "title": "Bound"
+        },
+        "channel_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_./:-]{0,191}$",
+          "title": "Channel Id",
+          "type": "string"
+        },
+        "enforcement": {
+          "enum": [
+            "reject",
+            "terminate",
+            "report"
+          ],
+          "title": "Enforcement",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "operator": {
+          "enum": [
+            "lt",
+            "le",
+            "eq",
+            "ge",
+            "gt",
+            "between"
+          ],
+          "title": "Operator",
+          "type": "string"
+        },
+        "phase": {
+          "enum": [
+            "pre_action",
+            "runtime",
+            "post_action"
+          ],
+          "title": "Phase",
+          "type": "string"
+        },
+        "unit": {
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        },
+        "verifier_binding_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Verifier Binding Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "phase",
+        "channel_id",
+        "operator",
+        "bound",
+        "unit",
+        "enforcement",
+        "verifier_binding_id"
+      ],
+      "title": "Constraint",
+      "type": "object"
+    },
+    "Device": {
+      "additionalProperties": false,
+      "properties": {
+        "asset_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Asset Id",
+          "type": "string"
+        },
+        "capability_ids": {
+          "items": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+            "type": "string"
+          },
+          "title": "Capability Ids",
+          "type": "array"
+        },
+        "id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "state_channels": {
+          "items": {
+            "$ref": "#/$defs/ChannelSpec"
+          },
+          "title": "State Channels",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "asset_id"
+      ],
+      "title": "Device",
+      "type": "object"
+    },
+    "Facility": {
+      "additionalProperties": false,
+      "properties": {
+        "authoring_basis": {
+          "enum": [
+            "exact",
+            "derived",
+            "representative"
+          ],
+          "title": "Authoring Basis",
+          "type": "string"
+        },
+        "claim_boundary": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Claim Boundary",
+          "type": "array"
+        },
+        "frame": {
+          "$ref": "#/$defs/FrameSpec"
+        },
+        "id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "0.1.0",
+          "default": "0.1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "source_refs": {
+          "items": {
+            "$ref": "#/$defs/SourceRef"
+          },
+          "title": "Source Refs",
+          "type": "array"
+        },
+        "workstation_ids": {
+          "items": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Workstation Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "workstation_ids",
+        "authoring_basis",
+        "claim_boundary"
+      ],
+      "title": "Facility",
+      "type": "object"
+    },
+    "FacilityCapability": {
+      "additionalProperties": false,
+      "description": "A provider binding used by the v0.1 embodied facility IR.\n\nThis record is intentionally not the reusable scientific ``Capability``.\nIt connects an already selected operation to one device or embodied agent\ninside a compiled facility.",
+      "properties": {
+        "action_type": {
+          "minLength": 1,
+          "title": "Action Type",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "observation_channel_ids": {
+          "items": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_./:-]{0,191}$",
+            "type": "string"
+          },
+          "title": "Observation Channel Ids",
+          "type": "array"
+        },
+        "parameters": {
+          "items": {
+            "$ref": "#/$defs/ParameterSpec"
+          },
+          "title": "Parameters",
+          "type": "array"
+        },
+        "postcondition_constraint_ids": {
+          "items": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+            "type": "string"
+          },
+          "title": "Postcondition Constraint Ids",
+          "type": "array"
+        },
+        "precondition_constraint_ids": {
+          "items": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+            "type": "string"
+          },
+          "title": "Precondition Constraint Ids",
+          "type": "array"
+        },
+        "provider_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Provider Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "provider_id",
+        "action_type"
+      ],
+      "title": "FacilityCapability",
+      "type": "object"
+    },
+    "FacilityProviderBinding": {
+      "additionalProperties": false,
+      "description": "Facility-side admission for one registry provider used by a composition.",
+      "properties": {
+        "adapter_links": {
+          "items": {
+            "$ref": "#/$defs/ProviderAdapterLink"
+          },
+          "minItems": 1,
+          "title": "Adapter Links",
+          "type": "array"
+        },
+        "endpoint_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Endpoint Id",
+          "type": "string"
+        },
+        "evidence_classes": {
+          "items": {
+            "enum": [
+              "simulator",
+              "calibrated_twin",
+              "shadow",
+              "physical"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Classes",
+          "type": "array"
+        },
+        "facility_ids": {
+          "items": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Facility Ids",
+          "type": "array"
+        },
+        "id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "operation_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "policy_tags": {
+          "items": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+            "type": "string"
+          },
+          "title": "Policy Tags",
+          "type": "array"
+        },
+        "provider_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Provider Id",
+          "type": "string"
+        },
+        "required_approval_ids": {
+          "items": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+            "type": "string"
+          },
+          "title": "Required Approval Ids",
+          "type": "array"
+        },
+        "safety_limit_ids": {
+          "items": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+            "type": "string"
+          },
+          "title": "Safety Limit Ids",
+          "type": "array"
+        },
+        "validity_envelope": {
+          "items": {
+            "$ref": "#/$defs/ValidityEnvelopeEntry"
+          },
+          "title": "Validity Envelope",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "provider_id",
+        "operation_id",
+        "evidence_classes",
+        "facility_ids",
+        "endpoint_id",
+        "adapter_links"
+      ],
+      "title": "FacilityProviderBinding",
+      "type": "object"
+    },
+    "FrameSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "length_unit": {
+          "const": "m",
+          "default": "m",
+          "title": "Length Unit",
+          "type": "string"
+        },
+        "up_axis": {
+          "const": "Z",
+          "default": "Z",
+          "title": "Up Axis",
+          "type": "string"
+        }
+      },
+      "title": "FrameSpec",
+      "type": "object"
+    },
+    "GeometrySpec": {
+      "additionalProperties": false,
+      "description": "Portable proxy plus an optional vendor reference.",
+      "properties": {
+        "dimensions_m": {
+          "$ref": "#/$defs/Vec3"
+        },
+        "display_color_rgb": {
+          "items": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "title": "Display Color Rgb",
+          "type": "array"
+        },
+        "portable_primitive": {
+          "enum": [
+            "cube",
+            "cylinder",
+            "sphere",
+            "capsule"
+          ],
+          "title": "Portable Primitive",
+          "type": "string"
+        },
+        "vendor_uri": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Vendor Uri"
+        }
+      },
+      "required": [
+        "portable_primitive",
+        "dimensions_m"
+      ],
+      "title": "GeometrySpec",
+      "type": "object"
+    },
+    "IsaacAdapterConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "experience": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Experience"
+        },
+        "isaac_lab_revision": {
+          "minLength": 1,
+          "title": "Isaac Lab Revision",
+          "type": "string"
+        },
+        "isaac_sim_version": {
+          "minLength": 1,
+          "title": "Isaac Sim Version",
+          "type": "string"
+        },
+        "task_id": {
+          "minLength": 1,
+          "title": "Task Id",
+          "type": "string"
+        },
+        "vendor_asset_paths": {
+          "patternProperties": {
+            "^[A-Za-z][A-Za-z0-9_.-]{0,127}$": {
+              "type": "string"
+            }
+          },
+          "title": "Vendor Asset Paths",
+          "type": "object"
+        }
+      },
+      "required": [
+        "isaac_sim_version",
+        "isaac_lab_revision",
+        "task_id"
+      ],
+      "title": "IsaacAdapterConfig",
+      "type": "object"
+    },
+    "MaterialState": {
+      "additionalProperties": false,
+      "properties": {
+        "container_asset_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Container Asset Id",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "initial_channels": {
+          "items": {
+            "$ref": "#/$defs/ChannelValue"
+          },
+          "minItems": 1,
+          "title": "Initial Channels",
+          "type": "array"
+        },
+        "source_refs": {
+          "items": {
+            "$ref": "#/$defs/SourceRef"
+          },
+          "title": "Source Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "container_asset_id",
+        "initial_channels"
+      ],
+      "title": "MaterialState",
+      "type": "object"
+    },
+    "MatterixAdapterConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "environment_class": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Environment Class"
+        },
+        "repository": {
+          "minLength": 1,
+          "title": "Repository",
+          "type": "string"
+        },
+        "source_revision": {
+          "minLength": 7,
+          "title": "Source Revision",
+          "type": "string"
+        },
+        "task_id": {
+          "minLength": 1,
+          "title": "Task Id",
+          "type": "string"
+        },
+        "vendor_asset_paths": {
+          "patternProperties": {
+            "^[A-Za-z][A-Za-z0-9_.-]{0,127}$": {
+              "type": "string"
+            }
+          },
+          "title": "Vendor Asset Paths",
+          "type": "object"
+        },
+        "workflow": {
+          "minLength": 1,
+          "title": "Workflow",
+          "type": "string"
+        }
+      },
+      "required": [
+        "repository",
+        "source_revision",
+        "task_id",
+        "workflow"
+      ],
+      "title": "MatterixAdapterConfig",
+      "type": "object"
+    },
+    "ModelBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "calibration_evidence_ids": {
+          "items": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+            "type": "string"
+          },
+          "title": "Calibration Evidence Ids",
+          "type": "array"
+        },
+        "id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "implementation_ref": {
+          "minLength": 1,
+          "title": "Implementation Ref",
+          "type": "string"
+        },
+        "implementation_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Implementation Sha256",
+          "type": "string"
+        },
+        "input_channel_map": {
+          "patternProperties": {
+            "^[A-Za-z][A-Za-z0-9_./:-]{0,191}$": {
+              "pattern": "^[A-Za-z][A-Za-z0-9_./:-]{0,191}$",
+              "type": "string"
+            }
+          },
+          "title": "Input Channel Map",
+          "type": "object"
+        },
+        "output_channel_map": {
+          "patternProperties": {
+            "^[A-Za-z][A-Za-z0-9_./:-]{0,191}$": {
+              "pattern": "^[A-Za-z][A-Za-z0-9_./:-]{0,191}$",
+              "type": "string"
+            }
+          },
+          "title": "Output Channel Map",
+          "type": "object"
+        },
+        "parameter_map": {
+          "patternProperties": {
+            "^[A-Za-z][A-Za-z0-9_.-]{0,127}$": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          "title": "Parameter Map",
+          "type": "object"
+        },
+        "update_interval_s": {
+          "exclusiveMinimum": 0.0,
+          "title": "Update Interval S",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "implementation_ref",
+        "implementation_sha256",
+        "update_interval_s"
+      ],
+      "title": "ModelBinding",
+      "type": "object"
+    },
+    "OpenUsdAdapterConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "material_policy": {
+          "const": "UsdPreviewSurface",
+          "default": "UsdPreviewSurface",
+          "title": "Material Policy",
+          "type": "string"
+        },
+        "portable_geometry": {
+          "const": true,
+          "default": true,
+          "title": "Portable Geometry",
+          "type": "boolean"
+        },
+        "vendor_references": {
+          "default": false,
+          "title": "Vendor References",
+          "type": "boolean"
+        }
+      },
+      "title": "OpenUsdAdapterConfig",
+      "type": "object"
+    },
+    "ParameterSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "enum": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "boolean"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enum"
+        },
+        "maximum": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Maximum"
+        },
+        "minimum": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Minimum"
+        },
+        "name": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Name",
+          "type": "string"
+        },
+        "required": {
+          "default": true,
+          "title": "Required",
+          "type": "boolean"
+        },
+        "unit": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unit"
+        },
+        "value_type": {
+          "enum": [
+            "number",
+            "integer",
+            "boolean",
+            "string",
+            "asset_id",
+            "duration"
+          ],
+          "title": "Value Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "value_type"
+      ],
+      "title": "ParameterSpec",
+      "type": "object"
+    },
+    "PhysicalProperties": {
+      "additionalProperties": false,
+      "properties": {
+        "dynamic_friction": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dynamic Friction"
+        },
+        "mass_kg": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mass Kg"
+        },
+        "static_friction": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Static Friction"
+        }
+      },
+      "title": "PhysicalProperties",
+      "type": "object"
+    },
+    "Pose": {
+      "additionalProperties": false,
+      "properties": {
+        "orientation": {
+          "$ref": "#/$defs/Quaternion"
+        },
+        "position_m": {
+          "$ref": "#/$defs/Vec3"
+        }
+      },
+      "title": "Pose",
+      "type": "object"
+    },
+    "ProviderAdapterLink": {
+      "additionalProperties": false,
+      "properties": {
+        "adapter_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Adapter Id",
+          "type": "string"
+        },
+        "adapter_version": {
+          "minLength": 1,
+          "title": "Adapter Version",
+          "type": "string"
+        },
+        "endpoint_ref": {
+          "minLength": 1,
+          "title": "Endpoint Ref",
+          "type": "string"
+        },
+        "implementation_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Implementation Sha256"
+        }
+      },
+      "required": [
+        "adapter_id",
+        "adapter_version",
+        "endpoint_ref"
+      ],
+      "title": "ProviderAdapterLink",
+      "type": "object"
+    },
+    "Quaternion": {
+      "additionalProperties": false,
+      "description": "Unit quaternion with explicit scalar-first component names.",
+      "properties": {
+        "w": {
+          "default": 1.0,
+          "title": "W",
+          "type": "number"
+        },
+        "x": {
+          "default": 0.0,
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "default": 0.0,
+          "title": "Y",
+          "type": "number"
+        },
+        "z": {
+          "default": 0.0,
+          "title": "Z",
+          "type": "number"
+        }
+      },
+      "title": "Quaternion",
+      "type": "object"
+    },
+    "ReplayAdapterConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "preserve_observation_origin": {
+          "const": true,
+          "default": true,
+          "title": "Preserve Observation Origin",
+          "type": "boolean"
+        },
+        "trace_contract_version": {
+          "const": "0.1.0",
+          "default": "0.1.0",
+          "title": "Trace Contract Version",
+          "type": "string"
+        }
+      },
+      "title": "ReplayAdapterConfig",
+      "type": "object"
+    },
+    "SourceRef": {
+      "additionalProperties": false,
+      "properties": {
+        "revision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Revision"
+        },
+        "role": {
+          "minLength": 1,
+          "title": "Role",
+          "type": "string"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha256"
+        },
+        "uri": {
+          "minLength": 1,
+          "title": "Uri",
+          "type": "string"
+        }
+      },
+      "required": [
+        "uri",
+        "role"
+      ],
+      "title": "SourceRef",
+      "type": "object"
+    },
+    "ValidityEnvelopeEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "enum": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "boolean"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enum"
+        },
+        "maximum": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Maximum"
+        },
+        "minimum": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Minimum"
+        },
+        "subject_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_./:-]{0,191}$",
+          "title": "Subject Id",
+          "type": "string"
+        },
+        "subject_kind": {
+          "enum": [
+            "input",
+            "parameter",
+            "condition"
+          ],
+          "title": "Subject Kind",
+          "type": "string"
+        },
+        "unit": {
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        },
+        "value_type": {
+          "enum": [
+            "number",
+            "integer",
+            "boolean",
+            "string",
+            "material_state",
+            "sample_state"
+          ],
+          "title": "Value Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "subject_kind",
+        "subject_id",
+        "value_type",
+        "unit"
+      ],
+      "title": "ValidityEnvelopeEntry",
+      "type": "object"
+    },
+    "Vec3": {
+      "additionalProperties": false,
+      "properties": {
+        "x": {
+          "title": "X",
+          "type": "number"
+        },
+        "y": {
+          "title": "Y",
+          "type": "number"
+        },
+        "z": {
+          "title": "Z",
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "z"
+      ],
+      "title": "Vec3",
+      "type": "object"
+    },
+    "Workstation": {
+      "additionalProperties": false,
+      "properties": {
+        "bounds_m": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Vec3"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "facility_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Facility Id",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "local_frame": {
+          "$ref": "#/$defs/Pose"
+        },
+        "member_asset_ids": {
+          "items": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Member Asset Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "facility_id",
+        "member_asset_ids"
+      ],
+      "title": "Workstation",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Complete, versioned facility IR document.",
+  "properties": {
+    "adapter_bindings": {
+      "items": {
+        "$ref": "#/$defs/AdapterBinding"
+      },
+      "minItems": 1,
+      "title": "Adapter Bindings",
+      "type": "array"
+    },
+    "agents": {
+      "items": {
+        "$ref": "#/$defs/Agent"
+      },
+      "title": "Agents",
+      "type": "array"
+    },
+    "assets": {
+      "items": {
+        "$ref": "#/$defs/Asset"
+      },
+      "minItems": 1,
+      "title": "Assets",
+      "type": "array"
+    },
+    "calibration_evidence": {
+      "items": {
+        "$ref": "#/$defs/CalibrationEvidence"
+      },
+      "title": "Calibration Evidence",
+      "type": "array"
+    },
+    "capabilities": {
+      "items": {
+        "$ref": "#/$defs/FacilityCapability"
+      },
+      "minItems": 1,
+      "title": "Capabilities",
+      "type": "array"
+    },
+    "constraints": {
+      "items": {
+        "$ref": "#/$defs/Constraint"
+      },
+      "title": "Constraints",
+      "type": "array"
+    },
+    "devices": {
+      "items": {
+        "$ref": "#/$defs/Device"
+      },
+      "title": "Devices",
+      "type": "array"
+    },
+    "document_type": {
+      "const": "dynamical.facility",
+      "default": "dynamical.facility",
+      "title": "Document Type",
+      "type": "string"
+    },
+    "facility": {
+      "$ref": "#/$defs/Facility"
+    },
+    "material_states": {
+      "items": {
+        "$ref": "#/$defs/MaterialState"
+      },
+      "title": "Material States",
+      "type": "array"
+    },
+    "model_bindings": {
+      "items": {
+        "$ref": "#/$defs/ModelBinding"
+      },
+      "title": "Model Bindings",
+      "type": "array"
+    },
+    "provider_admission_bindings": {
+      "items": {
+        "$ref": "#/$defs/FacilityProviderBinding"
+      },
+      "title": "Provider Admission Bindings",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "workstations": {
+      "items": {
+        "$ref": "#/$defs/Workstation"
+      },
+      "minItems": 1,
+      "title": "Workstations",
+      "type": "array"
+    }
+  },
+  "required": [
+    "facility",
+    "workstations",
+    "assets",
+    "capabilities",
+    "adapter_bindings"
+  ],
+  "title": "FacilityDocument",
+  "type": "object"
+}

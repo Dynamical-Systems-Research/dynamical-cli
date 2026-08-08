@@ -1,0 +1,34 @@
+{
+  "name": "dynamical",
+  "version": "0.1.0",
+  "description": "Compile and validate objective-driven virtual laboratory campaigns with Dynamical.",
+  "author": {
+    "name": "Dynamical Systems Research",
+    "url": "https://github.com/Dynamical-Systems-Research"
+  },
+  "homepage": "https://github.com/Dynamical-Systems-Research/dynamical-cli",
+  "repository": "https://github.com/Dynamical-Systems-Research/dynamical-cli",
+  "license": "Apache-2.0",
+  "keywords": [
+    "dynamical",
+    "scientific-agents",
+    "virtual-laboratories",
+    "research"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Dynamical",
+    "shortDescription": "Compile and validate virtual laboratory campaigns",
+    "longDescription": "Use Dynamical to inspect admitted scientific capabilities, compose objective-driven campaigns, compile provider artifacts, run simulation or replay, and validate evidence.",
+    "developerName": "Dynamical Systems Research",
+    "category": "Research",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Use Dynamical to compile and validate this research campaign."
+    ]
+  }
+}

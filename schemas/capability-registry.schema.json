@@ -1,0 +1,660 @@
+{
+  "$defs": {
+    "Capability": {
+      "additionalProperties": false,
+      "description": "Provider-independent scientific operation in the module registry.",
+      "properties": {
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "input_ports": {
+          "items": {
+            "$ref": "#/$defs/StatePort"
+          },
+          "title": "Input Ports",
+          "type": "array"
+        },
+        "kind": {
+          "default": "scientific",
+          "enum": [
+            "scientific",
+            "transport"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "operation_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "output_ports": {
+          "items": {
+            "$ref": "#/$defs/StatePort"
+          },
+          "title": "Output Ports",
+          "type": "array"
+        },
+        "parameters": {
+          "items": {
+            "$ref": "#/$defs/CapabilityParameter"
+          },
+          "title": "Parameters",
+          "type": "array"
+        },
+        "possible_failures": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Possible Failures",
+          "type": "array"
+        },
+        "required_conditions": {
+          "items": {
+            "$ref": "#/$defs/StatePort"
+          },
+          "title": "Required Conditions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "operation_id",
+        "description"
+      ],
+      "title": "Capability",
+      "type": "object"
+    },
+    "CapabilityParameter": {
+      "additionalProperties": false,
+      "properties": {
+        "enum": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "boolean"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enum"
+        },
+        "maximum": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Maximum"
+        },
+        "minimum": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Minimum"
+        },
+        "name": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Name",
+          "type": "string"
+        },
+        "required": {
+          "default": true,
+          "title": "Required",
+          "type": "boolean"
+        },
+        "unit": {
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        },
+        "value_type": {
+          "enum": [
+            "number",
+            "integer",
+            "boolean",
+            "string"
+          ],
+          "title": "Value Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "value_type",
+        "unit"
+      ],
+      "title": "CapabilityParameter",
+      "type": "object"
+    },
+    "CapabilityProvider": {
+      "additionalProperties": false,
+      "description": "One independently admitted way to execute a scientific capability.",
+      "properties": {
+        "adapter_links": {
+          "items": {
+            "$ref": "#/$defs/ProviderAdapterLink"
+          },
+          "minItems": 1,
+          "title": "Adapter Links",
+          "type": "array"
+        },
+        "admission": {
+          "$ref": "#/$defs/ProviderAdmission"
+        },
+        "availability": {
+          "$ref": "#/$defs/ProviderAvailability"
+        },
+        "cost": {
+          "$ref": "#/$defs/ProviderCost"
+        },
+        "duration": {
+          "$ref": "#/$defs/ProviderDuration"
+        },
+        "endpoint_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Endpoint Id",
+          "type": "string"
+        },
+        "evidence_class": {
+          "enum": [
+            "simulator",
+            "calibrated_twin",
+            "shadow",
+            "physical"
+          ],
+          "title": "Evidence Class",
+          "type": "string"
+        },
+        "facility_ids": {
+          "items": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Facility Ids",
+          "type": "array"
+        },
+        "failures": {
+          "items": {
+            "$ref": "#/$defs/FailureMode"
+          },
+          "title": "Failures",
+          "type": "array"
+        },
+        "operation_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "policy": {
+          "$ref": "#/$defs/ProviderPolicy"
+        },
+        "provider_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Provider Id",
+          "type": "string"
+        },
+        "validity_envelope": {
+          "items": {
+            "$ref": "#/$defs/ValidityEnvelopeEntry"
+          },
+          "title": "Validity Envelope",
+          "type": "array"
+        }
+      },
+      "required": [
+        "provider_id",
+        "operation_id",
+        "evidence_class",
+        "endpoint_id",
+        "facility_ids",
+        "availability",
+        "admission",
+        "cost",
+        "duration",
+        "policy",
+        "adapter_links"
+      ],
+      "title": "CapabilityProvider",
+      "type": "object"
+    },
+    "FailureMode": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Code",
+          "type": "string"
+        },
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "recoverable": {
+          "title": "Recoverable",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "code",
+        "description",
+        "recoverable"
+      ],
+      "title": "FailureMode",
+      "type": "object"
+    },
+    "ProviderAdapterLink": {
+      "additionalProperties": false,
+      "properties": {
+        "adapter_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Adapter Id",
+          "type": "string"
+        },
+        "adapter_version": {
+          "minLength": 1,
+          "title": "Adapter Version",
+          "type": "string"
+        },
+        "endpoint_ref": {
+          "minLength": 1,
+          "title": "Endpoint Ref",
+          "type": "string"
+        },
+        "implementation_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Implementation Sha256"
+        }
+      },
+      "required": [
+        "adapter_id",
+        "adapter_version",
+        "endpoint_ref"
+      ],
+      "title": "ProviderAdapterLink",
+      "type": "object"
+    },
+    "ProviderAdmission": {
+      "additionalProperties": false,
+      "properties": {
+        "authority_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Authority Id",
+          "type": "string"
+        },
+        "authority_kind": {
+          "enum": [
+            "release_authority",
+            "independent_verifier",
+            "facility_operator"
+          ],
+          "title": "Authority Kind",
+          "type": "string"
+        },
+        "evidence_refs": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Refs",
+          "type": "array"
+        },
+        "status": {
+          "enum": [
+            "admitted",
+            "rejected",
+            "pending"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "authority_id",
+        "authority_kind"
+      ],
+      "title": "ProviderAdmission",
+      "type": "object"
+    },
+    "ProviderAvailability": {
+      "additionalProperties": false,
+      "properties": {
+        "availability_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Availability Ref"
+        },
+        "available": {
+          "title": "Available",
+          "type": "boolean"
+        },
+        "observed_at": {
+          "minLength": 1,
+          "title": "Observed At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "available",
+        "observed_at"
+      ],
+      "title": "ProviderAvailability",
+      "type": "object"
+    },
+    "ProviderCost": {
+      "additionalProperties": false,
+      "properties": {
+        "currency": {
+          "const": "USD",
+          "default": "USD",
+          "title": "Currency",
+          "type": "string"
+        },
+        "fixed": {
+          "minimum": 0.0,
+          "title": "Fixed",
+          "type": "number"
+        }
+      },
+      "required": [
+        "fixed"
+      ],
+      "title": "ProviderCost",
+      "type": "object"
+    },
+    "ProviderDuration": {
+      "additionalProperties": false,
+      "properties": {
+        "maximum_s": {
+          "minimum": 0.0,
+          "title": "Maximum S",
+          "type": "number"
+        },
+        "minimum_s": {
+          "minimum": 0.0,
+          "title": "Minimum S",
+          "type": "number"
+        },
+        "typical_s": {
+          "minimum": 0.0,
+          "title": "Typical S",
+          "type": "number"
+        }
+      },
+      "required": [
+        "minimum_s",
+        "typical_s",
+        "maximum_s"
+      ],
+      "title": "ProviderDuration",
+      "type": "object"
+    },
+    "ProviderPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "permitted": {
+          "title": "Permitted",
+          "type": "boolean"
+        },
+        "policy_tags": {
+          "items": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+            "type": "string"
+          },
+          "title": "Policy Tags",
+          "type": "array"
+        },
+        "required_approval_ids": {
+          "items": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+            "type": "string"
+          },
+          "title": "Required Approval Ids",
+          "type": "array"
+        },
+        "safety_limit_ids": {
+          "items": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+            "type": "string"
+          },
+          "title": "Safety Limit Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "permitted"
+      ],
+      "title": "ProviderPolicy",
+      "type": "object"
+    },
+    "StatePort": {
+      "additionalProperties": false,
+      "description": "Typed state consumed or produced by one scientific operation.",
+      "properties": {
+        "description": {
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_./:-]{0,191}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "required": {
+          "default": true,
+          "title": "Required",
+          "type": "boolean"
+        },
+        "state_type": {
+          "enum": [
+            "number",
+            "integer",
+            "boolean",
+            "string",
+            "material_state",
+            "sample_state"
+          ],
+          "title": "State Type",
+          "type": "string"
+        },
+        "unit": {
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "state_type",
+        "unit",
+        "description"
+      ],
+      "title": "StatePort",
+      "type": "object"
+    },
+    "ValidityEnvelopeEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "enum": {
+          "anyOf": [
+            {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "boolean"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enum"
+        },
+        "maximum": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Maximum"
+        },
+        "minimum": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Minimum"
+        },
+        "subject_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_./:-]{0,191}$",
+          "title": "Subject Id",
+          "type": "string"
+        },
+        "subject_kind": {
+          "enum": [
+            "input",
+            "parameter",
+            "condition"
+          ],
+          "title": "Subject Kind",
+          "type": "string"
+        },
+        "unit": {
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        },
+        "value_type": {
+          "enum": [
+            "number",
+            "integer",
+            "boolean",
+            "string",
+            "material_state",
+            "sample_state"
+          ],
+          "title": "Value Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "subject_kind",
+        "subject_id",
+        "value_type",
+        "unit"
+      ],
+      "title": "ValidityEnvelopeEntry",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "capabilities": {
+      "items": {
+        "$ref": "#/$defs/Capability"
+      },
+      "minItems": 1,
+      "title": "Capabilities",
+      "type": "array"
+    },
+    "document_type": {
+      "const": "dynamical.capability-registry",
+      "default": "dynamical.capability-registry",
+      "title": "Document Type",
+      "type": "string"
+    },
+    "providers": {
+      "items": {
+        "$ref": "#/$defs/CapabilityProvider"
+      },
+      "title": "Providers",
+      "type": "array"
+    },
+    "registry_id": {
+      "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+      "title": "Registry Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "registry_id",
+    "capabilities"
+  ],
+  "title": "CapabilityRegistry",
+  "type": "object"
+}

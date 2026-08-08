@@ -1,0 +1,28 @@
+.DS_Store
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+
+# Public upstream repositories and local runtime environments are inputs, not vendored release files.
+external/
+runtime/work/
+tmp/
+
+# Raw source downloads have no confirmed redistribution license. Keep provenance and derived data only.
+data/raw/
+docs/sources/43588_2025_924_MOESM1_ESM.pdf
+docs/sources/43588_2025_924_MOESM4_ESM.zip
+docs/sources/43588_2025_924_MOESM5_ESM.zip
+docs/sources/matterix-arxiv-2601.13232v1.pdf
+docs/sources/zenodo-17095671.json
+# User-supplied Cloud-Bench poster has no confirmed publication permission.
+docs/sources/cloud-bench-reference.jpg
+
+# Compiled worlds, traces, receipts, images, and videos stay local.
+artifacts/
+evals/

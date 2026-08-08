@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      CODEX_VALIDATOR_REF: 936f5eb3ee223ab34dcb221fa7c5f9943c8092bd
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.10.12"
+
+      - name: Check lock file
+        run: uv lock --check
+
+      - name: Install development dependencies
+        run: uv sync --locked --extra dev
+
+      - name: Check source and tests
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+          uv run pytest
+
+      - name: Validate skill and plugin
+        run: |
+          validator_dir="$RUNNER_TEMP/codex-validator"
+          git init --quiet "$validator_dir"
+          git -C "$validator_dir" remote add origin https://github.com/openai/codex.git
+          git -C "$validator_dir" sparse-checkout init --cone
+          git -C "$validator_dir" sparse-checkout set \
+            codex-rs/skills/src/assets/samples/skill-creator/scripts \
+            codex-rs/skills/src/assets/samples/plugin-creator/scripts
+          git -C "$validator_dir" fetch --quiet --depth=1 origin "$CODEX_VALIDATOR_REF"
+          git -C "$validator_dir" checkout --quiet --detach FETCH_HEAD
+          uv run python \
+            "$validator_dir/codex-rs/skills/src/assets/samples/skill-creator/scripts/quick_validate.py" \
+            skills/dynamical
+          uv run python \
+            "$validator_dir/codex-rs/skills/src/assets/samples/plugin-creator/scripts/validate_plugin.py" \
+            .
+          uv run python -m json.tool .agents/plugins/marketplace.json >/dev/null
+
+      - name: Build and smoke-test the wheel
+        run: |
+          wheel_dir="$RUNNER_TEMP/wheelhouse"
+          smoke_venv="$RUNNER_TEMP/smoke-venv"
+          uv build --wheel --out-dir "$wheel_dir"
+          uv venv --python 3.11 "$smoke_venv"
+          uv pip install --python "$smoke_venv/bin/python" "$wheel_dir"/*.whl
+          cd "$RUNNER_TEMP"
+          "$smoke_venv/bin/dynamical" --version
+          "$smoke_venv/bin/dynamical" capabilities --json >capabilities.json
+          "$smoke_venv/bin/dynamical" compose --schema >composition-schema.json
+          "$smoke_venv/bin/python" -m json.tool capabilities.json >/dev/null
+          "$smoke_venv/bin/python" -m json.tool composition-schema.json >/dev/null

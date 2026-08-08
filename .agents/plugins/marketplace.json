@@ -1,0 +1,20 @@
+{
+  "name": "dynamical-systems-research",
+  "interface": {
+    "displayName": "Dynamical Systems Research"
+  },
+  "plugins": [
+    {
+      "name": "dynamical",
+      "source": {
+        "source": "local",
+        "path": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Research"
+    }
+  ]
+}

@@ -1,0 +1,387 @@
+{
+  "$defs": {
+    "CampaignInput": {
+      "additionalProperties": false,
+      "properties": {
+        "facility_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Facility Id"
+        },
+        "id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_./:-]{0,191}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "state_type": {
+          "enum": [
+            "number",
+            "integer",
+            "boolean",
+            "string",
+            "material_state",
+            "sample_state"
+          ],
+          "title": "State Type",
+          "type": "string"
+        },
+        "unit": {
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": [
+        "id",
+        "state_type",
+        "unit"
+      ],
+      "title": "CampaignInput",
+      "type": "object"
+    },
+    "CampaignStepRequirement": {
+      "additionalProperties": false,
+      "properties": {
+        "depends_on": {
+          "items": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+            "type": "string"
+          },
+          "title": "Depends On",
+          "type": "array"
+        },
+        "input_bindings": {
+          "items": {
+            "$ref": "#/$defs/StateInputBinding"
+          },
+          "title": "Input Bindings",
+          "type": "array"
+        },
+        "minimum_evidence_class": {
+          "default": "simulator",
+          "enum": [
+            "simulator",
+            "calibrated_twin",
+            "shadow",
+            "physical"
+          ],
+          "title": "Minimum Evidence Class",
+          "type": "string"
+        },
+        "operation_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "parameters": {
+          "items": {
+            "$ref": "#/$defs/RequestedParameter"
+          },
+          "title": "Parameters",
+          "type": "array"
+        },
+        "required_policy_tags": {
+          "items": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+            "type": "string"
+          },
+          "title": "Required Policy Tags",
+          "type": "array"
+        },
+        "step_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Step Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "step_id",
+        "operation_id"
+      ],
+      "title": "CampaignStepRequirement",
+      "type": "object"
+    },
+    "EngineeringObjective": {
+      "additionalProperties": false,
+      "properties": {
+        "decision": {
+          "minLength": 1,
+          "title": "Decision",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "proof_requirements": {
+          "items": {
+            "$ref": "#/$defs/ProofRequirement"
+          },
+          "minItems": 1,
+          "title": "Proof Requirements",
+          "type": "array"
+        },
+        "statement": {
+          "minLength": 1,
+          "title": "Statement",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "statement",
+        "decision",
+        "proof_requirements"
+      ],
+      "title": "EngineeringObjective",
+      "type": "object"
+    },
+    "ProofRequirement": {
+      "additionalProperties": false,
+      "properties": {
+        "acceptance_rule": {
+          "minLength": 1,
+          "title": "Acceptance Rule",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "independent_verification_required": {
+          "const": true,
+          "default": true,
+          "title": "Independent Verification Required",
+          "type": "boolean"
+        },
+        "minimum_evidence_class": {
+          "enum": [
+            "simulator",
+            "calibrated_twin",
+            "shadow",
+            "physical"
+          ],
+          "title": "Minimum Evidence Class",
+          "type": "string"
+        },
+        "operation_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "output_port_ids": {
+          "items": {
+            "pattern": "^[A-Za-z][A-Za-z0-9_./:-]{0,191}$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Output Port Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "operation_id",
+        "output_port_ids",
+        "minimum_evidence_class",
+        "acceptance_rule"
+      ],
+      "title": "ProofRequirement",
+      "type": "object"
+    },
+    "RequestedParameter": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+          "title": "Name",
+          "type": "string"
+        },
+        "unit": {
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "boolean"
+            }
+          ],
+          "title": "Value"
+        },
+        "value_type": {
+          "enum": [
+            "number",
+            "integer",
+            "boolean",
+            "string"
+          ],
+          "title": "Value Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "value_type",
+        "unit",
+        "value"
+      ],
+      "title": "RequestedParameter",
+      "type": "object"
+    },
+    "StateInputBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "source_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_./:-]{0,191}$",
+          "title": "Source Id",
+          "type": "string"
+        },
+        "source_kind": {
+          "enum": [
+            "campaign_input",
+            "step_output"
+          ],
+          "title": "Source Kind",
+          "type": "string"
+        },
+        "source_port_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z][A-Za-z0-9_./:-]{0,191}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Port Id"
+        },
+        "target_port_id": {
+          "pattern": "^[A-Za-z][A-Za-z0-9_./:-]{0,191}$",
+          "title": "Target Port Id",
+          "type": "string"
+        },
+        "transport_operation_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Transport Operation Id"
+        }
+      },
+      "required": [
+        "target_port_id",
+        "source_kind",
+        "source_id"
+      ],
+      "title": "StateInputBinding",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "document_type": {
+      "const": "dynamical.campaign-requirement",
+      "default": "dynamical.campaign-requirement",
+      "title": "Document Type",
+      "type": "string"
+    },
+    "inputs": {
+      "items": {
+        "$ref": "#/$defs/CampaignInput"
+      },
+      "title": "Inputs",
+      "type": "array"
+    },
+    "max_cost_usd": {
+      "minimum": 0.0,
+      "title": "Max Cost Usd",
+      "type": "number"
+    },
+    "max_duration_s": {
+      "minimum": 0.0,
+      "title": "Max Duration S",
+      "type": "number"
+    },
+    "objective": {
+      "$ref": "#/$defs/EngineeringObjective"
+    },
+    "requirement_id": {
+      "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+      "title": "Requirement Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "0.1.0",
+      "default": "0.1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "steps": {
+      "items": {
+        "$ref": "#/$defs/CampaignStepRequirement"
+      },
+      "minItems": 1,
+      "title": "Steps",
+      "type": "array"
+    }
+  },
+  "required": [
+    "requirement_id",
+    "objective",
+    "steps",
+    "max_cost_usd",
+    "max_duration_s"
+  ],
+  "title": "CampaignRequirement",
+  "type": "object"
+}
