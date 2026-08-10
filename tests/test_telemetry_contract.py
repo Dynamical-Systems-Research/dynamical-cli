@@ -44,26 +44,21 @@ def _constraint(
     }
 
 
-def _six_step_contract() -> CompiledCampaignContract:
-    """A hand-built contract mirroring the real AC electrodeposition six-step
-    campaign (``registries/electrodeposition-capabilities.yaml`` +
-    ``manifests/ac-electrodeposition-cell.yaml``): dispense -> transfer ->
-    condition -> transfer -> deposit -> measure, using the real registered
-    instrument models and the real declared parameter units and constraint
-    bounds. Built directly (as ``_deposit_ordering_contract``/``_transfer_contract`` in
-    test_campaign_contract.py do) rather than through composition, so the
-    telemetry contract can be exercised deterministically and completely.
+def _coverage_contract() -> CompiledCampaignContract:
+    """A hand-built multi-instrument contract that exercises the telemetry
+    contract deterministically: it uses the real registered instrument models
+    and the real declared parameter units and constraint bounds across a
+    representative instrument sequence, built directly (as
+    ``_deposit_ordering_contract``/``_transfer_contract`` in
+    test_campaign_contract.py do) rather than through composition. The step
+    order is harness-selected coverage, not a recommended experiment.
 
-    One addition beyond the real registry: the first transfer step declares a
-    ``sample_id`` parameter so ``transfer-sample`` materializes a sample
-    instead of erroring for lack of one. The real six-step
-    CampaignRequirement (tests/test_electrodeposition_registry.py) does not
-    supply this -- see the Task 13 report for why that stops the actual
-    acceptance campaign at the first transfer, a separate, already-existing
-    gap this fixture works around only for telemetry-contract testing.
+    The first transfer step declares a ``sample_id`` parameter so
+    ``transfer-sample`` materializes a sample instead of erroring for lack of
+    one; this is a fixture convenience for exercising the telemetry mechanism.
     """
 
-    digest = stable_hash({"test": "telemetry-six-step"})
+    digest = stable_hash({"test": "telemetry-coverage"})
 
     dispense_capability = _capability(
         "dispense-electrolyte",
@@ -363,7 +358,7 @@ def _six_step_contract() -> CompiledCampaignContract:
 @pytest.fixture
 def completed_trace_path(tmp_path: Path) -> Path:
     output = tmp_path / "telemetry-run.ndjson"
-    events, _ = run_composed_campaign(_six_step_contract(), output, seed=11)
+    events, _ = run_composed_campaign(_coverage_contract(), output, seed=11)
     assert events[-1].provenance["execution_status"] == "passed", events[-1].provenance["reasons"]
     return output
 

@@ -872,15 +872,15 @@ def compiled_electrodeposition_world(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def compiled_electrodeposition_coverage_world(tmp_path: Path) -> Path:
-    """The full six-step nickel electrodeposition campaign (dispense, transfer,
-    condition, transfer, deposit, measure), composed and compiled for the
-    ``isaac`` target -- the campaign the release's central claim ("one sample
-    moves through three workstations by explicit transfer actions") is about,
-    and the one a live Kit run needs to actually prove it on this backend.
+    """A synthetic multi-instrument coverage campaign compiled for the ``isaac``
+    target -- one sample moving across workstations by explicit transfer
+    actions, exercising the mechanisms a live Kit run must prove: composition,
+    multi-instrument execution, and continuous sample lineage. The step order
+    and parameters are harness-selected coverage, not a recommended experiment.
 
     Reuses ``test_electrodeposition_registry``'s own ``_coverage_requirement``
     (imported locally, not duplicated) so there is exactly one definition of
-    this campaign to drift out of sync.
+    this fixture campaign to drift out of sync.
     """
 
     import test_electrodeposition_registry as coverage
@@ -895,7 +895,7 @@ def compiled_electrodeposition_coverage_world(tmp_path: Path) -> Path:
     result = compile_facility(
         coverage.MANIFEST,
         "isaac",
-        tmp_path / "isaac-six-step-world",
+        tmp_path / "isaac-coverage-world",
         composition_result=composition,
     )
     return result.output_dir

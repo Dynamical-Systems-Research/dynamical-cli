@@ -573,8 +573,12 @@ def test_composed_runtime_uses_selected_provider_graph(tmp_path: Path) -> None:
     )
     assert condition_action["parameters"] == {"duration_s": 60.0, "setpoint_percent": 80.0}
     assert condition_action["provider_id"] == "ac-arduino-simulator"
-    assert campaign["provider_bindings"]["condition"]["provider_id"] == "ac-arduino-simulator"
-    assert campaign["provider_bindings"]["transfer"]["provider_id"] == "ac-transfer-simulator"
+    # provider_bindings is keyed by action_id (not action kind): look each action's
+    # binding up by its own action_id.
+    bindings = campaign["provider_bindings"]
+    assert set(bindings) == {action["action_id"] for action in campaign["actions"]}
+    for action in campaign["actions"]:
+        assert bindings[action["action_id"]]["provider_id"] == action["provider_id"]
     runtime = _load_runtime_contract(output)
     verified = runtime.verify_compiled_pack(output)
     runtime.validate_action(campaign["actions"][0], verified)

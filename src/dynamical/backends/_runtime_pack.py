@@ -490,15 +490,11 @@ def runtime_campaign(
     ordered = _ordered_bindings(bindings, edges)
 
     facility_bindings = runtime_capability_bindings(document, operation_bindings=bindings)
-    provider_bindings: dict[str, dict[str, Any]] = {
-        binding["action_type"]: {
-            "capability_id": binding["capability_id"],
-            "endpoint_id": binding["endpoint_id"],
-            "provider_id": binding["provider_id"],
-            "evidence_class": binding["evidence_class"],
-        }
-        for binding in facility_bindings
-    }
+    # Keyed by action_id, not action_type: a campaign may repeat an action kind
+    # across steps that select different providers or carry different parameter
+    # contracts, and each action must validate against its own compiled binding
+    # rather than whichever same-kind step was compiled last.
+    provider_bindings: dict[str, dict[str, Any]] = {}
     action_types_by_operation: dict[str, set[str]] = {}
     for binding in facility_bindings:
         action_types_by_operation.setdefault(binding["operation_id"], set()).add(
@@ -609,7 +605,7 @@ def runtime_campaign(
             if isinstance(capability_contract, dict)
             else []
         )
-        provider_bindings[kind] = {
+        provider_bindings[action_id] = {
             "binding_scope": "virtual_sdl",
             "endpoint_id": endpoint_id,
             "provider_id": provider_id,

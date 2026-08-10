@@ -206,13 +206,12 @@ def test_4b_unlicensed_source_is_refused_by_id() -> None:
 
 @pytest.fixture
 def physical_requirement(tmp_path: Path) -> Path:
-    """The six-step nickel electrodeposition campaign -- the release's central claim
-    campaign, not the minimal two-step reference requirement -- projected onto the
-    physical route: every step raised to ``minimum_evidence_class: physical`` and
-    tagged ``physical-run-required``, mirroring ``scripts/reproduce-v0.1.sh``'s own
-    physical-route projection. No physical provider is admitted for this facility by
-    design (``test_electrodeposition_registry.py::test_every_physical_provider_stays_unadmitted``),
-    so composing this must HOLD.
+    """A multi-instrument coverage campaign projected onto the physical route:
+    every step raised to ``minimum_evidence_class: physical`` and tagged
+    ``physical-run-required``. No physical provider is admitted for this facility
+    by design (see ``test_every_physical_provider_stays_unadmitted``), so
+    composing this must HOLD -- the authority gate, not any fixed campaign, is
+    what this exercises.
     """
     import test_electrodeposition_registry as coverage
 

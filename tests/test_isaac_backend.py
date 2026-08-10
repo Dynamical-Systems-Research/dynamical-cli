@@ -77,25 +77,24 @@ def test_live_run_composes_the_facility_and_writes_a_trace(
 def test_live_kit_run_of_coverage_campaign_has_zero_lineage_findings(
     tmp_path, compiled_electrodeposition_coverage_world
 ):
-    """The release's central claim, proved on the execution backend it actually
-    ships with: a live Isaac Sim Kit run of the full six-step campaign (dispense,
-    transfer, condition, transfer, deposit, measure) produces a trace with zero
-    sample-lineage findings and a clean run of every action and constraint --
-    Isaac's own runtime completion. Isaac Sim has no chemistry model, so it
-    cannot honestly report the campaign's required OER overpotential
-    measurement (see repair-2 defect 1): runtime completion is not proof
-    completion, so ``squidstat.overpotential_v`` stays unavailable and both the
-    raw trace's own validation and embodied replay must refuse to call this
-    campaign's proof requirement satisfied, even though every action ran and
-    every constraint passed.
+    """Multi-instrument execution and lineage, proved on the execution backend
+    the product ships with: a live Isaac Sim Kit run of a coverage campaign
+    (one sample crossing workstations by explicit transfers) produces a trace
+    with zero sample-lineage findings and a clean run of every action and
+    constraint -- Isaac's own runtime completion. Isaac Sim has no chemistry
+    model, so it cannot report the campaign's required OER overpotential
+    measurement: runtime completion is not proof completion, so
+    ``squidstat.overpotential_v`` stays unavailable and both the raw trace's own
+    validation and embodied replay must refuse to call the proof requirement
+    satisfied, even though every action ran and every constraint passed.
 
     Slow: Kit boot plus a real 600 s / 72,000-step deposition (~2.5 minutes wall
     clock, measured). Runs only when Isaac Sim is installed (``requires_isaac``
-    above) -- deliberately not part of the default fast suite. The non-Kit half of
-    this same claim (the compiled campaign's own lineage data, which is what a live
-    run would replay against) is proved unconditionally by
+    above) -- deliberately not part of the default fast suite. The non-Kit half
+    (the compiled campaign's own lineage data, which is what a live run would
+    replay against) is proved unconditionally by
     ``test_coverage_campaign_compiles_for_isaac_with_zero_lineage_findings`` below,
-    so CI keeps real coverage of this even where Isaac Sim is never installed.
+    so CI keeps real coverage even where Isaac Sim is never installed.
     """
     from dynamical.campaign import CampaignValidationError, validate_path
     from dynamical.replay import replay_trace
@@ -244,7 +243,7 @@ def _compile_coverage_isaac(
 
 
 def _compile_coverage_isaac_with_narrowed_current_envelope(tmp_path: Path) -> Path:
-    """The same compiled six-step isaac world, except ``current-envelope``'s own
+    """The same compiled coverage isaac world, except ``current-envelope``'s own
     declared bound is narrowed below the campaign's real ``current_a`` (0.002827 A).
 
     Models a facility whose own safety interlock is tighter than the
@@ -252,7 +251,7 @@ def _compile_coverage_isaac_with_narrowed_current_envelope(tmp_path: Path) -> Pa
     a hack: the registry provider's admitted ``validity_envelope`` (what
     composition and ``compile_facility``'s facility-binding cross-check both
     enforce) is untouched, so this reaches ``COMPILED``/compiles exactly like
-    the unmodified six-step campaign. Only the facility's own runtime
+    the unmodified coverage campaign. Only the facility's own runtime
     constraint -- the one Isaac evaluates pre-action -- is tightened, so the
     otherwise-valid ``deposit`` action now violates it.
     """
@@ -357,7 +356,7 @@ def test_live_kit_run_rejects_the_deposit_action_before_executing_an_unsafe_curr
 
 
 def test_coverage_campaign_compiles_for_isaac_with_zero_lineage_findings(tmp_path):
-    """Non-Kit companion to the live-Kit six-step test above, and the direct isaac-path
+    """Non-Kit companion to the live-Kit coverage test above, and the direct isaac-path
     analog of ``test_electrodeposition_registry.py``'s
     ``test_one_sample_moves_through_three_workstations_by_explicit_transfer`` /
     ``test_coverage_campaign_compiles_and_runs_with_zero_lineage_findings``: one

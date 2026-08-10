@@ -3,10 +3,20 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.mypy_cache/
 .ruff_cache/
+.coverage
+htmlcov/
 *.egg-info/
 build/
 dist/
+node_modules/
+
+# Intermediate ASCII-USD from CAD conversion is large and never a release artifact;
+# only the compact derived .usdc layers under assets/usd/ are tracked. This guard
+# keeps a converter run from re-committing the hundreds of MB of .usda that the
+# release history was squashed to remove.
+*.usda
 
 # Public upstream repositories and local runtime environments are inputs, not vendored release files.
 external/

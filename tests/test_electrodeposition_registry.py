@@ -296,7 +296,7 @@ def _coverage_requirement(
 
 
 def test_one_sample_moves_through_three_workstations_by_explicit_transfer():
-    """The release's central claim: one sample crosses three workstations via explicit
+    """Sample lineage across explicit transfers: one sample crosses three workstations via
     ``transfer-sample`` steps (not the implicit cross-facility transport gate, which stays
     inactive for this single-facility manifest). ``transfer-sample`` has ``kind: transport``;
     composition must admit it as an ordinary step, subject to the same provider, envelope,
@@ -392,8 +392,8 @@ def _run_coverage_campaign(
 
 
 def test_coverage_campaign_compiles_and_runs_with_zero_lineage_findings(tmp_path: Path):
-    """Fix round 1 verification (positive direction): compose -> compile -> run -> validate
-    the release's central claim end to end. One sample honestly threads through three
+    """Lineage continuity end to end (positive direction): compose -> compile -> run ->
+    validate a multi-instrument coverage campaign. One sample honestly threads through three
     workstations (dispense at ot2-liquid-handling, condition at arduino-conditioning,
     deposit/measure at squidstat-echem) via instrument endpoints whose own ids
     (``ac-opentron-model``, ``ac-oer-model``, ...) never equal any workstation id. A run
@@ -452,6 +452,52 @@ def test_tampered_instrument_module_fails_closed_on_declared_hash(
     assert result["execution_status"] == "failed"
     assert result["valid"] is False
     assert any(reason["code"] == "MODEL_IMPLEMENTATION_MISMATCH" for reason in result["reasons"])
+
+
+def test_repeated_action_kinds_each_get_their_own_provider_binding(tmp_path: Path):
+    """Provider bindings are keyed by action_id, not action kind. The coverage
+    campaign has four ``transfer-sample`` steps (kind ``transfer``); each must
+    have its own compiled binding, and every action must validate against its
+    own binding -- not against whichever same-kind step compiled last."""
+
+    import importlib.util
+    import json as json_module
+
+    registry = load_capability_registry(REGISTRY)
+    composition = compose_virtual_sdl(_coverage_requirement(), registry)
+    assert composition.status == "COMPILED", composition.reason_codes
+    compiled = compile_facility(
+        MANIFEST, "isaac", tmp_path / "isaac", composition_result=composition
+    ).output_dir
+
+    campaign = json_module.loads((compiled / "runtime_campaign.json").read_text(encoding="utf-8"))
+    bindings = campaign["provider_bindings"]
+    action_ids = [a["action_id"] for a in campaign["actions"]]
+    transfer_ids = [a["action_id"] for a in campaign["actions"] if a["kind"] == "transfer"]
+
+    # One binding per action, not one collapsed entry per kind.
+    assert len(transfer_ids) >= 4, transfer_ids
+    assert set(bindings) == set(action_ids)
+    assert all(tid in bindings for tid in transfer_ids)
+    assert "transfer" not in bindings  # the old kind-keyed collapse is gone
+
+    # Every action validates against the verified pack via its own binding.
+    spec = importlib.util.spec_from_file_location(
+        "_rt_p1", compiled / "dynamical_runtime_contract.py"
+    )
+    runtime = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runtime)
+    pack = runtime.verify_compiled_pack(compiled)
+    for action in campaign["actions"]:
+        runtime.validate_action(action, pack)  # must not raise
+
+    # A malformed (unhashable) action_id fails through the runtime contract's
+    # normal path (the pack's own RuntimeContractError), not a raw TypeError on
+    # the binding lookup.
+    malformed = dict(campaign["actions"][0])
+    malformed["action_id"] = ["not", "a", "string"]
+    with pytest.raises(runtime.RuntimeContractError):
+        runtime.validate_action(malformed, pack)
 
 
 def test_cross_surface_identity_binds_one_composition_everywhere(tmp_path: Path):

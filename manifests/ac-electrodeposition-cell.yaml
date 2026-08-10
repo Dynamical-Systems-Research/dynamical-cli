@@ -1750,17 +1750,6 @@ asset_sources:
   derived_from_source_id: sources/ac-sdl1/platinum_electrode v46.step
   conversion_tool: tools/cad_to_usd.py (cascadio==0.1.1, trimesh==5.0.0, OpenUSD 26.05)
   conversion_tolerance: 0.05,0.5
-- id: sources/echem-cell/Version.5.wo.Block.US.zip
-  retrieval_uri: https://raw.githubusercontent.com/AccelerationConsortium/echem-cell/9b063f80a1166475b3249709f4fd3afdb3dadb5d/Version.5.wo.Block.US.zip
-  sha256: 5d38b33f8ebb744ca744b62da14b1adabd5fddb49f0ebd96e0e0b2c9cb7032ac
-  admission: admitted
-  authority_id: dynamical-v0.1-release-authority
-  spdx_id: MIT
-  license_evidence: 'echem-cell LICENSE (root of repo at commit 9b063f80a1166475b3249709f4fd3afdb3dadb5d):
-    ''MIT License / Copyright (c) 2025 Sterling G. Baird'''
-  conflict_notes: []
-  revision: 9b063f80a1166475b3249709f4fd3afdb3dadb5d
-  retrieved_at: '2026-08-09'
 - id: sources/echem-cell/Cap Body v5 3.3.stl
   retrieval_uri: https://raw.githubusercontent.com/AccelerationConsortium/echem-cell/9b063f80a1166475b3249709f4fd3afdb3dadb5d/Cap%20Body%20v5%203.3.stl
   sha256: f63f0a9a6671ad1eec118cf06c66b3b8b5f1e59121852e5dcb8c88a51bc14002
@@ -1820,6 +1809,7 @@ asset_sources:
   license_evidence: 'echem-cell LICENSE (root of repo at commit 9b063f80a1166475b3249709f4fd3afdb3dadb5d):
     ''MIT License / Copyright (c) 2025 Sterling G. Baird'''
   conflict_notes:
+  - 'source archive (sha256 5d38b33f8ebb744ca744b62da14b1adabd5fddb49f0ebd96e0e0b2c9cb7032ac) at https://raw.githubusercontent.com/AccelerationConsortium/echem-cell/9b063f80a1166475b3249709f4fd3afdb3dadb5d/Version.5.wo.Block.US.zip is recorded provenance, not vendored: only its extracted STL members are tracked, to avoid shipping duplicate bytes.'
   - 'echem-cell distributes this same body as two zips at commit 9b063f80a1166475b3249709f4fd3afdb3dadb5d:
     Version.5.wo.Block.US.zip -> ''Main Body v5 wo Block 2.3 US.stl'' (vendored here) and Version.5.wo.Block.EU.zip
     -> ''Main Body v5 wo Block 2.3 EU.stl''. The two STL members are byte-identical (sha256 96824637a4acbd118fe5e5040f0cec5b2dbf777b2e42d34fab8855207870d7a6

@@ -84,17 +84,6 @@ License: MIT.
 The raw dataset (1.5 GB) is not redistributed here; the calibration evidence
 records its source URL, retrieval hashes, and extraction procedure.
 
-## MATTERIX
-
-[MATTERIX](https://github.com/AccelerationConsortium/Matterix) supplied
-upstream tasks, scientific semantics, and an embodied simulation backend for
-the v0.1 heater workstation demonstration, and its separate
-[Matterix assets repository](https://github.com/AccelerationConsortium/Matterix_assets)
-supplied laboratory asset files. No explicit asset-redistribution license was
-found, so Dynamical did not vendor those files. The MATTERIX backend has since
-been retired in favor of Isaac Sim as the embodied execution target; this
-credit stays regardless.
-
 ## Non-endorsement
 
 No endorsement is implied by the Acceleration Consortium, the Technical

@@ -321,6 +321,13 @@ def check_invariants(events: Sequence[TraceEvent]) -> list[RuntimeReason]:
                     )
 
             samples = apply_transition(samples, transition)
+            # Keep station occupancy synchronized with custody: a departing
+            # sample vacates its source station, so a later action there is not
+            # falsely attributed to a sample that has moved on. Clear the source
+            # before recording the destination so a same-station transfer still
+            # leaves the sample resident.
+            if station_occupant.get(transition.from_station) == transition.sample_id:
+                del station_occupant[transition.from_station]
             if transition.arrival_confirmed:
                 station_occupant[transition.to_station] = transition.sample_id
             continue
@@ -365,6 +372,10 @@ def check_invariants(events: Sequence[TraceEvent]) -> list[RuntimeReason]:
                 samples = establish_origin(
                     samples, sample_id=sample_id, station_id=action.station_id, step_id=step_id
                 )
+                # Record the sample as occupying the station where it originated,
+                # so a subsequent sample-free action there is attribution-checked
+                # rather than evadable by dropping sample_id after the origin.
+                station_occupant[action.station_id] = sample_id
         elif sample.station_id != action.station_id or sample.custody_state != "held":
             reasons.append(
                 RuntimeReason(
