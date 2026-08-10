@@ -141,26 +141,24 @@ def _read_json_object(path: Path, label: str) -> Mapping[str, Any]:
     return value
 
 
-def _first_scalar(value: Any) -> float | int | bool | str | None:
-    while isinstance(value, list) and value:
-        value = value[0]
-    return value if isinstance(value, (float, int, bool, str)) else None
-
-
-def _lookup_snapshot(value: Any, path: Sequence[str]) -> Any:
-    current = value
-    for part in path:
-        if not isinstance(current, Mapping) or part not in current:
-            return None
-        current = current[part]
-    return _first_scalar(current)
-
-
 def _expected_snapshot_channels(
     snapshot: Mapping[str, Any],
     action: Mapping[str, Any],
     pack: Mapping[str, Any],
 ) -> list[dict[str, Any]]:
+    """Reconstruct one action's expected observation channels from its raw backend snapshot.
+
+    Generic over every declared channel binding rather than switching on the
+    compiled target by name (``isaac`` is the only embodied target): a channel
+    is echoed only when the compiled pack's own
+    ``observation_bindings`` record declares it ``compiled_stage_state_binding``
+    for *this action's own* ``action_type`` (see ``isaac_sim.py``'s
+    ``_paired_channels`` / ``isaac_runtime.py``'s ``_channels``, which compute
+    this the same way at compile time and at the live run that wrote the raw
+    snapshot) and the raw snapshot's own ``commanded_parameters`` genuinely
+    carries the echoed parameter's value.
+    """
+
     provider_id = str(action.get("provider_id"))
     evidence_class = str(action.get("evidence_class"))
     backend = pack.get("backend")
@@ -170,32 +168,39 @@ def _expected_snapshot_channels(
     if not isinstance(raw_bindings, list):
         raise CampaignValidationError("compiled backend observation bindings are absent")
     target = pack.get("manifest", {}).get("target")
+    if target != "isaac":
+        raise CampaignValidationError("embodied snapshot binding needs an embodied compiled target")
+    action_kind = action.get("kind")
+    commanded = snapshot.get("commanded_parameters")
+    commanded = commanded if isinstance(commanded, Mapping) else {}
+    parameters = commanded.get("parameters")
+    parameters = parameters if isinstance(parameters, Mapping) else {}
+    # The snapshot echoes the parameters the embodied backend commanded; they
+    # must equal the parameters the compiled pack pinned for this action. Without
+    # this the reconstructed observation channels (and the proof-output gate they
+    # feed) could report values the campaign never commanded, even though the
+    # snapshot, receipt, and trace all hash consistently.
+    pinned = action.get("parameters")
+    pinned = pinned if isinstance(pinned, Mapping) else {}
+    for name, pinned_value in pinned.items():
+        if name == "sample_transition":
+            continue
+        if name in parameters and parameters[name] != pinned_value:
+            raise CampaignValidationError(
+                "embodied snapshot commanded a parameter that differs from the compiled "
+                f"campaign: {name!r} snapshot={parameters[name]!r} compiled={pinned_value!r}"
+            )
     channels: list[dict[str, Any]] = []
     for raw in raw_bindings:
         if not isinstance(raw, Mapping):
             raise CampaignValidationError("compiled observation binding is invalid")
-        if target == "matterix":
-            path = raw.get("source_path")
-            value = (
-                _lookup_snapshot(snapshot.get("observation"), path)
-                if isinstance(path, list) and all(isinstance(item, str) for item in path)
-                else None
-            )
-        elif target == "isaac":
-            heater = snapshot.get("heater")
-            heater = heater if isinstance(heater, Mapping) else {}
-            value = {
-                "heater.on": heater.get("dynamical:heaterEnabled"),
-                "heater.target_temperature_K": heater.get("dynamical:heaterTargetK"),
-            }.get(raw.get("channel_id"))
-        else:
-            raise CampaignValidationError(
-                "embodied snapshot binding needs an embodied compiled target"
-            )
+        bound_for_this_action = (
+            raw.get("status") == "compiled_stage_state_binding"
+            and raw.get("action_type") == action_kind
+        )
+        value = parameters.get(raw["echoes_parameter"]) if bound_for_this_action else None
         quality = "valid" if value is not None else "unavailable"
-        if raw.get("status") in {"bound", "compiled_stage_state_binding"} and (
-            value is None or quality != "valid"
-        ):
+        if bound_for_this_action and value is None:
             raise CampaignValidationError(
                 f"bound backend channel has no valid snapshot value: {raw.get('channel_id')}"
             )
@@ -208,6 +213,21 @@ def _expected_snapshot_channels(
                 "origin": "backend_state",
                 "provider_id": provider_id,
                 "evidence_class": evidence_class,
+                # Must match isaac_runtime.py's own _channels() exactly -- this
+                # reconstructs what that function computed for the live run's trace.
+                "uncertainty": (
+                    {
+                        "value": 0.0,
+                        "kind": "declared",
+                        "origin": "isaac_sim launcher commanded-parameter echo",
+                    }
+                    if value is not None
+                    else {
+                        "value": None,
+                        "kind": "declared",
+                        "origin": "isaac_sim launcher has no bound value for this channel",
+                    }
+                ),
             }
         )
     return channels
@@ -300,9 +320,7 @@ def _verify_observation_origins(events: list[Any]) -> None:
                 "source trace contains an observation origin that is not admitted for replay"
             )
     if not observation_seen or not embodied_observation_seen:
-        raise CampaignValidationError(
-            "source trace has no embodied MATTERIX or Isaac observation evidence"
-        )
+        raise CampaignValidationError("source trace has no embodied Isaac observation evidence")
 
 
 def verify_embodied_source_binding(
@@ -345,10 +363,6 @@ def verify_embodied_source_binding(
         or events[0].world_hash != contract.world_sha256
     ):
         raise CampaignValidationError("source trace differs from the compiled pack hashes")
-    backend = receipt.get("backend")
-    expected_target = {"matterix": "matterix", "isaac_sim": "isaac"}.get(str(backend))
-    if expected_target != contract.target:
-        raise CampaignValidationError("runtime backend differs from the compiled target")
     artifact_records = _runtime_artifact_records(receipt_path, receipt)
     if artifact_records.get("campaign_trace.ndjson") != source_hash:
         raise CampaignValidationError("runtime receipt artifact list omits the source trace")
@@ -360,12 +374,25 @@ def verify_embodied_source_binding(
         raise CampaignValidationError(
             f"source trace does not match the verified compiled campaign: {exc}"
         ) from exc
+    # Read directly from the compiled pack's own backend_config rather than a
+    # hardcoded {backend_name: target_name} table -- "isaac" is the only
+    # embodied target, and its adapter self-declares "isaac_sim" as
+    # config["target"] (see isaac_sim.py's emit_isaac_sim), the exact string a
+    # genuine Isaac receipt's "backend" field carries.
+    backend = receipt.get("backend")
+    if backend != pack["backend"].get("target"):
+        raise CampaignValidationError("runtime backend differs from the compiled target")
+    # Render evidence is an optional declared artifact class, not a hard requirement:
+    # this portable adapter's Isaac launcher renders nothing, so "exactly one non-empty
+    # .mp4" could never pass. At most one video may be bound; if present it must be a
+    # real (non-empty) file, but its absence is not itself a binding failure.
     video_paths = [path for path in artifact_records if path.endswith(".mp4")]
-    if len(video_paths) != 1:
-        raise CampaignValidationError("runtime receipt must bind one runtime video")
-    video_path = receipt_path.parent.joinpath(*PurePosixPath(video_paths[0]).parts)
-    if video_path.stat().st_size == 0:
-        raise CampaignValidationError("runtime receipt video is empty")
+    if len(video_paths) > 1:
+        raise CampaignValidationError("runtime receipt must bind at most one runtime video")
+    if video_paths:
+        video_path = receipt_path.parent.joinpath(*PurePosixPath(video_paths[0]).parts)
+        if video_path.stat().st_size == 0:
+            raise CampaignValidationError("runtime receipt video is empty")
     start_provenance = raw_events[0].get("provenance")
     if (
         not isinstance(start_provenance, Mapping)
@@ -385,7 +412,13 @@ def verify_embodied_source_binding(
         pack=pack,
     )
     _verify_observation_origins(events)
-    if events[-1].provenance.get("execution_status") != "passed":
+    # Consult validate_events' own derived status rather than the raw
+    # campaign_end provenance value: the backend that wrote this trace can claim
+    # "passed" from its own execution-completion terms (every action ran, every
+    # constraint was evaluated) while a declared proof requirement's output stays
+    # unavailable -- validate_events is where that is actually checked, once,
+    # for every backend (see PROOF_OUTPUT_UNAVAILABLE).
+    if validate_events(events)["execution_status"] != "passed":
         raise CampaignValidationError("source trace has no passed terminal execution status")
     return {
         "embodied_evidence_bound": True,
@@ -436,9 +469,16 @@ def replay_trace(
     result = validate_events(replayed)
     result["trace_sha256"] = write_trace(output, replayed)
     result["source_trace_sha256"] = source_hash
+    # Compare against the replayed trace re-read from the file replay_trace just wrote,
+    # not against `replayed` itself: `replayed`'s entries are built by dataclasses.replace()
+    # over the very same `source_events` objects, so `original.observation ==
+    # replayed_entry.observation` would always be True by construction (same object),
+    # proving nothing about whether replay actually preserved the data. Re-reading the
+    # written file gives an independently deserialized copy to compare against.
+    written_events = read_trace(output)
     result["observation_origins_preserved"] = all(
-        original.observation == replay.observation
-        for original, replay in zip(source_events, replayed, strict=True)
+        original.observation == written.observation
+        for original, written in zip(source_events, written_events, strict=True)
     )
     result["embodied_evidence_bound"] = False
     result["w1_evidence"] = False

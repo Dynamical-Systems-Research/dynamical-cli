@@ -13,9 +13,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-MATTERIX_COMMIT = "3a55f3b2384b8e2bf0adcb83c5219cebbf1a4e56"
-MATTERIX_ASSETS_COMMIT = "0d856a0572d3e0823204264fd3d2700e15a43f4b"
-
 
 class BackendError(ValueError):
     """Raised when a validated facility cannot be mapped to a target."""
@@ -79,10 +76,6 @@ def emit_backend(
 
     normalized = target.lower().replace("-", "_")
     destination = Path(output_dir)
-    if normalized == "matterix":
-        from .matterix import emit_matterix
-
-        return emit_matterix(document, destination, ir_hash=ir_hash, stage_path=stage_path)
     if normalized in {"isaac", "isaac_sim"}:
         from .isaac_sim import emit_isaac_sim
 

@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from collections.abc import Sequence
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as _package_version
 from importlib.resources import files
 from pathlib import Path
 
@@ -14,18 +17,25 @@ from pydantic import ValidationError
 from .compiler import compile_facility, validate_path
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-PACKAGED_REGISTRY = Path(str(files("dynamical").joinpath("data/reference-capabilities.yaml")))
-PACKAGED_FACILITY = Path(str(files("dynamical").joinpath("data/matterix-heater-workstation.yaml")))
+PACKAGED_REGISTRY = Path(
+    str(files("dynamical").joinpath("data/electrodeposition-capabilities.yaml"))
+)
+PACKAGED_FACILITY = Path(str(files("dynamical").joinpath("data/ac-electrodeposition-cell.yaml")))
 DEFAULT_REGISTRY = (
     PACKAGED_REGISTRY
     if PACKAGED_REGISTRY.is_file()
-    else REPOSITORY_ROOT / "registries" / "reference-capabilities.yaml"
+    else REPOSITORY_ROOT / "registries" / "electrodeposition-capabilities.yaml"
 )
 DEFAULT_FACILITY = (
     PACKAGED_FACILITY
     if PACKAGED_FACILITY.is_file()
-    else REPOSITORY_ROOT / "manifests" / "matterix-heater-workstation.yaml"
+    else REPOSITORY_ROOT / "manifests" / "ac-electrodeposition-cell.yaml"
 )
+
+try:
+    _VERSION = _package_version("dynamical")
+except PackageNotFoundError:
+    _VERSION = "0+unknown"
 
 
 def _print_json(value: object, *, compact: bool = False) -> None:
@@ -53,7 +63,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="dynamical",
         description="Discover, compose, compile, run, and validate facility operations.",
     )
-    parser.add_argument("--version", action="version", version="dynamical 0.1.0")
+    parser.add_argument("--version", action="version", version=f"dynamical {_VERSION}")
     commands = parser.add_subparsers(dest="command", required=True)
 
     capabilities_parser = commands.add_parser(
@@ -71,6 +81,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="return one operation and its admitted provider candidates",
     )
     capabilities_parser.add_argument("--json", action="store_true", dest="as_json")
+    capabilities_parser.add_argument(
+        "--registry",
+        type=Path,
+        default=DEFAULT_REGISTRY,
+        help="capability registry to inspect (default: the installed registry)",
+    )
 
     compile_parser = commands.add_parser(
         "compile",
@@ -79,7 +95,7 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     compile_parser.add_argument("input", type=Path)
-    compile_parser.add_argument("--target", choices=("matterix", "isaac", "openusd"))
+    compile_parser.add_argument("--target", choices=("isaac", "openusd"))
     compile_parser.add_argument("-o", "--output", type=Path)
 
     compose_parser = commands.add_parser(
@@ -127,6 +143,18 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="print the campaign requirement JSON Schema and exit",
     )
+    compose_parser.add_argument(
+        "--registry",
+        type=Path,
+        default=DEFAULT_REGISTRY,
+        help="capability registry to compose against (default: the installed registry)",
+    )
+    compose_parser.add_argument(
+        "--facility",
+        type=Path,
+        default=DEFAULT_FACILITY,
+        help="facility manifest to compose against (default: the installed facility)",
+    )
 
     run_parser = commands.add_parser(
         "run",
@@ -173,10 +201,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         if args.command == "capabilities":
-            from .schema import canonical_sha256, load_capability_registry
+            from .schema import load_capability_registry
 
-            registry = load_capability_registry(DEFAULT_REGISTRY)
-            registry_identity_payload = registry.model_dump(mode="json")
+            registry = load_capability_registry(args.registry)
             registry_payload = registry.model_dump(mode="json", exclude_none=True)
             if args.operation is not None:
                 selected_capabilities = [
@@ -195,7 +222,6 @@ def main(argv: Sequence[str] | None = None) -> int:
                 result = {
                     "schema_version": "dynamical.capability-detail.v1",
                     "registry_id": registry.registry_id,
-                    "registry_sha256": canonical_sha256(registry_identity_payload),
                     "operation": selected_capabilities[0],
                     "providers": [
                         item
@@ -212,12 +238,15 @@ def main(argv: Sequence[str] | None = None) -> int:
                             "evidence_class": provider["evidence_class"],
                             "admission": provider["admission"]["status"],
                             "available": provider["availability"]["available"],
+                            "policy": provider["policy"],
+                            "cost": provider["cost"],
+                            "duration": provider["duration"],
+                            "validity_envelope": provider["validity_envelope"],
                         }
                     )
                 result = {
                     "schema_version": "dynamical.capability-index.v1",
                     "registry_id": registry.registry_id,
-                    "registry_sha256": canonical_sha256(registry_identity_payload),
                     "operations": [
                         {
                             "operation_id": capability["operation_id"],
@@ -227,17 +256,25 @@ def main(argv: Sequence[str] | None = None) -> int:
                         for capability in registry_payload["capabilities"]
                     ],
                 }
+            # The hash covers exactly the bytes this command emits in --json mode
+            # (this dict, compact and key-sorted) so a consumer can recompute it
+            # from the printed output alone; it must be the last key added.
+            result["registry_sha256"] = hashlib.sha256(
+                json.dumps(result, sort_keys=True, separators=(",", ":")).encode()
+            ).hexdigest()
             if args.as_json:
                 _print_json(result, compact=True)
             else:
                 print(f"Registry: {registry.registry_id}")
-                for capability in sorted(registry.capabilities, key=lambda item: item.operation_id):
-                    providers = sorted(
-                        provider.provider_id
-                        for provider in registry.providers
-                        if provider.operation_id == capability.operation_id
-                    )
-                    print(f"- {capability.operation_id}: {', '.join(providers) or 'no provider'}")
+                if args.operation is not None:
+                    providers = sorted(item["provider_id"] for item in result["providers"])
+                    operation_id = result["operation"]["operation_id"]
+                    print(f"- {operation_id}: {', '.join(providers) or 'no provider'}")
+                else:
+                    for operation in result["operations"]:
+                        providers = sorted(item["provider_id"] for item in operation["providers"])
+                        operation_id = operation["operation_id"]
+                        print(f"- {operation_id}: {', '.join(providers) or 'no provider'}")
             return 0
         if args.command == "compile":
             if not args.input.exists():
@@ -247,32 +284,61 @@ def main(argv: Sequence[str] | None = None) -> int:
             if saved is not None:
                 if saved.sources is None:
                     raise ValueError("saved composition has no protected source snapshots")
-                from .composition import validate_composition_sources
+                from .composition import (
+                    authority_hold_reasons,
+                    demote_untrusted_admissions,
+                    validate_composition_sources,
+                )
                 from .schema import load_capability_registry, load_facility_manifest
 
-                authority_registry = load_capability_registry(DEFAULT_REGISTRY)
-                authority_facility = load_facility_manifest(DEFAULT_FACILITY)
+                # The authority anchor is always the packaged/installed bundle --
+                # never a CLI-suppliable path. The saved composition's protected
+                # sources may subset the installed records and re-pose topology,
+                # but every authority-bearing record they carry must be identical
+                # to the installed one; anything unknown or modified is a
+                # proposal and holds here.
+                installed_registry = load_capability_registry(DEFAULT_REGISTRY)
+                installed_facility = load_facility_manifest(DEFAULT_FACILITY)
+                hold_reasons = authority_hold_reasons(
+                    saved.sources.registry,
+                    saved.sources.facility,
+                    installed_registry,
+                    installed_facility,
+                )
+                demoted_registry, demotion_reasons = demote_untrusted_admissions(
+                    saved.sources.registry, installed_registry
+                )
+                hold_reasons = [*hold_reasons, *demotion_reasons]
+                if hold_reasons:
+                    _print_json(
+                        {
+                            "status": "HOLD",
+                            "reason_codes": sorted({item.code for item in hold_reasons}),
+                            "reasons": [
+                                item.model_dump(mode="json", exclude_none=True)
+                                for item in hold_reasons
+                            ],
+                        },
+                        compact=args.output is not None,
+                    )
+                    return 1
                 try:
                     composition = validate_composition_sources(
                         saved,
                         saved.sources.requirement,
-                        authority_registry,
+                        demoted_registry,
                     )
                 except ValueError as exc:
                     raise ValueError(
                         f"composition differs from installed authority: {exc}"
                     ) from exc
-                if saved.sources.registry != authority_registry:
-                    raise ValueError("composition registry differs from installed authority")
-                if saved.sources.facility != authority_facility:
-                    raise ValueError("composition facility differs from installed authority")
                 if composition.status == "HOLD":
                     _print_json(
                         composition.model_dump(mode="json", exclude_none=True),
                         compact=args.output is not None,
                     )
                     return 1
-                facility_manifest = authority_facility
+                facility_manifest = saved.sources.facility
                 target = args.target or saved.sources.default_target
             else:
                 if args.target is None:
@@ -316,8 +382,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             return 0
         if args.command == "compose":
-            from .composition import compose_files, write_composition_result
-            from .schema import CampaignRequirement
+            from .composition import (
+                authority_hold_reasons,
+                compose_files,
+                demote_untrusted_admissions,
+                write_composition_result,
+            )
+            from .schema import (
+                CampaignRequirement,
+                load_capability_registry,
+                load_facility_manifest,
+            )
 
             if args.schema:
                 if args.requirement is not None or args.output is not None:
@@ -335,7 +410,54 @@ def main(argv: Sequence[str] | None = None) -> int:
             if not args.requirement.is_file():
                 raise ValueError(f"campaign requirement does not exist: {args.requirement}")
 
-            result = compose_files(args.requirement, DEFAULT_REGISTRY, DEFAULT_FACILITY)
+            # Proposing a candidate --registry is legitimate; granting it authority is
+            # not. installed_registry is always the packaged/installed one (never the
+            # agent-suppliable path above), so an admitted claim only survives compose
+            # when the installed authority independently confirms it -- see
+            # demote_untrusted_admissions. That demotion is computed a second time
+            # here, purely for display: compose_files bakes it into the composed
+            # registry so the saved result stays exactly reproducible from its own
+            # protected sources, which leaves no room in that result to also explain
+            # *why* a provider was demoted -- so this CLI-only receipt field is the
+            # one place PROVIDER_SELF_ADMITTED is legible to the agent.
+            installed_registry = load_capability_registry(DEFAULT_REGISTRY)
+            supplied_registry = load_capability_registry(args.registry)
+            # Modified or unknown authority-bearing records are proposals, not
+            # authorities: they hold here with typed reasons before anything is
+            # composed against them. Provider admission claims are handled by
+            # demotion below instead, so a proposal registry can still compose
+            # through the providers the installed authority confirms.
+            authority_reasons = authority_hold_reasons(
+                supplied_registry,
+                load_facility_manifest(args.facility),
+                installed_registry,
+                load_facility_manifest(DEFAULT_FACILITY),
+            )
+            if authority_reasons:
+                _print_json(
+                    {
+                        "status": "HOLD",
+                        "reason_codes": sorted({item.code for item in authority_reasons}),
+                        "reasons": [
+                            item.model_dump(mode="json", exclude_none=True)
+                            for item in authority_reasons
+                        ],
+                    },
+                    compact=args.output is not None,
+                )
+                return 1
+            _, self_admission_reasons = demote_untrusted_admissions(
+                supplied_registry, installed_registry
+            )
+            result = compose_files(
+                args.requirement,
+                args.registry,
+                args.facility,
+                installed_registry=installed_registry,
+            )
+            untrusted_admissions = [
+                item.model_dump(mode="json", exclude_none=True) for item in self_admission_reasons
+            ]
             if args.output is not None:
                 write_composition_result(args.output, result)
                 receipt = {
@@ -360,11 +482,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                         else []
                     ),
                 }
+                if untrusted_admissions:
+                    receipt["untrusted_admissions"] = untrusted_admissions
                 if result.status == "COMPILED":
                     receipt["next_command"] = f"dynamical compile {args.output} -o compiled-world"
                 _print_json(receipt, compact=True)
             else:
-                _print_json(result.model_dump(mode="json", exclude_none=True))
+                payload = result.model_dump(mode="json", exclude_none=True)
+                if untrusted_admissions:
+                    payload["untrusted_admissions"] = untrusted_admissions
+                _print_json(payload)
             return 0 if result.status == "COMPILED" else 1
         if args.command == "run":
             from .campaign import run_cli

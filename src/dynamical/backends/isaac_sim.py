@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +13,7 @@ from ._runtime_pack import (
     runtime_campaign,
     runtime_role_assets,
     selected_operation_bindings,
+    selected_proof_requirements,
 )
 from .base import (
     BackendArtifact,
@@ -102,28 +104,207 @@ def _isaac_physics_layer(document: Any) -> str:
     return "\n".join(lines)
 
 
+_SUBLAYERS_BLOCK_RE = re.compile(r"(?P<prefix>subLayers\s*=\s*)\[(?P<body>.*?)\]", re.DOTALL)
+_LAYER_TOKEN_RE = re.compile(r"@[^@]*@")
+
+
 def _inject_physics_layer(root_path: Path) -> None:
+    """Prepend the isaac physics overlay to root.usda's declared sublayer list.
+
+    Parses the ``subLayers = [ ... ]`` array by its real tokens (each
+    ``@path@`` asset-path reference), not by matching ``root_layer()``'s
+    exact current whitespace/indentation, so a reformatting of that function
+    cannot silently turn this into a no-op.
+    """
+
     text = root_path.read_text(encoding="utf-8")
-    marker = "    subLayers = [\n"
-    entry = "        @./isaac_physics.usda@,\n"
-    if entry in text:
-        return
-    if marker not in text:
+    match = _SUBLAYERS_BLOCK_RE.search(text)
+    if match is None:
         raise ValueError("compiled root stage has no sublayer list")
-    root_path.write_text(text.replace(marker, marker + entry, 1), encoding="utf-8")
+    entry = "@./isaac_physics.usda@"
+    layers = _LAYER_TOKEN_RE.findall(match.group("body"))
+    if not layers:
+        raise ValueError("compiled root stage sublayer list is empty")
+    if entry in layers:
+        return
+    layers.insert(0, entry)
+    rendered = ",\n".join(f"        {layer}" for layer in layers)
+    new_block = f"{match.group('prefix')}[\n{rendered}\n    ]"
+    root_path.write_text(text[: match.start()] + new_block + text[match.end() :], encoding="utf-8")
 
 
-def _channel_units(document: Any) -> dict[str, str]:
-    result: dict[str, str] = {}
+def _record_channel(
+    bindings: dict[str, dict[str, str | None]],
+    channel_id: str,
+    unit: str,
+    device_asset_id: str | None,
+) -> None:
+    existing = bindings.get(channel_id)
+    if existing is None:
+        bindings[channel_id] = {"unit": unit, "device_asset_id": device_asset_id}
+        return
+    if existing["unit"] != unit:
+        # Fail closed rather than silently keep whichever declaration was seen
+        # first.
+        raise ValueError(
+            f"channel {channel_id!r} is declared with conflicting units: "
+            f"{existing['unit']!r} and {unit!r}"
+        )
+    if existing["device_asset_id"] is None and device_asset_id is not None:
+        existing["device_asset_id"] = device_asset_id
+
+
+def _channel_bindings(document: Any) -> dict[str, dict[str, str | None]]:
+    """Map each declared channel id to its unit and the asset of the device that owns it.
+
+    A material-state channel (no owning device) keeps ``device_asset_id`` as
+    ``None``, so it can never be classified as backend-state-bound below.
+    """
+
+    bindings: dict[str, dict[str, str | None]] = {}
     for device in records(document, "devices"):
+        asset_id = str(device.get("asset_id") or "") or None
         for channel in device.get("state_channels", []):
             if isinstance(channel, dict) and channel.get("id"):
-                result[str(channel["id"])] = str(channel.get("unit", "1"))
+                _record_channel(
+                    bindings, str(channel["id"]), str(channel.get("unit", "1")), asset_id
+                )
     for material in records(document, "material_states"):
         for channel in material.get("initial_channels", []):
             if isinstance(channel, dict) and channel.get("channel_id"):
-                result[str(channel["channel_id"])] = str(channel.get("unit", "1"))
-    return result
+                _record_channel(
+                    bindings, str(channel["channel_id"]), str(channel.get("unit", "1")), None
+                )
+    return bindings
+
+
+def _channel_owner_index(document: Any) -> dict[str, list[dict[str, Any]]]:
+    """Map each declared channel id to every capability whose
+    ``observation_channel_ids`` names it.
+
+    A channel can be shared: e.g. ``squidstat.current_density_a_cm2`` is both
+    an ``electrodeposit`` output (a late entry in its channel list) and the
+    ``measure`` capability's own sole, primary requested value. A list (not
+    "first one wins") lets ``_observation_binding`` find whichever owner, if
+    any, actually treats this channel as its primary echoed value.
+    """
+
+    index: dict[str, list[dict[str, Any]]] = {}
+    for capability in records(document, "capabilities"):
+        for channel_id in capability.get("observation_channel_ids", []) or []:
+            index.setdefault(str(channel_id), []).append(capability)
+    return index
+
+
+def _always_present_parameter_names(
+    campaign_actions: list[dict[str, Any]], action_type: str
+) -> set[str]:
+    """Parameter names guaranteed present on every compiled action of ``action_type``.
+
+    A compiled campaign's actions are already fully resolved -- fixed concrete
+    parameter values, not a runtime-variable schema -- so this is knowable
+    exactly, not merely hoped for: it is the intersection of parameter names
+    (with non-null values) actually carried by every one of this specific
+    compiled campaign's own instances of ``action_type`` (there can be more
+    than one, e.g. two ``transfer`` steps with different parameter sets).
+    """
+
+    instances = [
+        action["parameters"]
+        for action in campaign_actions
+        if action.get("kind") == action_type and isinstance(action.get("parameters"), dict)
+    ]
+    if not instances:
+        return set()
+    present = {name for name, value in instances[0].items() if value is not None}
+    for parameters in instances[1:]:
+        present &= {name for name, value in parameters.items() if value is not None}
+    return present
+
+
+def _paired_channels(
+    capability: dict[str, Any], always_present_parameters: set[str]
+) -> dict[str, str]:
+    """Map a capability's declared observation channels to the requested
+    parameter each one can honestly echo from Isaac's compiled world.
+
+    Isaac has no domain model for this facility's chemistry (dispensed/applied
+    volume, deposited mass, overpotential, ...), so it cannot honestly report
+    most declared state_channels. What it does know, deterministically, every
+    time an action executes, is the parameters the compiled campaign commanded
+    it with. Which channel echoes which parameter is read straight from the
+    capability's own declared ``echoed_parameter_bindings`` (schema.py's
+    ``FacilityCapability``) -- not inferred by pairing ``observation_channel_ids``
+    and ``parameters`` by list position, which silently binds the wrong value
+    the moment either list is reordered or a capability gains a second
+    same-typed parameter. Only a binding whose named parameter is in
+    ``always_present_parameters`` (this specific compiled campaign's own
+    instances of this action all supply it) is honoured: a schema-optional
+    parameter this particular campaign happens not to always supply stays
+    unavailable rather than promising a "bound" channel that could go missing
+    on some action instance.
+    """
+
+    bindings = capability.get("echoed_parameter_bindings") or {}
+    return {
+        str(channel_id): str(name)
+        for channel_id, name in bindings.items()
+        if name in always_present_parameters
+    }
+
+
+def _observation_binding(
+    channel_id: str,
+    binding: dict[str, str | None],
+    owners: list[dict[str, Any]],
+    bound_action_types: set[str],
+    campaign_actions: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """One declared channel's compiled observation-binding record.
+
+    A channel can be listed by more than one capability (see
+    ``_channel_owner_index``); ``status`` is ``compiled_stage_state_binding``
+    only when at least one of those capabilities pairs this channel with a
+    parameter this compiled campaign always supplies for that action (see
+    ``_paired_channels`` / ``_always_present_parameter_names``) *and* that
+    capability's action_type is one this composition actually selected
+    (``bound_action_types``, i.e. it appears in ``role_prim_paths``) -- the
+    one case a live Isaac run can honestly promise a real value for, every
+    time that capability's own action executes. A sibling capability that
+    merely shares a device with a selected one (e.g. ``aliquot`` sharing
+    ``ot2-device`` with a selected ``dispense``) is not itself selected, so
+    its channel is not marked bound either. Every other channel stays
+    ``runtime_unavailable_until_task_binding``.
+    """
+
+    paired_owner = None
+    echoes_parameter = None
+    for owner in owners:
+        action_type = owner.get("action_type")
+        if action_type not in bound_action_types:
+            continue
+        always_present = _always_present_parameter_names(campaign_actions, action_type)
+        pairs = _paired_channels(owner, always_present)
+        if channel_id in pairs:
+            paired_owner = owner
+            echoes_parameter = pairs[channel_id]
+            break
+    action_type = (
+        paired_owner.get("action_type")
+        if paired_owner is not None
+        else (owners[0].get("action_type") if owners else None)
+    )
+    return {
+        "channel_id": channel_id,
+        "unit": binding["unit"],
+        "action_type": action_type,
+        "echoes_parameter": echoes_parameter,
+        "status": (
+            "compiled_stage_state_binding"
+            if paired_owner is not None
+            else "runtime_unavailable_until_task_binding"
+        ),
+    }
 
 
 def emit_isaac_sim(
@@ -137,14 +318,16 @@ def emit_isaac_sim(
 
     assets = sorted(records(document, "assets"), key=record_id)
     capabilities = sorted(records(document, "capabilities"), key=record_id)
-    channel_units = _channel_units(document)
-    channels = sorted(channel_units)
+    channel_bindings = _channel_bindings(document)
+    channels = sorted(channel_bindings)
+    channel_owners = _channel_owner_index(document)
     operation_bindings = selected_operation_bindings(output_dir)
     campaign = runtime_campaign(
         document,
         target="isaac",
         ir_hash=ir_hash,
         operation_bindings=operation_bindings,
+        proof_requirements=selected_proof_requirements(output_dir),
     )
     runtime_ready = campaign["execution_status"] == "requires_external_runtime_gate"
     raw_document = (
@@ -157,6 +340,7 @@ def emit_isaac_sim(
         isinstance(facility, dict) and facility.get("authoring_basis") == "representative"
     )
     role_assets = runtime_role_assets(document, operation_bindings=operation_bindings)
+    bound_action_types = set(role_assets)
     asset_paths = {record_id(asset): _asset_prim_path(asset) for asset in assets}
     config = {
         "schema_version": "dynamical.isaac-sim-target.v1",
@@ -198,22 +382,18 @@ def emit_isaac_sim(
                     "portable_fixed_joint_binding"
                     if capability.get("action_type") in {"pick", "place"}
                     else "compiled_stage_state_binding"
-                    if capability.get("action_type") in {"set_heater", "wait", "observe"}
-                    else "not_executable_in_portable_adapter"
                 ),
             }
             for capability in capabilities
         ],
         "observation_bindings": [
-            {
-                "channel_id": channel_id,
-                "unit": channel_units[channel_id],
-                "status": (
-                    "compiled_stage_state_binding"
-                    if channel_id in {"heater.on", "heater.target_temperature_K"}
-                    else "runtime_unavailable_until_task_binding"
-                ),
-            }
+            _observation_binding(
+                channel_id,
+                channel_bindings[channel_id],
+                channel_owners.get(channel_id, []),
+                bound_action_types,
+                campaign["actions"],
+            )
             for channel_id in channels
         ],
         "runtime_status": "ready_for_external_runtime_gate" if runtime_ready else "blocked",

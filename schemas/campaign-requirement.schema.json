@@ -355,6 +355,15 @@
     "objective": {
       "$ref": "#/$defs/EngineeringObjective"
     },
+    "provider_preference": {
+      "default": "prefer_lowest_evidence_class",
+      "enum": [
+        "prefer_lowest_evidence_class",
+        "prefer_highest_evidence_class"
+      ],
+      "title": "Provider Preference",
+      "type": "string"
+    },
     "requirement_id": {
       "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
       "title": "Requirement Id",

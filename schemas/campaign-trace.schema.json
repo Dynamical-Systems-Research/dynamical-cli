@@ -20,30 +20,8 @@
           ]
         },
         "kind": {
-          "enum": [
-            "apply-thermal-program",
-            "agitate-sample",
-            "measure-plate-temperature",
-            "measure-sample-temperature",
-            "estimate-temperature-gradient",
-            "measure-sample-mass",
-            "measure-mixing-load",
-            "estimate-reaction-progress",
-            "measure-reaction-progress",
-            "dispense_liquid",
-            "dispense_solid",
-            "material_transfer",
-            "set_airflow",
-            "set_glovebox_state",
-            "transport",
-            "wash_and_dry",
-            "set_heater",
-            "pick",
-            "place",
-            "wait",
-            "observe",
-            "stop"
-          ]
+          "pattern": "^[a-z][a-z0-9]*([-_][a-z0-9]+)*$",
+          "type": "string"
         },
         "parameters": {
           "type": "object"
@@ -51,6 +29,34 @@
         "provider_id": {
           "minLength": 1,
           "type": "string"
+        },
+        "sample_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sample_lineage": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "station_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -73,6 +79,16 @@
         "limit": {
           "type": "object"
         },
+        "margin": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "measured_value": {
           "type": [
             "number",
@@ -80,6 +96,13 @@
             "string",
             "boolean",
             "null"
+          ]
+        },
+        "outcome": {
+          "enum": [
+            "passed",
+            "violated",
+            "unavailable"
           ]
         },
         "passed": {
@@ -101,7 +124,9 @@
         "constraint_id",
         "phase",
         "passed",
+        "outcome",
         "measured_value",
+        "margin",
         "limit",
         "verifier"
       ],
@@ -189,6 +214,23 @@
         "provider_id": {
           "minLength": 1,
           "type": "string"
+        },
+        "sample_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sample_lineage": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         }
       },
       "required": [
@@ -236,6 +278,35 @@
             "unavailable"
           ]
         },
+        "uncertainty": {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "declared",
+                "measured",
+                "propagated"
+              ]
+            },
+            "origin": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "value": {
+              "minimum": 0,
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "value",
+            "kind",
+            "origin"
+          ],
+          "type": "object"
+        },
         "unit": {
           "minLength": 1,
           "type": "string"
@@ -257,7 +328,8 @@
         "quality",
         "origin",
         "provider_id",
-        "evidence_class"
+        "evidence_class",
+        "uncertainty"
       ],
       "type": "object"
     }

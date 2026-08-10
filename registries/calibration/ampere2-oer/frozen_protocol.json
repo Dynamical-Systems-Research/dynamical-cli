@@ -1,0 +1,39 @@
+{
+  "protocol_id": "ampere2-oer-calibration-v1",
+  "frozen_at_utc": "2026-08-10T19:30:00Z",
+  "frozen_before_any_outcome_inspection": true,
+  "source": {
+    "dataset": "AMPERE-2 opentron (DTU)",
+    "doi": "10.11583/DTU.27446925",
+    "data_zip_sha256": "649c5a8269e773371a6fcdc14db4d72166dbeb697fc49b66a89991fbdd44e736",
+    "license": "MIT"
+  },
+  "domain": {
+    "measurement": "chronopotentiometry (CP), Admiral Squidstat, alkaline OER",
+    "current_densities_mA_cm2": [20, 50],
+    "excluded": "100 mA/cm2 (bubble artifacts), <=10 mA/cm2 (surface oxidation dominance), per upstream Readme recommendation",
+    "samples": "metadata.csv rows (all status_of_run == success) that have both 'CP 50 mA cm-2 dc_data.csv' and 'CP 20 mA cm-2 dc_data.csv' files",
+    "target_channel": "last-third mean of 'Corrected Voltage (V)' per CP file (iR-corrected working-electrode potential, factor 0.9, per SDL1 experiment.py correct_for_ohmic_resistance and its .tail(len/3).mean() extraction)",
+    "overpotential_definition": "overpotential_v = corrected_potential_v - 1.23 (OER equilibrium offset on the upstream-reported potential scale); reference-scale assumption recorded as a limitation"
+  },
+  "condition_definition": "unique tuple of (chemicals_to_mix nominal composition dict, deposition_current [A], electrodeposition_time [s], total_volume [ml], electrodeposition_temperature_setpoint [C]); every replicate sample and every time point of a condition stays on one side of the split",
+  "split_rule": "held_out iff int(sha256(canonical_json(condition_key)).hexdigest(), 16) % 4 == 0, computed over the sorted canonical condition tuple; approximately 25% of conditions; deterministic, no reassignment permitted",
+  "model": {
+    "form": "eta(x, j) = a + b*log10(j_A_cm2) + sum_m w_m * x_m, ordinary least squares on fit-split condition-replicate rows",
+    "inputs": [
+      "nominal precursor mole fractions x_m for Ni, Fe, Cr, Mn, Co, Zn, Cu normalized over metal entries",
+      "complexing agent flags NH4OH, NaCi as supplied in chemicals_to_mix",
+      "OER current density j in A/cm2 (log10 term)"
+    ],
+    "selection_procedure": "single pre-declared form, no hyperparameters, no alternative models compared; all-zero input columns dropped; no refitting after held-out inspection",
+    "uncertainty": "declared sigma = standard deviation of fit-split residuals; reported per prediction as declared uncertainty"
+  },
+  "metrics_and_thresholds": {
+    "held_out_overpotential_mae_v": {"threshold": 0.05, "rule": "MAE over all held-out condition-replicate rows at both current densities must be <= 0.05 V"},
+    "uncertainty_coverage_2sigma": {"threshold": 0.8, "rule": "fraction of held-out rows with |error| <= 2*sigma must be >= 0.8"},
+    "candidate_order_spearman": {"threshold": 0.7, "rule": "Spearman rank correlation between predicted and observed held-out condition-mean overpotential, pooled over both current densities after per-j mean-centering, must be >= 0.7"},
+    "missing_data_behavior": {"rule": "model refuses inputs outside the admitted domain (composition entries outside the seven metals + two complexing agents, j outside [0.02, 0.05] A/cm2) with a typed out-of-envelope reason; verified by behavior test, not a fitted metric"}
+  },
+  "w2_grant_shape": "if and only if every gate passes: bounded W2 admitted solely for channel overpotential_v (and its corrected-potential basis) from operation measure-oer, for nominal precursor compositions within the convex set of fit compositions over the seven metals with NH4OH/NaCi levels seen in fit data, at OER current densities in [0.02, 0.05] A/cm2, electrolyte/temperature as in the dataset; everything else stays W1",
+  "failure_rule": "if any gate fails, W2 stays closed, the failed report is preserved verbatim, thresholds are not revisited"
+}

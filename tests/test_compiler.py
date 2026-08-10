@@ -2,14 +2,16 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from pathlib import Path
 
 import pytest
 
-from dynamical.compiler import compile_facility, validate_compiled_world
+from dynamical.compiler import _resolve_asset_root, compile_facility, validate_compiled_world
+from dynamical.source_admission import SourceAdmissionError
 
 REPOSITORY = Path(__file__).resolve().parents[1]
-HEATER_MANIFEST = REPOSITORY / "manifests" / "matterix-heater-workstation.yaml"
+MANIFEST = REPOSITORY / "manifests" / "ac-electrodeposition-cell.yaml"
 REQUIRED_ARTIFACTS = {
     "action_schema.json",
     "adapter_pack.json",
@@ -39,9 +41,9 @@ def _json(path: Path) -> dict[str, object]:
 def compiled_targets(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]:
     root = tmp_path_factory.mktemp("compiled")
     outputs: dict[str, Path] = {}
-    for target in ("openusd", "matterix", "isaac"):
+    for target in ("openusd", "isaac"):
         output = root / target
-        compile_facility(HEATER_MANIFEST, target, output)
+        compile_facility(MANIFEST, target, output)
         outputs[target] = output
     return outputs
 
@@ -55,7 +57,7 @@ def test_core_hash_is_equal_across_all_targets(compiled_targets: dict[str, Path]
     manifests = [_json(output / "compile_manifest.json") for output in compiled_targets.values()]
 
     assert len({manifest["core_ir_sha256"] for manifest in manifests}) == 1
-    assert len({manifest["adapter_pack_sha256"] for manifest in manifests}) == 3
+    assert len({manifest["adapter_pack_sha256"] for manifest in manifests}) == 2
 
 
 def test_fidelity_report_does_not_claim_physical_calibration(
@@ -64,9 +66,8 @@ def test_fidelity_report_does_not_claim_physical_calibration(
     for output in compiled_targets.values():
         report = _json(output / "fidelity_report.json")
         assert report["admission"]["W2"]["status"] == "not_admitted"
-        assert report["calibration_statement"].startswith(
-            "No physical calibration evidence; W2 is not admitted."
-        )
+        assert report["calibration_statement"].startswith("W2 is not admitted")
+        assert "frozen" in report["calibration_statement"]
 
 
 def test_compiled_artifact_hashes_and_openusd_stage_validate(
@@ -82,8 +83,8 @@ def test_compiled_artifact_hashes_and_openusd_stage_validate(
 
 
 def test_compile_is_deterministic_across_output_directories(tmp_path: Path) -> None:
-    first = compile_facility(HEATER_MANIFEST, "matterix", tmp_path / "first")
-    second = compile_facility(HEATER_MANIFEST, "matterix", tmp_path / "second")
+    first = compile_facility(MANIFEST, "isaac", tmp_path / "first")
+    second = compile_facility(MANIFEST, "isaac", tmp_path / "second")
 
     assert first.core_ir_sha256 == second.core_ir_sha256
     assert first.adapter_pack_sha256 == second.adapter_pack_sha256
@@ -95,7 +96,7 @@ def test_compile_is_deterministic_across_output_directories(tmp_path: Path) -> N
 
 def test_recompile_removes_stale_files_and_preserves_world_hash(tmp_path: Path) -> None:
     output = tmp_path / "compiled"
-    first = compile_facility(HEATER_MANIFEST, "openusd", output)
+    first = compile_facility(MANIFEST, "openusd", output)
     first_manifest = _json(first.manifest_path)
     first_artifacts = {item["path"] for item in first_manifest["artifacts"]}
     (output / "stale.txt").write_text("not a compiler artifact\n", encoding="utf-8")
@@ -103,7 +104,7 @@ def test_recompile_removes_stale_files_and_preserves_world_hash(tmp_path: Path) 
     stale_directory.mkdir()
     (stale_directory / "old.json").write_text("{}\n", encoding="utf-8")
 
-    second = compile_facility(HEATER_MANIFEST, "openusd", output)
+    second = compile_facility(MANIFEST, "openusd", output)
     second_manifest = _json(second.manifest_path)
     second_artifacts = {item["path"] for item in second_manifest["artifacts"]}
     actual_files = {
@@ -124,7 +125,7 @@ def test_compile_refuses_nonempty_unowned_output(tmp_path: Path) -> None:
     existing.write_text("user data\n", encoding="utf-8")
 
     with pytest.raises(ValueError, match="no valid Dynamical ownership receipt"):
-        compile_facility(HEATER_MANIFEST, "openusd", output)
+        compile_facility(MANIFEST, "openusd", output)
 
     assert existing.read_text(encoding="utf-8") == "user data\n"
 
@@ -149,13 +150,13 @@ def test_compile_refuses_forged_minimal_ownership_markers(tmp_path: Path) -> Non
     )
 
     with pytest.raises(ValueError, match="no valid Dynamical ownership receipt"):
-        compile_facility(HEATER_MANIFEST, "openusd", output)
+        compile_facility(MANIFEST, "openusd", output)
 
     assert existing.read_text(encoding="utf-8") == "keep me\n"
 
 
 def test_validator_rejects_artifact_path_escape_and_duplicate(tmp_path: Path) -> None:
-    output = compile_facility(HEATER_MANIFEST, "openusd", tmp_path / "compiled").output_dir
+    output = compile_facility(MANIFEST, "openusd", tmp_path / "compiled").output_dir
     manifest_path = output / "compile_manifest.json"
     original = _json(manifest_path)
     outside = tmp_path / "outside.txt"
@@ -187,7 +188,7 @@ def test_validator_rejects_artifact_path_escape_and_duplicate(tmp_path: Path) ->
 def test_validator_rejects_coordinated_adapter_pack_tamper(tmp_path: Path) -> None:
     from dynamical.schema import canonical_sha256
 
-    output = compile_facility(HEATER_MANIFEST, "openusd", tmp_path / "compiled").output_dir
+    output = compile_facility(MANIFEST, "openusd", tmp_path / "compiled").output_dir
     adapter_path = output / "adapter_pack.json"
     manifest_path = output / "compile_manifest.json"
     adapter = _json(adapter_path)
@@ -210,14 +211,11 @@ def test_validator_rejects_coordinated_adapter_pack_tamper(tmp_path: Path) -> No
     assert "adapter pack does not match" in " ".join(result["failures"])
 
 
-def test_target_configs_record_exact_runtime_revisions(
+def test_isaac_target_config_records_exact_runtime_revisions(
     compiled_targets: dict[str, Path],
 ) -> None:
-    matterix = _json(compiled_targets["matterix"] / "backend_config.json")
     isaac = _json(compiled_targets["isaac"] / "backend_config.json")
 
-    assert matterix["target_revision"] == "3a55f3b2384b8e2bf0adcb83c5219cebbf1a4e56"
-    assert matterix["asset_revision"] == "0d856a0572d3e0823204264fd3d2700e15a43f4b"
     assert isaac["isaac_sim_version"] == "5.1.0.0"
     assert isaac["python"] == "3.11"
 
@@ -225,7 +223,7 @@ def test_target_configs_record_exact_runtime_revisions(
 def test_compiled_agent_schemas_require_provider_and_evidence_identity(
     tmp_path: Path,
 ) -> None:
-    result = compile_facility(HEATER_MANIFEST, "openusd", tmp_path / "typed-agent-schema")
+    result = compile_facility(MANIFEST, "openusd", tmp_path / "typed-agent-schema")
     actions = _json(result.output_dir / "action_schema.json")
     observations = _json(result.output_dir / "observation_schema.json")
 
@@ -250,3 +248,33 @@ def test_compile_manifest_hashes_every_declared_artifact(
             path = output / artifact["path"]
             digest = hashlib.sha256(path.read_bytes()).hexdigest()
             assert digest == artifact["sha256"]
+
+
+def test_resolve_asset_root_prefers_the_repository_checkout() -> None:
+    """From this repo checkout (no wheel installed here), every real derived layer id
+    must resolve under the repository root -- the same root the full compiled_targets
+    fixture above already exercises implicitly on every test run.
+    """
+    real_ids = [
+        "assets/usd/vial-rack-v3.usdc",
+        "assets/usd/nickel-electrode-v30.usdc",
+    ]
+    assert _resolve_asset_root(real_ids) == REPOSITORY
+
+
+def test_resolve_asset_root_fails_loudly_naming_the_id_and_both_paths() -> None:
+    """The bug a live agent hit on a clean wheel install: an asset that resolves under
+    neither the packaged install nor the repository checkout must never be silently
+    treated as absent-but-fine -- it must raise, naming the missing id and both full
+    paths that were tried, so a future asset added at a new repo path that
+    pyproject.toml's force-include list forgets to mirror fails loudly instead of
+    resolving to nothing.
+    """
+    missing_id = "assets/usd/does-not-exist-anywhere.usdc"
+    with pytest.raises(SourceAdmissionError, match=re.escape(missing_id)) as excinfo:
+        _resolve_asset_root(["assets/usd/vial-rack-v3.usdc", missing_id])
+    message = str(excinfo.value)
+    assert "artifact is absent at both" in message
+    # Both candidate roots must be named, not just whichever one happened to be tried.
+    assert str(REPOSITORY / missing_id) in message
+    assert message.count(missing_id) >= 2

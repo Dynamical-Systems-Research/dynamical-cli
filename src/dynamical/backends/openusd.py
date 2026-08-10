@@ -34,7 +34,7 @@ def emit_openusd(
             {"tool": "usdchecker", "command": ["usdchecker", stage]},
             {
                 "tool": "usdrecord",
-                "command": ["usdrecord", "--renderer", "Metal", stage, "preview.png"],
+                "command": ["usdrecord", stage, "preview.png"],
             },
         ],
         "claim_boundary": (

@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 from .schema import Asset, FacilityDocument, Pose, safe_usd_identifier
+from .sources import staged_asset_basename
 
 
 def _number(value: float) -> str:
@@ -27,13 +28,25 @@ def _pose_ops(pose: Pose, indent: str) -> list[str]:
     return [
         f"{indent}double3 xformOp:translate = {_vec3((p.x, p.y, p.z))}",
         f"{indent}quatd xformOp:orient = "
-        f"({_number(q.w)}, ({_number(q.x)}, {_number(q.y)}, {_number(q.z)}))",
+        f"({_number(q.w)}, {_number(q.x)}, {_number(q.y)}, {_number(q.z)})",
         f'{indent}uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]',
     ]
 
 
 def _geometry_lines(asset: Asset, material_path: str, indent: str) -> list[str]:
     geometry = asset.geometry
+    if geometry.representation == "exact_source_geometry":
+        assert geometry.mesh_source_id is not None  # enforced by GeometrySpec validation
+        basename = staged_asset_basename(geometry.mesh_source_id)
+        return [
+            f'{indent}def "Geometry" (',
+            f'{indent}    prepend apiSchemas = ["MaterialBindingAPI"]',
+            f"{indent}    prepend references = @./assets/{basename}@</Root>",
+            f"{indent})",
+            f"{indent}{{",
+            f"{indent}    rel material:binding = <{material_path}>",
+            f"{indent}}}",
+        ]
     primitive = {
         "cube": "Cube",
         "cylinder": "Cylinder",
@@ -161,6 +174,7 @@ def semantics_layer(document: FacilityDocument, core_ir_sha256: str) -> str:
 
     device_by_asset = {item.asset_id: item for item in document.devices}
     agent_by_asset = {item.asset_id: item for item in document.agents}
+    source_by_id = {source.id: source for source in document.asset_sources}
     lines = [
         "#usda 1.0",
         "",
@@ -190,8 +204,20 @@ def semantics_layer(document: FacilityDocument, core_ir_sha256: str) -> str:
                     f"                    custom string dynamical:assetId = {_string(asset.id)}",
                     "                    custom string dynamical:assetKind = "
                     f"{_string(asset.asset_kind)}",
+                    "                    custom string dynamical:representation = "
+                    f"{_string(asset.geometry.representation)}",
                 ]
             )
+            source = source_by_id.get(asset.geometry.mesh_source_id or "")
+            if source is not None:
+                lines.append(
+                    "                    custom string dynamical:sourceSha256 = "
+                    f"{_string(source.sha256)}"
+                )
+                license_id = source.spdx_id or source.license_ref or ""
+                lines.append(
+                    f"                    custom string dynamical:licenseId = {_string(license_id)}"
+                )
             if asset.id in device_by_asset:
                 lines.append(
                     "                    custom string dynamical:deviceId = "

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 import sys
@@ -8,12 +9,73 @@ from pathlib import Path
 import yaml
 from _fixtures import write_reference_requirement
 
-from dynamical.cli import main
+from dynamical.cli import DEFAULT_REGISTRY, main
 from dynamical.composition import compose_files, write_composition_result
 from dynamical.schema import load_campaign_requirement
 
 REPOSITORY = Path(__file__).resolve().parents[1]
-HEATER_MANIFEST = REPOSITORY / "manifests" / "matterix-heater-workstation.yaml"
+MANIFEST = REPOSITORY / "manifests" / "ac-electrodeposition-cell.yaml"
+
+
+def _write_measure_oer_requirement(path: Path) -> Path:
+    """One-step measure-oer requirement used by the authority attack tests."""
+
+    requirement = {
+        "document_type": "dynamical.campaign-requirement",
+        "schema_version": "0.1.0",
+        "requirement_id": "forged-oer-measure",
+        "objective": {
+            "id": "oer-decision",
+            "statement": "Estimate OER overpotential.",
+            "decision": "Decide if OER performance merits a physical run.",
+            "proof_requirements": [
+                {
+                    "id": "oer-proof",
+                    "operation_id": "measure-oer",
+                    "output_port_ids": ["overpotential_v"],
+                    "minimum_evidence_class": "simulator",
+                    "acceptance_rule": "overpotential_v is recorded",
+                    "independent_verification_required": True,
+                }
+            ],
+        },
+        "inputs": [
+            {
+                "id": "campaign.sample-id",
+                "state_type": "sample_state",
+                "unit": "1",
+                "value": "sample-nickel-01",
+            }
+        ],
+        "steps": [
+            {
+                "step_id": "measure",
+                "operation_id": "measure-oer",
+                "minimum_evidence_class": "simulator",
+                "parameters": [
+                    {
+                        "name": "current_density_a_cm2",
+                        "value_type": "number",
+                        "unit": "A/cm^2",
+                        "value": 0.010,
+                    }
+                ],
+                "input_bindings": [
+                    {
+                        "target_port_id": "sample.state",
+                        "source_kind": "campaign_input",
+                        "source_id": "campaign.sample-id",
+                    }
+                ],
+                "depends_on": [],
+                "required_policy_tags": [],
+            }
+        ],
+        "max_cost_usd": 10.0,
+        "max_duration_s": 2000.0,
+    }
+    path.write_text(yaml.safe_dump(requirement, sort_keys=False), encoding="utf-8")
+    return path
 
 
 def test_public_help_has_exactly_five_agent_commands() -> None:
@@ -52,8 +114,8 @@ def test_capability_index_is_compact_and_detail_is_complete(capsys) -> None:
     assert index["schema_version"] == "dynamical.capability-index.v1"
     assert len(index["registry_sha256"]) == 64
     assert {item["operation_id"] for item in index["operations"]} >= {
-        "apply-thermal-program",
-        "measure-reaction-progress",
+        "dispense-electrolyte",
+        "measure-oer",
     }
     assert "capabilities" not in index
 
@@ -62,16 +124,17 @@ def test_capability_index_is_compact_and_detail_is_complete(capsys) -> None:
             [
                 "capabilities",
                 "--operation",
-                "measure-reaction-progress",
+                "measure-oer",
                 "--json",
             ]
         )
         == 0
     )
     detail = json.loads(capsys.readouterr().out)
-    assert detail["operation"]["operation_id"] == "measure-reaction-progress"
-    assert detail["providers"][0]["admission"]["status"] == "pending"
-    assert detail["providers"][0]["availability"]["available"] is False
+    assert detail["operation"]["operation_id"] == "measure-oer"
+    physical = next(item for item in detail["providers"] if item["evidence_class"] == "physical")
+    assert physical["admission"]["status"] == "pending"
+    assert physical["availability"]["available"] is False
 
 
 def test_compose_receipt_is_compact_and_saved_sources_are_self_contained(
@@ -88,11 +151,11 @@ def test_compose_receipt_is_compact_and_saved_sources_are_self_contained(
     assert receipt["status"] == "COMPILED"
     assert receipt["composition_sha256"] == saved["composition_sha256"]
     assert saved["sources"]["requirement"]["requirement_id"] == (
-        "heated-beaker-source-and-embodied-proof"
+        "electrodeposition-transfer-and-conditioning-proof"
     )
     assert saved["sources"]["registry"]["registry_id"].startswith("dynamical-")
-    assert saved["sources"]["facility"]["facility"]["id"] == ("matterix-heater-facility")
-    assert saved["sources"]["default_target"] == "matterix"
+    assert saved["sources"]["facility"]["facility"]["id"] == ("ac-electrodeposition-cell")
+    assert saved["sources"]["default_target"] == "openusd"
 
 
 def test_hold_receipt_has_reasons_and_no_compile_instruction(tmp_path: Path, capsys) -> None:
@@ -127,7 +190,7 @@ def test_saved_composition_compiles_runs_and_validates_without_extra_flags(
     compile_output = capsys.readouterr().out
     assert "\n" not in compile_output.rstrip("\n")
     compile_receipt = json.loads(compile_output)
-    assert compile_receipt["target"] == "matterix"
+    assert compile_receipt["target"] == "openusd"
     assert compile_receipt["composition_sha256"] is not None
 
     assert main(["validate", str(compiled), "--json"]) == 0
@@ -165,13 +228,13 @@ def test_saved_composition_tampering_fails_closed(tmp_path: Path, capsys) -> Non
 def test_coordinated_authority_rehash_fails_closed(tmp_path: Path, capsys) -> None:
     requirement = write_reference_requirement(tmp_path / "requirement.yaml")
     registry = yaml.safe_load(
-        (REPOSITORY / "registries/reference-capabilities.yaml").read_text(encoding="utf-8")
+        (REPOSITORY / "registries/electrodeposition-capabilities.yaml").read_text(encoding="utf-8")
     )
     registry["providers"][0]["admission"]["authority_id"] = "agent-authored-authority"
     forged_registry = tmp_path / "registry.yaml"
     forged_registry.write_text(yaml.safe_dump(registry), encoding="utf-8")
 
-    facility = yaml.safe_load(HEATER_MANIFEST.read_text(encoding="utf-8"))
+    facility = yaml.safe_load(MANIFEST.read_text(encoding="utf-8"))
     facility["adapter_bindings"][0]["configuration"]["task_id"] = "Agent-Authored-Task"
     forged_facility = tmp_path / "facility.yaml"
     forged_facility.write_text(yaml.safe_dump(facility), encoding="utf-8")
@@ -182,14 +245,228 @@ def test_coordinated_authority_rehash_fails_closed(tmp_path: Path, capsys) -> No
         compose_files(requirement, forged_registry, forged_facility),
     )
 
-    assert main(["compile", str(composition), "-o", str(tmp_path / "compiled")]) == 2
-    assert "installed authority" in capsys.readouterr().err
+    compile_rc = main(["compile", str(composition), "-o", str(tmp_path / "compiled")])
+    receipt = json.loads(capsys.readouterr().out)
+    assert compile_rc == 1
+    assert receipt["status"] == "HOLD"
+    assert "AUTHORITY_MODIFIED" in receipt["reason_codes"]
+    assert "AUTHORITY_UNRECOGNIZED" in receipt["reason_codes"]
+    assert not (tmp_path / "compiled").exists()
+
+
+def test_self_admitted_physical_provider_is_demoted_not_trusted(tmp_path: Path, capsys) -> None:
+    """Attack repro: an agent flips ``ac-oer-simulator`` to ``evidence_class:
+    physical`` in its own registry and passes that forged registry to both
+    ``compose`` and ``compile``.
+
+    Before the fix this composes (COMPILED), compiles, runs, and validates,
+    producing a simulator's output masquerading as ``evidence_class: physical``
+    with ``uncertainty.kind: measured``. After the fix, compose demotes the
+    self-admitted claim -- visibly, via a legible ``PROVIDER_SELF_ADMITTED``
+    reason -- and compile independently refuses the forged authority too, so no
+    compiled world, run, or validated trace is ever reachable.
+    """
+
+    registry = yaml.safe_load(
+        (REPOSITORY / "registries/electrodeposition-capabilities.yaml").read_text(encoding="utf-8")
+    )
+    for provider in registry["providers"]:
+        if provider["provider_id"] == "ac-oer-simulator":
+            provider["evidence_class"] = "physical"
+            provider["validity_envelope"].append(
+                {
+                    "subject_kind": "input",
+                    "subject_id": "sample.state",
+                    "value_type": "sample_state",
+                    "unit": "1",
+                    "enum": ["sample-nickel-01"],
+                }
+            )
+    forged_registry = tmp_path / "registry.yaml"
+    forged_registry.write_text(yaml.safe_dump(registry, sort_keys=False), encoding="utf-8")
+
+    requirement_path = _write_measure_oer_requirement(tmp_path / "requirement.yaml")
+    composition_path = tmp_path / "composition.json"
+    compose_rc = main(
+        [
+            "compose",
+            str(requirement_path),
+            "--registry",
+            str(forged_registry),
+            "-o",
+            str(composition_path),
+        ]
+    )
+    receipt = json.loads(capsys.readouterr().out)
+    assert compose_rc == 1
+    assert receipt["status"] == "HOLD"
+    assert "PROVIDER_NOT_ADMITTED" in receipt["reason_codes"]
+    untrusted = receipt["untrusted_admissions"]
+    assert any(
+        item["code"] == "PROVIDER_SELF_ADMITTED" and item["provider_id"] == "ac-oer-simulator"
+        for item in untrusted
+    )
+
+    compiled_dir = tmp_path / "compiled"
+    compile_rc = main(["compile", str(composition_path), "-o", str(compiled_dir)])
+    capsys.readouterr()
+    assert compile_rc != 0
+    assert not compiled_dir.exists()
+
+
+def test_known_provider_with_modified_safety_fields_is_not_trusted(tmp_path: Path, capsys) -> None:
+    """Named authority attack: a known, installed provider identity whose
+    safety-bearing fields were changed must never compose or compile as
+    admitted. The identity tuple still matches the installed record, so only
+    a full authority-record comparison catches it."""
+
+    registry = yaml.safe_load(
+        (REPOSITORY / "registries/electrodeposition-capabilities.yaml").read_text(encoding="utf-8")
+    )
+    for provider in registry["providers"]:
+        if provider["provider_id"] == "ac-oer-simulator":
+            provider["policy"]["safety_limit_ids"] = []
+    forged_registry = tmp_path / "registry.yaml"
+    forged_registry.write_text(yaml.safe_dump(registry, sort_keys=False), encoding="utf-8")
+
+    requirement_path = _write_measure_oer_requirement(tmp_path / "requirement.yaml")
+    composition_path = tmp_path / "composition.json"
+    compose_rc = main(
+        [
+            "compose",
+            str(requirement_path),
+            "--registry",
+            str(forged_registry),
+            "-o",
+            str(composition_path),
+        ]
+    )
+    receipt = json.loads(capsys.readouterr().out)
+    assert compose_rc == 1
+    assert receipt["status"] == "HOLD"
+    assert "PROVIDER_NOT_ADMITTED" in receipt["reason_codes"]
+    assert any(
+        item["code"] == "PROVIDER_AUTHORITY_MODIFIED" and item["provider_id"] == "ac-oer-simulator"
+        for item in receipt["untrusted_admissions"]
+    )
+
+    compiled_dir = tmp_path / "compiled"
+    compile_rc = main(["compile", str(composition_path), "-o", str(compiled_dir)])
+    receipt = json.loads(capsys.readouterr().out)
+    assert compile_rc == 1
+    assert receipt["status"] == "HOLD"
+    assert not compiled_dir.exists()
+
+
+def test_modified_model_hash_in_agent_facility_is_refused(tmp_path: Path, capsys) -> None:
+    """Named authority attack: modified model code with a matching
+    agent-authored facility hash. The declared implementation hash is an
+    authority record; an agent facility that redeclares it differs from the
+    installed authority and holds at compose and at compile."""
+
+    facility = yaml.safe_load(MANIFEST.read_text(encoding="utf-8"))
+    for binding in facility["model_bindings"]:
+        if binding["id"] == "ac-oer-model":
+            binding["implementation_sha256"] = "0" * 64
+    forged_facility = tmp_path / "facility.yaml"
+    forged_facility.write_text(yaml.safe_dump(facility, sort_keys=False), encoding="utf-8")
+
+    requirement_path = write_reference_requirement(tmp_path / "requirement.yaml")
+    compose_rc = main(["compose", str(requirement_path), "--facility", str(forged_facility)])
+    receipt = json.loads(capsys.readouterr().out)
+    assert compose_rc == 1
+    assert receipt["status"] == "HOLD"
+    assert receipt["reason_codes"] == ["AUTHORITY_MODIFIED"]
+    assert any("ac-oer-model" in item["detail"] for item in receipt["reasons"])
+
+    composition_path = tmp_path / "composition.json"
+    write_composition_result(
+        composition_path,
+        compose_files(requirement_path, DEFAULT_REGISTRY, forged_facility),
+    )
+    compiled_dir = tmp_path / "compiled"
+    compile_rc = main(["compile", str(composition_path), "-o", str(compiled_dir)])
+    receipt = json.loads(capsys.readouterr().out)
+    assert compile_rc == 1
+    assert receipt["status"] == "HOLD"
+    assert "AUTHORITY_MODIFIED" in receipt["reason_codes"]
+    assert not compiled_dir.exists()
+
+
+def test_stripped_proof_requirements_fail_validation_and_replay(tmp_path: Path, capsys) -> None:
+    """Named authority attack: a trace cannot remove or redefine its required
+    proof outputs. Stripping proof requirements from campaign_start must fail
+    both standalone validation and replay."""
+
+    requirement = write_reference_requirement(tmp_path / "requirement.yaml")
+    composition = tmp_path / "composition.json"
+    compiled = tmp_path / "compiled"
+    trace = tmp_path / "trace.ndjson"
+    assert main(["compose", str(requirement), "-o", str(composition)]) == 0
+    capsys.readouterr()
+    assert main(["compile", str(composition), "-o", str(compiled)]) == 0
+    capsys.readouterr()
+    assert main(["run", str(compiled), "-o", str(trace)]) == 0
+    capsys.readouterr()
+
+    lines = trace.read_text(encoding="utf-8").splitlines()
+    start = json.loads(lines[0])
+    start["provenance"]["proof_requirements"] = []
+    lines[0] = json.dumps(start, sort_keys=True, separators=(",", ":"))
+    tampered = tmp_path / "tampered.ndjson"
+    tampered.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    assert main(["validate", str(tampered), "--json"]) == 1
+    report = json.loads(capsys.readouterr().out)
+    assert report["valid"] is False
+    assert any(
+        reason.get("code") == "PROOF_CONTRACT_MISMATCH" for reason in report.get("reasons", [])
+    )
+
+    replayed = tmp_path / "replay.ndjson"
+    assert main(["run", str(tampered), "--mode", "replay", "-o", str(replayed)]) != 0
+
+
+def test_injected_material_state_holds_at_compile(tmp_path: Path, capsys) -> None:
+    """A fabricated facility record outside the installed authority is a
+    proposal, even in a section (material_states) the agent may otherwise
+    leave empty: it seeds scientific conditions and must not compile silently.
+    An agent-supplied facility that injects a material_states record holds at
+    compile with a typed AUTHORITY_UNRECOGNIZED reason."""
+
+    facility = yaml.safe_load(MANIFEST.read_text(encoding="utf-8"))
+    facility["material_states"] = [
+        {
+            "id": "forged-material",
+            "container_asset_id": "ot2-test-plate",
+            "initial_channels": [
+                {"channel_id": "forged.injected_channel", "value": 1.0, "unit": "1"}
+            ],
+        }
+    ]
+    forged_facility = tmp_path / "facility.yaml"
+    forged_facility.write_text(yaml.safe_dump(facility, sort_keys=False), encoding="utf-8")
+
+    requirement = write_reference_requirement(tmp_path / "requirement.yaml")
+    composition_path = tmp_path / "composition.json"
+    write_composition_result(
+        composition_path, compose_files(requirement, DEFAULT_REGISTRY, forged_facility)
+    )
+
+    compiled_dir = tmp_path / "compiled"
+    compile_rc = main(["compile", str(composition_path), "-o", str(compiled_dir)])
+    receipt = json.loads(capsys.readouterr().out)
+    assert compile_rc == 1
+    assert receipt["status"] == "HOLD"
+    assert "AUTHORITY_UNRECOGNIZED" in receipt["reason_codes"]
+    assert any("material_states" in item["detail"] for item in receipt["reasons"])
+    assert not compiled_dir.exists()
 
 
 def test_run_defaults_to_simulate_and_manifest_compile_requires_target(
     tmp_path: Path, capsys
 ) -> None:
-    assert main(["compile", str(HEATER_MANIFEST)]) == 2
+    assert main(["compile", str(MANIFEST)]) == 2
     assert "requires --target" in capsys.readouterr().err
 
 
@@ -214,7 +491,7 @@ def test_agent_decision_contract_is_minimal(tmp_path: Path, capsys) -> None:
     decision = tmp_path / "evidence.json"
     physical_requirement = load_campaign_requirement(physical)
     selected_step = next(
-        step for step in physical_requirement.steps if step.operation_id == "apply-thermal-program"
+        step for step in physical_requirement.steps if step.operation_id == "condition-ultrasonic"
     )
     decision.write_text(
         json.dumps(
@@ -265,3 +542,27 @@ def test_only_dynamical_console_script_is_published() -> None:
     assert scripts.strip() == 'dynamical = "dynamical.cli:main"'
     assert "openai" not in pyproject.lower()
     assert "anthropic" not in pyproject.lower()
+
+
+def test_registry_sha256_is_recomputable_from_the_emitted_bytes(capsys):
+    main(["capabilities", "--json"])
+    payload = json.loads(capsys.readouterr().out)
+    declared = payload.pop("registry_sha256")
+    recomputed = hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    assert recomputed == declared
+
+
+def test_operation_filter_is_honoured_without_json(capsys):
+    main(["capabilities", "--operation", "measure-oer"])
+    out = capsys.readouterr().out
+    assert "measure-oer" in out
+    assert "dispense-electrolyte" not in out
+
+
+def test_index_carries_everything_needed_to_avoid_a_hold(capsys):
+    main(["capabilities", "--json"])
+    operation = json.loads(capsys.readouterr().out)["operations"][0]
+    provider = operation["providers"][0]
+    assert {"policy", "cost", "duration", "validity_envelope"} <= set(provider)

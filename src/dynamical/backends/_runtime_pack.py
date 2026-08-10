@@ -1,4 +1,11 @@
-"""Compiled campaign and standalone runtime-pack generation."""
+"""Compiled campaign and standalone runtime-pack generation.
+
+The runtime campaign is compiled from a composition's ``operation_bindings``
+and ``dependency_edges``. Dynamical does not choose which operations run, in
+what order, or under what stopping rule -- that is the agent's composition.
+This module only walks the dependency graph the composition already declares
+and emits one action per selected operation binding.
+"""
 
 from __future__ import annotations
 
@@ -6,11 +13,12 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .. import instruments
+from ..samples import Sample, apply_transition, build_transition
 from ._extract import record_id, records
 from .base import BackendArtifact, write_json_artifact, write_text_artifact
 
 EVIDENCE_CLASSES = {"simulator", "calibrated_twin", "shadow", "physical"}
-MATTERIX_HEATER_PROVIDER_ID = "matterix-heater-workstation-simulator"
 
 
 def selected_operation_bindings(output_dir: Path) -> list[dict[str, Any]] | None:
@@ -35,6 +43,34 @@ def selected_operation_bindings(output_dir: Path) -> list[dict[str, Any]] | None
     return [binding for binding in bindings if isinstance(binding, dict)]
 
 
+def selected_proof_requirements(output_dir: Path) -> list[dict[str, Any]] | None:
+    """Load the composed objective's proof requirements when a composition artifact exists.
+
+    Mirrors ``selected_operation_bindings`` exactly (same file, same shape checks)
+    so the runtime campaign this module compiles can resolve each proof
+    requirement's declared ``operation_id`` to the concrete compiled action_ids
+    that embody it -- see ``_resolved_proof_requirements``.
+    """
+
+    path = output_dir / "composition_result.json"
+    if not path.is_file():
+        return None
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict) or value.get("schema_version") != (
+        "dynamical.composition-result.v1"
+    ):
+        raise ValueError("composition_result.json has an unsupported contract")
+    if value.get("status") != "COMPILED":
+        raise ValueError("a HOLD composition cannot emit an executable runtime campaign")
+    virtual_sdl = value.get("virtual_sdl")
+    if not isinstance(virtual_sdl, dict):
+        raise ValueError("compiled composition has no virtual_sdl")
+    proof_requirements = virtual_sdl.get("proof_requirements")
+    if not isinstance(proof_requirements, list):
+        return []
+    return [item for item in proof_requirements if isinstance(item, dict)]
+
+
 def _records_by_id(document: Any, collection: str) -> dict[str, dict[str, Any]]:
     return {record_id(item): item for item in records(document, collection)}
 
@@ -49,10 +85,22 @@ def _enum_parameter(capability: dict[str, Any], name: str) -> str | None:
     return None
 
 
-def _selection_by_endpoint(
+def _endpoint_candidates(
     operation_bindings: list[dict[str, Any]] | None,
-) -> dict[str, dict[str, Any]]:
-    selected: dict[str, dict[str, Any]] = {}
+) -> dict[str, list[dict[str, Any]]]:
+    """Map each facility endpoint ref to every selected binding that names it.
+
+    A device can offer more than one capability (e.g. ``ot2-device``: dispense
+    + aliquot; ``squidstat-device``: electrodeposit + measure), and a
+    composition can select more than one of them in the same campaign. The old
+    single-binding-per-endpoint map silently let the last-selected operation's
+    binding overwrite its sibling's, so a facility capability that shared a
+    device with another selected capability picked up the wrong operation_id
+    (see ``_select_capability_binding``, which resolves the ambiguity this
+    creates).
+    """
+
+    candidates: dict[str, list[dict[str, Any]]] = {}
     for binding in operation_bindings or []:
         if not isinstance(binding, dict):
             continue
@@ -61,55 +109,134 @@ def _selection_by_endpoint(
         provider_id = binding.get("provider_id")
         if not endpoint_id or not provider_id or evidence_class not in EVIDENCE_CLASSES:
             continue
-        selected[str(endpoint_id)] = binding
+        refs = {str(endpoint_id)}
         for adapter_link in binding.get("adapter_links", []):
             if isinstance(adapter_link, dict) and adapter_link.get("endpoint_ref"):
-                selected[str(adapter_link["endpoint_ref"])] = binding
-    return selected
+                refs.add(str(adapter_link["endpoint_ref"]))
+        for ref in refs:
+            candidates.setdefault(ref, []).append(binding)
+    return candidates
+
+
+def _binding_safety_limit_ids(binding: dict[str, Any]) -> set[str]:
+    policy = binding.get("policy")
+    ids = policy.get("safety_limit_ids", []) if isinstance(policy, dict) else []
+    return {str(item) for item in ids}
+
+
+def _select_capability_binding(
+    capability: dict[str, Any],
+    candidates: list[dict[str, Any]],
+    *,
+    device_capability_count: int,
+) -> dict[str, Any] | None:
+    """Pick the one selected binding a facility capability's operation was.
+
+    A device offering exactly one capability has no ambiguity: its single
+    candidate (if any) is it. A device offering more than one capability must
+    disambiguate among the candidates selected at that shared endpoint. A
+    capability's own ``precondition``/``postcondition_constraint_ids`` and a
+    selected binding's registry-provider ``policy.safety_limit_ids`` are drawn
+    from the same facility-declared constraint vocabulary -- a provider
+    admission binding must restate its registry provider's envelope exactly
+    (see ``FacilityProviderBinding`` / the registry admission tests) -- so a
+    unique, non-empty intersection identifies the one candidate this specific
+    capability's operation was selected for. No match means this capability's
+    own operation was not selected in this composition at all.
+    """
+
+    if not candidates:
+        return None
+    if device_capability_count <= 1:
+        return candidates[-1]
+    capability_constraint_ids = {
+        str(item)
+        for item in (
+            *capability.get("precondition_constraint_ids", []),
+            *capability.get("postcondition_constraint_ids", []),
+        )
+    }
+    matches = [
+        binding
+        for binding in candidates
+        if capability_constraint_ids & _binding_safety_limit_ids(binding)
+    ]
+    if len(matches) == 1:
+        return matches[0]
+    if len(matches) == 0:
+        return None
+    raise ValueError(
+        f"capability {capability.get('id')!r} shares a device with sibling capabilities "
+        "and cannot be unambiguously matched to one selected operation binding"
+    )
 
 
 def runtime_capability_bindings(
     document: Any,
     *,
     operation_bindings: list[dict[str, Any]] | None = None,
-) -> dict[str, dict[str, Any]]:
-    """Resolve runtime roles from declared capability ports and selected providers.
+) -> list[dict[str, Any]]:
+    """Resolve runtime instrument bindings from declared capability ports and providers.
 
     Asset names and asset-kind substrings do not select actions. The object and
     target roles come from the declared asset-id parameter ports. Provider roles
     come from the device or agent endpoint that owns each capability.
+
+    Keyed by ``(instrument_id, action_type)``: two different instruments may
+    declare the same ``action_type`` (for example, two independent observers)
+    without one silently displacing the other.
     """
 
     devices = _records_by_id(document, "devices")
     agents = _records_by_id(document, "agents")
-    selected = _selection_by_endpoint(operation_bindings)
-    result: dict[str, dict[str, Any]] = {}
+    candidates_by_endpoint = _endpoint_candidates(operation_bindings)
+    capability_count_by_endpoint: dict[str, int] = {}
+    for capability in records(document, "capabilities"):
+        endpoint_id = str(capability.get("provider_id", ""))
+        capability_count_by_endpoint[endpoint_id] = (
+            capability_count_by_endpoint.get(endpoint_id, 0) + 1
+        )
+    result: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
     for capability in sorted(records(document, "capabilities"), key=record_id):
         action_type = str(capability.get("action_type", ""))
-        if action_type not in {"set_heater", "wait", "observe", "pick", "place"}:
+        if not action_type:
             continue
         endpoint_id = str(capability.get("provider_id", ""))
-        if selected and endpoint_id not in selected:
-            continue
+        endpoint_candidates = candidates_by_endpoint.get(endpoint_id, [])
+        selection = _select_capability_binding(
+            capability,
+            endpoint_candidates,
+            device_capability_count=capability_count_by_endpoint.get(endpoint_id, 0),
+        )
+        if selection is None:
+            if candidates_by_endpoint:
+                # A real (filtered) composition was given and this capability's
+                # own operation was not selected in it.
+                continue
+            selection = {}
         endpoint = devices.get(endpoint_id) or agents.get(endpoint_id)
         if not endpoint:
             continue
-        selection = selected.get(endpoint_id, {})
-        binding = {
-            "capability_id": record_id(capability),
-            "action_type": action_type,
-            "endpoint_id": endpoint_id,
-            "endpoint_asset_id": str(endpoint.get("asset_id", "")),
-            "provider_id": str(selection.get("provider_id") or MATTERIX_HEATER_PROVIDER_ID),
-            "operation_id": str(selection.get("operation_id") or record_id(capability)),
-            "evidence_class": str(selection.get("evidence_class") or "simulator"),
-            "object_asset_id": _enum_parameter(capability, "object"),
-            "target_asset_id": _enum_parameter(capability, "target"),
-        }
-        if action_type in result:
-            raise ValueError(f"runtime capability {action_type!r} is ambiguous")
-        result[action_type] = binding
-    return result
+        key = (endpoint_id, action_type)
+        if key in seen:
+            raise ValueError(f"runtime capability {key!r} is ambiguous")
+        seen.add(key)
+        result.append(
+            {
+                "instrument_id": endpoint_id,
+                "action_type": action_type,
+                "capability_id": record_id(capability),
+                "endpoint_id": endpoint_id,
+                "endpoint_asset_id": str(endpoint.get("asset_id", "")),
+                "provider_id": str(selection.get("provider_id") or ""),
+                "operation_id": str(selection.get("operation_id") or record_id(capability)),
+                "evidence_class": str(selection.get("evidence_class") or "simulator"),
+                "object_asset_id": _enum_parameter(capability, "object"),
+                "target_asset_id": _enum_parameter(capability, "target"),
+            }
+        )
+    return sorted(result, key=lambda item: (item["instrument_id"], item["action_type"]))
 
 
 def runtime_role_assets(
@@ -117,247 +244,403 @@ def runtime_role_assets(
     *,
     operation_bindings: list[dict[str, Any]] | None = None,
 ) -> dict[str, str]:
-    """Resolve bounded roles from the executable capability graph."""
+    """Map each declared action type to the physical asset performing it.
 
-    bindings = runtime_capability_bindings(
-        document,
-        operation_bindings=operation_bindings,
+    Data-driven: no role name is privileged. A facility that declares
+    ``dispense``, ``electrodeposit`` and ``measure`` gets exactly those roles;
+    nothing here assumes a heater, a robot or a beaker exists.
+    """
+
+    bindings = runtime_capability_bindings(document, operation_bindings=operation_bindings)
+    return {
+        binding["action_type"]: binding["endpoint_asset_id"]
+        for binding in bindings
+        if binding.get("endpoint_asset_id")
+    }
+
+
+def _ordered_bindings(
+    bindings: list[dict[str, Any]],
+    edges: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Topologically walk ``dependency_edges``, falling back to input order.
+
+    The composition already emits ``operation_bindings`` in dependency order,
+    but this performs an explicit Kahn's-algorithm walk rather than trusting
+    that invariant. Ties, and any binding untouched by an edge, keep their
+    original relative position. A cycle or a dangling edge is not this
+    module's failure to diagnose -- composition already rejects it -- so this
+    falls back to the given order rather than raising.
+    """
+
+    if not edges:
+        return list(bindings)
+    by_step: dict[str, dict[str, Any]] = {}
+    for index, binding in enumerate(bindings):
+        by_step[str(binding.get("step_id") or f"__unkeyed_{index}")] = binding
+    order = {step_id: index for index, step_id in enumerate(by_step)}
+    dependents: dict[str, list[str]] = {step_id: [] for step_id in by_step}
+    indegree: dict[str, int] = dict.fromkeys(by_step, 0)
+    for edge in edges:
+        source = str(edge.get("source_step_id", ""))
+        target = str(edge.get("target_step_id", ""))
+        if source in by_step and target in by_step:
+            dependents[source].append(target)
+            indegree[target] += 1
+
+    ready = sorted((step_id for step_id in by_step if indegree[step_id] == 0), key=order.get)
+    resolved: list[str] = []
+    while ready:
+        step_id = ready.pop(0)
+        resolved.append(step_id)
+        newly_ready = []
+        for dependent in dependents[step_id]:
+            indegree[dependent] -= 1
+            if indegree[dependent] == 0:
+                newly_ready.append(dependent)
+        ready = sorted([*ready, *newly_ready], key=order.get)
+    if len(resolved) != len(by_step):
+        return list(bindings)
+    return [by_step[step_id] for step_id in resolved]
+
+
+def _resolved_parameters(binding: dict[str, Any]) -> dict[str, Any]:
+    return {
+        str(item["name"]): item.get("value")
+        for item in binding.get("parameters", [])
+        if isinstance(item, dict) and item.get("name")
+    }
+
+
+def _constraint_phases(
+    binding: dict[str, Any],
+    constraint_by_id: dict[str, dict[str, Any]],
+) -> tuple[list[str], list[str]]:
+    pre_action: list[str] = []
+    post_action: list[str] = []
+    policy = binding.get("policy")
+    safety_limit_ids = policy.get("safety_limit_ids", []) if isinstance(policy, dict) else []
+    for raw_id in safety_limit_ids:
+        constraint_id = str(raw_id)
+        declaration = constraint_by_id.get(constraint_id)
+        if declaration is None:
+            continue
+        if declaration.get("phase") == "pre_action":
+            pre_action.append(constraint_id)
+        elif declaration.get("phase") in {"runtime", "post_action"}:
+            post_action.append(constraint_id)
+    return sorted(pre_action), sorted(post_action)
+
+
+def _resolve_action_kind(
+    operation_id: str,
+    action_types_by_operation: dict[str, set[str]],
+) -> str:
+    """Resolve a selected operation to the one facility-declared action type it embodies.
+
+    The action vocabulary is data-driven, not an open string: emitting the raw
+    operation_id would let an action kind exist that the compiled facility
+    never declared, defeating the point of a per-pack action schema. A
+    resolution that is missing or ambiguous is not silently guessed at -- both
+    fail closed, naming the operation, rather than reintroducing a fallback
+    shaped like the one this task removed.
+    """
+
+    action_types = action_types_by_operation.get(operation_id) or set()
+    if not action_types:
+        raise ValueError(f"operation {operation_id!r} has no facility-declared action type binding")
+    if len(action_types) > 1:
+        raise ValueError(
+            f"operation {operation_id!r} resolves to multiple facility action types: "
+            f"{sorted(action_types)}"
+        )
+    return next(iter(action_types))
+
+
+def _output_channel_ids_by_operation(
+    document: Any, facility_bindings: list[dict[str, Any]]
+) -> dict[str, dict[str, str]]:
+    """Map each operation_id to {registry output_port_id: facility channel_id}.
+
+    A registry ``Capability``'s output ports (e.g. ``overpotential_v``) and a
+    facility's own observation channels (e.g. ``squidstat.overpotential_v``)
+    are different, device-namespaced vocabularies by design -- a proof
+    requirement's declared ``output_port_ids`` names the former, but a compiled
+    trace's observation channels are named in the latter. The bridge is each
+    selected capability's own declared ``reported_output_port_ids`` (schema.py's
+    ``FacilityCapability``); a channel this facility does not declare as
+    reporting any output port is simply absent here, which is honest -- the
+    proof check downstream will find no bound value for it, same as if the
+    channel were genuinely unmeasured.
+    """
+
+    capabilities_by_id = _records_by_id(document, "capabilities")
+    by_operation: dict[str, dict[str, str]] = {}
+    for binding in facility_bindings:
+        capability = capabilities_by_id.get(binding["capability_id"])
+        if not isinstance(capability, dict):
+            continue
+        reported = capability.get("reported_output_port_ids")
+        if not isinstance(reported, dict):
+            continue
+        by_port = by_operation.setdefault(binding["operation_id"], {})
+        for channel_id, port_id in reported.items():
+            by_port[str(port_id)] = str(channel_id)
+    return by_operation
+
+
+def _resolved_proof_requirements(
+    proof_requirements: list[dict[str, Any]] | None,
+    action_ids_by_operation: dict[str, list[str]],
+    output_channel_ids_by_operation: dict[str, dict[str, str]],
+) -> list[dict[str, Any]]:
+    """Bind each proof requirement's ``operation_id`` to this compiled campaign's own action_ids
+    and each of its ``output_port_ids`` to the concrete channel this facility reports it on.
+
+    Resolved once, here, at compile time, from the same ``operation_id`` this
+    loop already assigns per compiled action -- not left for a runtime consumer
+    to re-derive from a different vocabulary (a compiled action's own ``kind``
+    is its facility action_type, e.g. ``measure``, not the operation_id
+    ``measure-oer`` a proof requirement names). A requirement whose operation was
+    not actually composed resolves to an empty ``action_ids`` list; composition
+    itself already refuses to reach ``COMPILED`` when a proof's operation is
+    missing (``PROOF_OPERATION_MISSING``), so this is a defensive echo, not the
+    primary guard. An output port this facility declares no channel for resolves
+    to itself, which the trace will honestly never find bound.
+    """
+
+    resolved = []
+    for item in proof_requirements or []:
+        operation_id = str(item.get("operation_id") or "")
+        output_port_ids = [str(x) for x in (item.get("output_port_ids") or [])]
+        channel_ids_by_port = output_channel_ids_by_operation.get(operation_id, {})
+        resolved.append(
+            {
+                "id": str(item.get("id") or ""),
+                "operation_id": operation_id,
+                "output_port_ids": output_port_ids,
+                "channel_ids": [
+                    channel_ids_by_port.get(port_id, port_id) for port_id in output_port_ids
+                ],
+                "action_ids": sorted(action_ids_by_operation.get(operation_id, [])),
+            }
+        )
+    return resolved
+
+
+def _require_declared_implementation(
+    document: Any, endpoint_id: str, model: Any, operation_id: str
+) -> None:
+    """Refuse a compile-time model bake whose executed bytes drifted from the
+    facility's declared implementation hash -- the baked SampleTransitions
+    become the custody record embodied runs are held to, so they must come
+    from the declared code, exactly as the live runner enforces at run time."""
+
+    import hashlib as _hashlib
+    import sys as _sys
+
+    declared = next(
+        (
+            item
+            for item in getattr(document, "model_bindings", [])
+            if getattr(item, "id", None) == endpoint_id
+        ),
+        None,
     )
-    heater = bindings.get("set_heater", {})
-    pick = bindings.get("pick", {})
-    place = bindings.get("place", {})
-    result: dict[str, str] = {}
-    if heater.get("endpoint_asset_id"):
-        result["heater"] = str(heater["endpoint_asset_id"])
-    if pick.get("endpoint_asset_id"):
-        result["robot"] = str(pick["endpoint_asset_id"])
-    if pick.get("object_asset_id"):
-        result["beaker"] = str(pick["object_asset_id"])
-    if place.get("target_asset_id") and place.get("target_asset_id") != result.get("heater"):
-        raise ValueError("place target does not match the selected heater capability")
-    if place.get("object_asset_id") and place.get("object_asset_id") != result.get("beaker"):
-        raise ValueError("place object does not match the selected pick capability")
-    return result
+    declared_hash = getattr(declared, "implementation_sha256", None) if declared else None
+    if not declared_hash:
+        return
+    module = _sys.modules.get(getattr(model, "__module__", ""))
+    module_file = getattr(module, "__file__", None) if module is not None else None
+    if (
+        not module_file
+        or _hashlib.sha256(Path(module_file).read_bytes()).hexdigest() != declared_hash
+    ):
+        raise ValueError(
+            f"transport model for operation {operation_id!r} does not match the facility's "
+            f"declared implementation hash for endpoint {endpoint_id!r}; refusing to bake "
+            "sample transitions from undeclared code"
+        )
 
 
 def runtime_campaign(
     document: Any,
     *,
-    target: str,
-    ir_hash: str,
+    target: str = "compiled",
+    ir_hash: str = "",
     operation_bindings: list[dict[str, Any]] | None = None,
+    proof_requirements: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """Build one target-neutral action contract for the bounded workstation."""
+    """Compile the runtime campaign from the composition's operation bindings.
 
-    capability_bindings = runtime_capability_bindings(
-        document,
-        operation_bindings=operation_bindings,
-    )
-    roles = runtime_role_assets(document, operation_bindings=operation_bindings)
-    required = {"heater", "beaker", "robot"}
-    required_actions = {"set_heater", "wait", "pick", "place"}
-    missing = sorted(required - set(roles))
-    missing_actions = sorted(required_actions - set(capability_bindings))
-    if missing or missing_actions:
-        return {
-            "schema_version": "dynamical.runtime-campaign.v1",
-            "campaign_id": "compiled-facility-runtime-gate",
-            "core_ir_sha256": ir_hash,
-            "target": target,
-            "execution_status": "blocked",
-            "blocker": (
-                f"bounded runtime roles are absent: {missing}; "
-                f"capability bindings are absent: {missing_actions}"
-            ),
-            "asset_roles": roles,
-            "provider_bindings": capability_bindings,
-            "actions": [],
-            "claim_boundary": "No runtime trace can be admitted from an empty action mapping.",
+    One action is emitted per selected ``operation_binding``, walked in
+    dependency order. The experiment order lives entirely in the composition
+    that produced ``operation_bindings`` and ``dependency_edges`` -- this
+    function only compiles that graph into an executable action sequence. Each
+    action's ``kind`` is the facility-declared action type bound to that
+    operation (see ``_resolve_action_kind``), not the raw operation_id, so the
+    per-pack action schema stays meaningful.
+    """
+
+    if operation_bindings is not None:
+        bindings = operation_bindings
+    else:
+        bindings = records(document, "operation_bindings")
+    edges = records(document, "dependency_edges")
+    ordered = _ordered_bindings(bindings, edges)
+
+    facility_bindings = runtime_capability_bindings(document, operation_bindings=bindings)
+    provider_bindings: dict[str, dict[str, Any]] = {
+        binding["action_type"]: {
+            "capability_id": binding["capability_id"],
+            "endpoint_id": binding["endpoint_id"],
+            "provider_id": binding["provider_id"],
+            "evidence_class": binding["evidence_class"],
         }
-
-    heater_actor = capability_bindings["set_heater"]["endpoint_id"]
-    robot_actor = capability_bindings["pick"]["endpoint_id"]
-    if not heater_actor or not robot_actor:
-        return {
-            "schema_version": "dynamical.runtime-campaign.v1",
-            "campaign_id": "compiled-facility-runtime-gate",
-            "core_ir_sha256": ir_hash,
-            "target": target,
-            "execution_status": "blocked",
-            "blocker": "heater device or embodied robot endpoint is absent",
-            "asset_roles": roles,
-            "provider_bindings": capability_bindings,
-            "actions": [],
-            "claim_boundary": "No runtime trace can be admitted without embodied endpoints.",
-        }
-
-    def action_binding(kind: str) -> dict[str, str]:
-        binding = capability_bindings[kind]
-        return {
-            "provider_id": str(binding["provider_id"]),
-            "evidence_class": str(binding["evidence_class"]),
-        }
-
-    selected_programs = [
-        item
-        for item in operation_bindings or []
-        if item.get("operation_id") == "apply-thermal-program"
-    ]
-    required_adapters = {
-        "dynamical-matterix-heater-control",
-        "dynamical-matterix-franka-control",
+        for binding in facility_bindings
     }
-    if len(selected_programs) != 1:
-        return {
-            "schema_version": "dynamical.runtime-campaign.v1",
-            "campaign_id": "compiled-facility-runtime-gate",
-            "core_ir_sha256": ir_hash,
-            "target": target,
-            "execution_status": "blocked",
-            "blocker": "one selected apply-thermal-program binding is required",
-            "asset_roles": roles,
-            "provider_bindings": capability_bindings,
-            "actions": [],
-            "claim_boundary": "No MATTERIX task can run without one selected thermal program.",
-        }
-    selected_program = selected_programs[0]
-    selected_adapters = {
-        str(item.get("adapter_id"))
-        for item in selected_program.get("adapter_links", [])
-        if isinstance(item, dict)
-    }
-    if selected_program.get(
-        "provider_id"
-    ) != MATTERIX_HEATER_PROVIDER_ID or not required_adapters.issubset(selected_adapters):
-        return {
-            "schema_version": "dynamical.runtime-campaign.v1",
-            "campaign_id": "compiled-facility-runtime-gate",
-            "core_ir_sha256": ir_hash,
-            "target": target,
-            "execution_status": "blocked",
-            "blocker": "selected thermal provider has no admitted MATTERIX heater task binding",
-            "asset_roles": roles,
-            "provider_bindings": capability_bindings,
-            "actions": [],
-            "claim_boundary": "No MATTERIX task can run from an unrelated provider binding.",
-        }
-    heater_parameters = selected_program.get("parameters", [])
-    parameter_values = {
-        str(item.get("name")): item.get("value")
-        for item in heater_parameters
-        if isinstance(item, dict) and item.get("name")
-    }
-    if set(parameter_values) != {"target-temperature", "dwell-time"}:
-        raise ValueError("selected thermal program requires target-temperature and dwell-time")
-    target_temperature = float(parameter_values["target-temperature"])
-    dwell_time = float(parameter_values["dwell-time"])
+    action_types_by_operation: dict[str, set[str]] = {}
+    for binding in facility_bindings:
+        action_types_by_operation.setdefault(binding["operation_id"], set()).add(
+            binding["action_type"]
+        )
+    constraint_by_id = _records_by_id(document, "constraints")
 
-    action_specs: list[tuple[dict[str, Any], list[str], list[str]]] = []
-    action_specs.extend(
-        [
-            (
-                {
-                    "kind": "wait",
-                    "actor_id": heater_actor,
-                    **action_binding("wait"),
-                    "parameters": {"duration": 2.0},
-                },
-                ["material-mass-positive"],
-                [],
-            ),
-            (
-                {
-                    "kind": "set_heater",
-                    "actor_id": heater_actor,
-                    **action_binding("set_heater"),
-                    "parameters": {"enabled": True, "target-temperature": target_temperature},
-                },
-                ["setpoint-range"],
-                [],
-            ),
-            (
-                {
-                    "kind": "pick",
-                    "actor_id": robot_actor,
-                    **action_binding("pick"),
-                    "parameters": {"object": roles["beaker"]},
-                },
-                ["material-mass-positive"],
-                [],
-            ),
-            (
-                {
-                    "kind": "place",
-                    "actor_id": robot_actor,
-                    **action_binding("place"),
-                    "parameters": {"object": roles["beaker"], "target": roles["heater"]},
-                },
-                ["material-mass-positive"],
-                [],
-            ),
-            (
-                {
-                    "kind": "wait",
-                    "actor_id": heater_actor,
-                    **action_binding("wait"),
-                    "parameters": {"duration": dwell_time},
-                },
-                ["material-mass-positive"],
-                ["solution-temperature-safety-range"],
-            ),
-            (
-                {
-                    "kind": "set_heater",
-                    "actor_id": heater_actor,
-                    **action_binding("set_heater"),
-                    "parameters": {"enabled": False, "target-temperature": target_temperature},
-                },
-                ["setpoint-range"],
-                [],
-            ),
-            (
-                {
-                    "kind": "wait",
-                    "actor_id": heater_actor,
-                    **action_binding("wait"),
-                    "parameters": {"duration": 5.0},
-                },
-                ["material-mass-positive"],
-                [],
-            ),
-        ]
-    )
     actions: list[dict[str, Any]] = []
     constraint_bindings: dict[str, dict[str, list[str]]] = {}
-    for index, (action, pre_action, post_action) in enumerate(action_specs):
-        action_id = f"runtime-{index:03d}"
-        actions.append({"action_id": action_id, **action})
-        constraint_bindings[action_id] = {
-            "pre_action": pre_action,
-            "post_action": post_action,
+    action_ids_by_operation: dict[str, list[str]] = {}
+    samples: dict[str, Sample] = {}
+    last_known_station: dict[str, str] = {}
+    for index, binding in enumerate(ordered):
+        operation_id = str(binding.get("operation_id") or "")
+        kind = _resolve_action_kind(operation_id, action_types_by_operation)
+        action_id = str(binding.get("step_id") or f"runtime-{index:03d}")
+        action_ids_by_operation.setdefault(operation_id, []).append(action_id)
+        provider_id = str(binding.get("provider_id") or "")
+        evidence_class = str(binding.get("evidence_class") or "simulator")
+        endpoint_id = str(binding.get("endpoint_id") or "")
+        action: dict[str, Any] = {
+            "action_id": action_id,
+            "kind": kind,
+            "actor_id": endpoint_id,
+            "provider_id": provider_id,
+            "evidence_class": evidence_class,
+            "parameters": _resolved_parameters(binding),
         }
+        raw_sample_id = binding.get("sample_id")
+        sample_id = str(raw_sample_id) if raw_sample_id is not None else None
+        # The *workstation* this step actually executes at, not actor_id/endpoint_id
+        # (the acting instrument's own endpoint, a different vocabulary a Sample's
+        # station_id never matches) -- mirrors campaign.py's _composed_actions, whose
+        # in-process openusd path already threads this field so
+        # dynamical.samples.check_invariants can compare like with like.
+        raw_station_id = binding.get("selected_facility_id")
+        station_id = str(raw_station_id) if raw_station_id is not None else None
+        # The action's actor_id is the operation binding's endpoint (a provider
+        # or model identity), which is not guaranteed to equal the matched
+        # FacilityCapability's device/agent provider_id -- so this is recorded
+        # as a virtual-SDL scoped binding (compiled_runtime.py's validate_action
+        # already has this path) rather than assumed to line up with the
+        # embodied capability's own declared parameters.
+        capability_contract = binding.get("capability_contract")
+        is_transport = (
+            isinstance(capability_contract, dict) and capability_contract.get("kind") == "transport"
+        )
+        if is_transport:
+            # A sample-moving operation's registered model (transfer.py's
+            # transfer_sample) carries no live/measured dependency Isaac would
+            # need to supply -- it is custody bookkeeping over already-resolved,
+            # fixed parameters (see its own module docstring) -- so calling it
+            # once here, exactly as campaign.py's run_composed_campaign calls it
+            # live, and baking the resulting SampleTransition into the compiled
+            # action is faithful, not a guess. samples.build_transition is the
+            # one place that construction happens; a second, isaac-only
+            # reimplementation would drift from it.
+            model = instruments.resolve(operation_id, provider_id)
+            if model is None:
+                raise ValueError(
+                    "no admitted instrument model for transport operation "
+                    f"{operation_id!r} and provider {provider_id!r}"
+                )
+            _require_declared_implementation(document, endpoint_id, model, operation_id)
+            current_sample = samples.get(sample_id) if sample_id else None
+            result = model(
+                instruments.InstrumentRequest(
+                    parameters=dict(action["parameters"]),
+                    inputs={},
+                    sample=current_sample,
+                )
+            )
+            if result.sample is not None:
+                moved = result.sample
+                from_station_hint = str(
+                    action["parameters"].get("from_station")
+                    or (sample_id and last_known_station.get(sample_id))
+                    or station_id
+                    or ""
+                )
+                transition = build_transition(
+                    moved,
+                    current_sample=current_sample,
+                    from_station_hint=from_station_hint,
+                    timestamp_s=float(index),
+                    step_id=action_id,
+                )
+                samples = apply_transition(samples, transition)
+                action["parameters"] = {
+                    **action["parameters"],
+                    "sample_transition": transition.model_dump(mode="json"),
+                }
+                sample_id = transition.sample_id
+                last_known_station[transition.sample_id] = transition.to_station
+        if sample_id is not None:
+            action["sample_id"] = sample_id
+        if station_id is not None:
+            action["station_id"] = station_id
+            if not is_transport and sample_id is not None:
+                last_known_station[sample_id] = station_id
+        actions.append(action)
+
+        pre_action, post_action = _constraint_phases(binding, constraint_by_id)
+        constraint_bindings[action_id] = {"pre_action": pre_action, "post_action": post_action}
+
+        execution_parameters = (
+            capability_contract.get("parameters", [])
+            if isinstance(capability_contract, dict)
+            else []
+        )
+        provider_bindings[kind] = {
+            "binding_scope": "virtual_sdl",
+            "endpoint_id": endpoint_id,
+            "provider_id": provider_id,
+            "evidence_class": evidence_class,
+            "execution_parameters": execution_parameters,
+        }
+
+    roles = runtime_role_assets(document, operation_bindings=bindings)
+    if actions:
+        execution_status = "requires_external_runtime_gate"
+        blocker = None
+    else:
+        execution_status = "blocked"
+        blocker = "the composition selected no operation bindings"
+
     return {
         "schema_version": "dynamical.runtime-campaign.v1",
-        "campaign_id": "compiled-heater-workstation-runtime-gate",
+        "campaign_id": "compiled-facility-runtime-gate",
         "core_ir_sha256": ir_hash,
         "target": target,
-        "execution_status": "requires_external_runtime_gate",
-        "blocker": None,
+        "execution_status": execution_status,
+        "blocker": blocker,
         "asset_roles": roles,
-        "provider_bindings": capability_bindings,
+        "provider_bindings": provider_bindings,
         "constraint_bindings": constraint_bindings,
-        "selected_operation": {
-            "operation_id": "apply-thermal-program",
-            "provider_id": selected_program["provider_id"],
-            "evidence_class": selected_program["evidence_class"],
-            "adapter_ids": sorted(selected_adapters),
-            "parameters": parameter_values,
-        },
         "actions": actions,
-        "constraints": {
-            "heater_target_temperature_k": {"minimum": 303.15, "maximum": 343.15},
-            "material_mass_kg": {"exclusive_minimum": 0.0},
-        },
+        "proof_requirements": _resolved_proof_requirements(
+            proof_requirements,
+            action_ids_by_operation,
+            _output_channel_ids_by_operation(document, facility_bindings),
+        ),
         "claim_boundary": (
             "This campaign maps the compiled Dynamical contract to target actions. "
             "W1 remains false "
@@ -382,6 +665,7 @@ def emit_runtime_contract_files(
         target=target,
         ir_hash=ir_hash,
         operation_bindings=selected_operation_bindings(output_dir),
+        proof_requirements=selected_proof_requirements(output_dir),
     )
     source_path = Path(compiled_runtime.__file__)
     artifacts = [

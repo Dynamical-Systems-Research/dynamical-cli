@@ -1,0 +1,46 @@
+{
+ "model_form": "eta(x, j) = a + b*log10(j_A_cm2) + sum_m w_m * x_m, ordinary least squares on fit-split condition-replicate rows",
+ "feature_names_declared": [
+  "intercept",
+  "log10_j",
+  "x_Ni",
+  "x_Fe",
+  "x_Cr",
+  "x_Mn",
+  "x_Co",
+  "x_Zn",
+  "x_Cu",
+  "NH4OH",
+  "NaCi"
+ ],
+ "columns_kept": [
+  "intercept",
+  "log10_j",
+  "x_Ni",
+  "x_Fe",
+  "x_Cr",
+  "x_Mn",
+  "x_Co",
+  "x_Zn",
+  "x_Cu",
+  "NH4OH",
+  "NaCi"
+ ],
+ "columns_dropped_all_zero": [],
+ "coefficients": {
+  "intercept": 1.214239114588155,
+  "log10_j": 0.30187979289520034,
+  "x_Ni": -0.11294989843011162,
+  "x_Fe": -0.33227754709643814,
+  "x_Cr": -0.05127468248150762,
+  "x_Mn": 1.0611381342707886,
+  "x_Co": -0.31513566354441347,
+  "x_Zn": -0.0963993624009567,
+  "x_Cu": 1.0611381342707906,
+  "NH4OH": -1.587317299140995,
+  "NaCi": 1.8060519823326926
+ },
+ "sigma_v": 1.8073715433658781,
+ "sigma_definition": "np.std (ddof=0) of fit-split residuals",
+ "n_fit_rows": 90
+}

@@ -21,9 +21,6 @@
         "configuration": {
           "anyOf": [
             {
-              "$ref": "#/$defs/MatterixAdapterConfig"
-            },
-            {
               "$ref": "#/$defs/IsaacAdapterConfig"
             },
             {
@@ -47,7 +44,6 @@
         },
         "target": {
           "enum": [
-            "matterix",
             "isaac",
             "openusd",
             "replay"
@@ -160,6 +156,154 @@
         "pose"
       ],
       "title": "Asset",
+      "type": "object"
+    },
+    "AssetSource": {
+      "additionalProperties": false,
+      "description": "One external artifact, its digest, its license, and its admission state.",
+      "properties": {
+        "admission": {
+          "enum": [
+            "admitted",
+            "pending",
+            "unlicensed",
+            "rejected"
+          ],
+          "title": "Admission",
+          "type": "string"
+        },
+        "authority_id": {
+          "minLength": 1,
+          "title": "Authority Id",
+          "type": "string"
+        },
+        "conflict_notes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Conflict Notes",
+          "type": "array"
+        },
+        "conversion_tolerance": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Conversion Tolerance"
+        },
+        "conversion_tool": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Conversion Tool"
+        },
+        "derived_from_source_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Derived From Source Id"
+        },
+        "id": {
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "license_evidence": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "License Evidence"
+        },
+        "license_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "License Ref"
+        },
+        "retrieval_uri": {
+          "minLength": 1,
+          "title": "Retrieval Uri",
+          "type": "string"
+        },
+        "retrieved_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retrieved At"
+        },
+        "revision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Revision"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "spdx_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Spdx Id"
+        }
+      },
+      "required": [
+        "id",
+        "retrieval_uri",
+        "sha256",
+        "admission",
+        "authority_id"
+      ],
+      "title": "AssetSource",
       "type": "object"
     },
     "BoundRange": {
@@ -288,6 +432,22 @@
     "CalibrationMetric": {
       "additionalProperties": false,
       "properties": {
+        "comparator": {
+          "anyOf": [
+            {
+              "enum": [
+                "le",
+                "ge"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Comparator"
+        },
         "name": {
           "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
           "title": "Name",
@@ -302,6 +462,18 @@
           ],
           "title": "Split",
           "type": "string"
+        },
+        "threshold": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Threshold"
         },
         "unit": {
           "minLength": 1,
@@ -418,6 +590,15 @@
         },
         "objective": {
           "$ref": "#/$defs/EngineeringObjective"
+        },
+        "provider_preference": {
+          "default": "prefer_lowest_evidence_class",
+          "enum": [
+            "prefer_lowest_evidence_class",
+            "prefer_highest_evidence_class"
+          ],
+          "title": "Provider Preference",
+          "type": "string"
         },
         "requirement_id": {
           "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
@@ -976,9 +1157,8 @@
       "description": "Protected source snapshots needed to compile a saved composition.",
       "properties": {
         "default_target": {
-          "default": "matterix",
+          "default": "openusd",
           "enum": [
-            "matterix",
             "isaac",
             "openusd"
           ],
@@ -1051,6 +1231,19 @@
           "pattern": "^[A-Za-z][A-Za-z0-9_./:-]{0,191}$",
           "title": "Channel Id",
           "type": "string"
+        },
+        "constrained_parameter_name": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Constrained Parameter Name"
         },
         "enforcement": {
           "enum": [
@@ -1277,6 +1470,16 @@
           "title": "Action Type",
           "type": "string"
         },
+        "echoed_parameter_bindings": {
+          "patternProperties": {
+            "^[A-Za-z][A-Za-z0-9_./:-]{0,191}$": {
+              "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+              "type": "string"
+            }
+          },
+          "title": "Echoed Parameter Bindings",
+          "type": "object"
+        },
         "id": {
           "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
           "title": "Id",
@@ -1317,6 +1520,16 @@
           "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
           "title": "Provider Id",
           "type": "string"
+        },
+        "reported_output_port_ids": {
+          "patternProperties": {
+            "^[A-Za-z][A-Za-z0-9_./:-]{0,191}$": {
+              "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,127}$",
+              "type": "string"
+            }
+          },
+          "title": "Reported Output Port Ids",
+          "type": "object"
         }
       },
       "required": [
@@ -1344,6 +1557,13 @@
             "$ref": "#/$defs/Agent"
           },
           "title": "Agents",
+          "type": "array"
+        },
+        "asset_sources": {
+          "items": {
+            "$ref": "#/$defs/AssetSource"
+          },
+          "title": "Asset Sources",
           "type": "array"
         },
         "assets": {
@@ -1584,7 +1804,7 @@
     },
     "GeometrySpec": {
       "additionalProperties": false,
-      "description": "Portable proxy plus an optional vendor reference.",
+      "description": "Either exact source-derived geometry or a labelled execution proxy.",
       "properties": {
         "dimensions_m": {
           "$ref": "#/$defs/Vec3"
@@ -1600,17 +1820,7 @@
           "title": "Display Color Rgb",
           "type": "array"
         },
-        "portable_primitive": {
-          "enum": [
-            "cube",
-            "cylinder",
-            "sphere",
-            "capsule"
-          ],
-          "title": "Portable Primitive",
-          "type": "string"
-        },
-        "vendor_uri": {
+        "mesh_source_id": {
           "anyOf": [
             {
               "type": "string"
@@ -1620,11 +1830,37 @@
             }
           ],
           "default": null,
-          "title": "Vendor Uri"
+          "title": "Mesh Source Id"
+        },
+        "portable_primitive": {
+          "anyOf": [
+            {
+              "enum": [
+                "cube",
+                "cylinder",
+                "sphere",
+                "capsule"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Portable Primitive"
+        },
+        "representation": {
+          "enum": [
+            "exact_source_geometry",
+            "execution_visualization_primitive"
+          ],
+          "title": "Representation",
+          "type": "string"
         }
       },
       "required": [
-        "portable_primitive",
+        "representation",
         "dimensions_m"
       ],
       "title": "GeometrySpec",
@@ -1713,60 +1949,6 @@
         "initial_channels"
       ],
       "title": "MaterialState",
-      "type": "object"
-    },
-    "MatterixAdapterConfig": {
-      "additionalProperties": false,
-      "properties": {
-        "environment_class": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Environment Class"
-        },
-        "repository": {
-          "minLength": 1,
-          "title": "Repository",
-          "type": "string"
-        },
-        "source_revision": {
-          "minLength": 7,
-          "title": "Source Revision",
-          "type": "string"
-        },
-        "task_id": {
-          "minLength": 1,
-          "title": "Task Id",
-          "type": "string"
-        },
-        "vendor_asset_paths": {
-          "patternProperties": {
-            "^[A-Za-z][A-Za-z0-9_.-]{0,127}$": {
-              "type": "string"
-            }
-          },
-          "title": "Vendor Asset Paths",
-          "type": "object"
-        },
-        "workflow": {
-          "minLength": 1,
-          "title": "Workflow",
-          "type": "string"
-        }
-      },
-      "required": [
-        "repository",
-        "source_revision",
-        "task_id",
-        "workflow"
-      ],
-      "title": "MatterixAdapterConfig",
       "type": "object"
     },
     "ModelBinding": {
@@ -1861,14 +2043,8 @@
           "title": "Material Policy",
           "type": "string"
         },
-        "portable_geometry": {
-          "const": true,
-          "default": true,
-          "title": "Portable Geometry",
-          "type": "boolean"
-        },
         "vendor_references": {
-          "default": false,
+          "default": true,
           "title": "Vendor References",
           "type": "boolean"
         }
@@ -1953,6 +2129,18 @@
         "provider_id": {
           "title": "Provider Id",
           "type": "string"
+        },
+        "sample_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sample Id"
         },
         "selected_facility_id": {
           "title": "Selected Facility Id",
@@ -2503,6 +2691,18 @@
     "ResolvedInputBinding": {
       "additionalProperties": false,
       "properties": {
+        "sample_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sample Id"
+        },
         "source_facility_id": {
           "anyOf": [
             {
@@ -3013,6 +3213,13 @@
             "$ref": "#/$defs/OperationBinding"
           },
           "title": "Operation Bindings",
+          "type": "array"
+        },
+        "proof_requirements": {
+          "items": {
+            "$ref": "#/$defs/ProofRequirement"
+          },
+          "title": "Proof Requirements",
           "type": "array"
         },
         "requirement_id": {

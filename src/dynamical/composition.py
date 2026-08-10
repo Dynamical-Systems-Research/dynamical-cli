@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import itertools
 import json
+import math
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
@@ -19,6 +20,7 @@ from .schema import (
     EvidenceClass,
     FacilityDocument,
     FailureMode,
+    ProofRequirement,
     ProviderAdapterLink,
     ProviderAdmission,
     ProviderAvailability,
@@ -44,6 +46,13 @@ EVIDENCE_RANK: dict[str, int] = {
     "physical": 3,
 }
 
+# itertools.product over per-step admitted-candidate lists is exponential in
+# the step count. This ceiling is safe for any campaign this product composes
+# today (a handful of steps, at most a few admitted providers each); a
+# requirement that would need more combinations HOLDs with an explicit reason
+# rather than silently searching only part of the space.
+MAX_CANDIDATE_COMBINATIONS = 4096
+
 
 class CompositionReason(StrictModel):
     code: str = Field(pattern=r"^[A-Z][A-Z0-9_]*$")
@@ -64,6 +73,7 @@ class ResolvedInputBinding(StrictModel):
     value: Scalar | None = None
     source_facility_id: str | None = None
     transport_operation_id: str | None = None
+    sample_id: str | None = None
 
 
 class OperationBinding(StrictModel):
@@ -85,6 +95,7 @@ class OperationBinding(StrictModel):
     failures: list[FailureMode]
     parameters: list[RequestedParameter]
     inputs: list[ResolvedInputBinding]
+    sample_id: str | None = None
 
 
 class TransportBinding(StrictModel):
@@ -121,6 +132,11 @@ class VirtualSDL(StrictModel):
     operation_bindings: list[OperationBinding]
     transport_bindings: list[TransportBinding] = Field(default_factory=list)
     dependency_edges: list[DependencyEdge] = Field(default_factory=list)
+    # The objective's own proof requirements, carried forward from the requirement
+    # so every downstream consumer (compiler, runtime, replay) can check proof
+    # completeness from this one composed artifact rather than re-deriving or
+    # re-trusting each backend's own claim of campaign success.
+    proof_requirements: list[ProofRequirement] = Field(default_factory=list)
     total_cost_usd: float
     total_duration_s: float
     virtual_sdl_sha256: str
@@ -138,7 +154,16 @@ class CompositionSources(StrictModel):
     requirement_sha256: str
     registry_sha256: str
     facility_sha256: str
-    default_target: Literal["matterix", "isaac", "openusd"] = "matterix"
+    # Not "isaac": openusd never calls a live embodied backend, so it is the target
+    # that compiles fastest and needs nothing installed beyond this package -- the
+    # right default for a save that mostly exists to record what was composed, not to
+    # stage a run. isaac stays available via explicit --target isaac; T14 fixed
+    # _runtime_pack.py's runtime_capability_bindings so a device offering more than one
+    # capability (e.g. ot2-device: dispense-electrolyte + aliquot-to-well; squidstat-
+    # device: electrodeposit-constant-current + measure-oer) no longer makes isaac
+    # compilation raise "resolves to multiple facility action types" -- see
+    # _select_capability_binding's constraint-id disambiguation.
+    default_target: Literal["isaac", "openusd"] = "openusd"
 
 
 class CompositionResult(StrictModel):
@@ -320,14 +345,6 @@ def _contract_reasons(
                 )
             )
             continue
-        if capability.kind == "transport":
-            reasons.append(
-                _reason(
-                    "TRANSPORT_AS_SCIENTIFIC_STEP",
-                    "transport operations can only bind explicit cross-facility edges",
-                    step_id=step.step_id,
-                )
-            )
         expected_inputs = {port.id: port for port in capability.input_ports}
         actual_bindings = {item.target_port_id: item for item in step.input_bindings}
         missing_inputs = sorted(
@@ -847,7 +864,17 @@ def _topology_bindings(
                     failures=provider.failures,
                 )
             )
-    return transports, reasons
+    # A single physical move can feed several consumed ports on the same
+    # target step (e.g. two output channels of one prior operation). Group by
+    # the (source_step_id, target_step_id) pair -- the physical move itself --
+    # and keep one deterministic representative so the move is charged once,
+    # not once per port it happens to feed.
+    grouped: dict[tuple[str | None, str], list[TransportBinding]] = {}
+    for transport in transports:
+        key = (transport.source_step_id, transport.target_step_id)
+        grouped.setdefault(key, []).append(transport)
+    deduplicated = [min(group, key=lambda item: item.target_port_id) for group in grouped.values()]
+    return deduplicated, reasons
 
 
 def _resolved_execution_inputs(
@@ -855,6 +882,7 @@ def _resolved_execution_inputs(
     request: CampaignRequirement,
     capabilities: dict[str, Capability],
     selected: dict[str, _Candidate],
+    sample_by_step: dict[str, str] | None = None,
 ) -> list[ResolvedInputBinding]:
     target_capability = capabilities[step.operation_id]
     target_ports = {item.id: item for item in target_capability.input_ports}
@@ -865,6 +893,15 @@ def _resolved_execution_inputs(
         target = target_ports[binding.target_port_id]
         if binding.source_kind == "campaign_input":
             source = campaign_inputs[binding.source_id]
+            # The agent's own declared campaign input is the only place composition
+            # can know a sample's identity ahead of execution: a step_output port's
+            # runtime value (and any sample it carries) is not known until the
+            # producing operation actually runs.
+            sample_id = (
+                str(source.value)
+                if target.state_type == "sample_state" and source.value is not None
+                else None
+            )
             resolved.append(
                 ResolvedInputBinding(
                     target_port_id=target.id,
@@ -877,6 +914,7 @@ def _resolved_execution_inputs(
                     value=source.value,
                     source_facility_id=source.facility_id,
                     transport_operation_id=binding.transport_operation_id,
+                    sample_id=sample_id,
                 )
             )
             continue
@@ -885,6 +923,11 @@ def _resolved_execution_inputs(
         source_port = next(
             item for item in source_capability.output_ports if item.id == binding.source_port_id
         )
+        # A sample_state port fed by a prior step carries that step's sample
+        # forward. Without this the identity is dropped at every step_output
+        # hop, so a measurement reads as though it were taken on some
+        # unrelated material and lineage checking has nothing to attribute.
+        # Steps resolve in topological order, so the producer is already known.
         resolved.append(
             ResolvedInputBinding(
                 target_port_id=target.id,
@@ -897,6 +940,11 @@ def _resolved_execution_inputs(
                 source_unit=source_port.unit,
                 source_facility_id=selected[source_step.step_id].facility_id,
                 transport_operation_id=binding.transport_operation_id,
+                sample_id=(
+                    (sample_by_step or {}).get(source_step.step_id)
+                    if target.state_type == "sample_state"
+                    else None
+                ),
             )
         )
     return resolved
@@ -950,6 +998,20 @@ def compose_virtual_sdl(
     topology_reasons: list[CompositionReason] = []
     budget_reasons: list[CompositionReason] = []
     candidate_lists = [candidates_by_step[item.step_id] for item in ordered_steps]
+    combination_count = math.prod(len(item) for item in candidate_lists)
+    if combination_count > MAX_CANDIDATE_COMBINATIONS:
+        return _hold(
+            request,
+            registry,
+            [
+                _reason(
+                    "CANDIDATE_SEARCH_BOUNDED",
+                    f"{combination_count} admitted provider combinations exceed the "
+                    f"explicit search bound of {MAX_CANDIDATE_COMBINATIONS}; composition "
+                    "refuses to silently search only part of the space",
+                )
+            ],
+        )
     for combination in itertools.product(*candidate_lists):
         selected = {
             step.step_id: candidate
@@ -979,8 +1041,11 @@ def compose_virtual_sdl(
                 )
             )
             continue
+        preference_sign = (
+            -1 if request.provider_preference == "prefer_highest_evidence_class" else 1
+        )
         score = (
-            sum(EVIDENCE_RANK[item.evidence_class] for item in providers),
+            preference_sign * sum(EVIDENCE_RANK[item.evidence_class] for item in providers),
             total_cost,
             total_duration,
             tuple(
@@ -996,37 +1061,65 @@ def compose_virtual_sdl(
     _, selected, transports, total_cost, total_duration = min(
         valid_compositions, key=lambda item: item[0]
     )
-    operation_bindings = [
-        OperationBinding(
-            step_id=step.step_id,
-            operation_id=step.operation_id,
-            provider_id=selected[step.step_id].provider.provider_id,
-            evidence_class=selected[step.step_id].provider.evidence_class,
-            selected_facility_id=selected[step.step_id].facility_id,
-            facility_ids=sorted(selected[step.step_id].provider.facility_ids),
-            endpoint_id=selected[step.step_id].provider.endpoint_id,
-            adapter_links=sorted(
-                selected[step.step_id].provider.adapter_links,
-                key=lambda item: (item.adapter_id, item.adapter_version),
-            ),
-            capability_contract=capabilities[step.operation_id],
-            validity_envelope=selected[step.step_id].provider.validity_envelope,
-            cost=selected[step.step_id].provider.cost,
-            duration=selected[step.step_id].provider.duration,
-            policy=selected[step.step_id].provider.policy,
-            availability=selected[step.step_id].provider.availability,
-            admission=selected[step.step_id].provider.admission,
-            failures=selected[step.step_id].provider.failures,
-            parameters=sorted(step.parameters, key=lambda item: item.name),
-            inputs=_resolved_execution_inputs(step, request, capabilities, selected),
+    operation_bindings: list[OperationBinding] = []
+    sample_by_step: dict[str, str] = {}
+    for step in ordered_steps:
+        resolved_inputs = _resolved_execution_inputs(
+            step, request, capabilities, selected, sample_by_step
         )
-        for step in ordered_steps
-    ]
+        # The operation's own sample identity is whichever of its resolved
+        # inputs is bound to a sample_state port -- the material this step
+        # acts on, if the agent declared one.
+        step_sample_id = next(
+            (item.sample_id for item in resolved_inputs if item.sample_id is not None), None
+        )
+        if step_sample_id is not None:
+            # A step that acts on a sample also hands it on: any later step
+            # bound to one of this step's outputs inherits the same identity.
+            sample_by_step[step.step_id] = step_sample_id
+        operation_bindings.append(
+            OperationBinding(
+                step_id=step.step_id,
+                operation_id=step.operation_id,
+                provider_id=selected[step.step_id].provider.provider_id,
+                evidence_class=selected[step.step_id].provider.evidence_class,
+                selected_facility_id=selected[step.step_id].facility_id,
+                facility_ids=sorted(selected[step.step_id].provider.facility_ids),
+                endpoint_id=selected[step.step_id].provider.endpoint_id,
+                adapter_links=sorted(
+                    selected[step.step_id].provider.adapter_links,
+                    key=lambda item: (item.adapter_id, item.adapter_version),
+                ),
+                capability_contract=capabilities[step.operation_id],
+                validity_envelope=selected[step.step_id].provider.validity_envelope,
+                cost=selected[step.step_id].provider.cost,
+                duration=selected[step.step_id].provider.duration,
+                policy=selected[step.step_id].provider.policy,
+                availability=selected[step.step_id].provider.availability,
+                admission=selected[step.step_id].provider.admission,
+                failures=selected[step.step_id].provider.failures,
+                parameters=sorted(step.parameters, key=lambda item: item.name),
+                inputs=resolved_inputs,
+                sample_id=step_sample_id,
+            )
+        )
+    edge_pairs = {
+        (dependency, step.step_id) for step in ordered_steps for dependency in step.depends_on
+    }
+    # A physical move is itself a dependency: the step it feeds cannot run
+    # before it completes. Fold transport pairs into the same edge set so the
+    # execution order reflects every move, not only the depends_on edges the
+    # agent declared explicitly. A campaign_input-sourced transport has no
+    # step_id to anchor an edge to and is excluded.
+    edge_pairs |= {
+        (transport.source_step_id, transport.target_step_id)
+        for transport in transports
+        if transport.source_step_id is not None
+    }
     edges = sorted(
         (
-            DependencyEdge(source_step_id=dependency, target_step_id=step.step_id)
-            for step in ordered_steps
-            for dependency in step.depends_on
+            DependencyEdge(source_step_id=source, target_step_id=target)
+            for source, target in edge_pairs
         ),
         key=lambda item: (item.source_step_id, item.target_step_id),
     )
@@ -1048,6 +1141,9 @@ def compose_virtual_sdl(
             )
         ],
         "dependency_edges": [item.model_dump(mode="json") for item in edges],
+        "proof_requirements": [
+            item.model_dump(mode="json") for item in request.objective.proof_requirements
+        ],
         "total_cost_usd": total_cost,
         "total_duration_s": total_duration,
     }
@@ -1072,16 +1168,198 @@ def compose_virtual_sdl(
     )
 
 
+def demote_untrusted_admissions(
+    registry: CapabilityRegistry,
+    installed_registry: CapabilityRegistry,
+) -> tuple[CapabilityRegistry, list[CompositionReason]]:
+    """Demote admitted claims the installed authority does not independently confirm.
+
+    An agent may propose any registry it likes -- that is how a new provider gets
+    considered at all -- but it cannot also be the authority that admits its own
+    proposal. A provider record is only trusted as admitted when the *entire
+    record* -- identity, admission, policy, safety limits, validity envelope,
+    cost, duration, availability, and adapter links -- is identical to an
+    admitted record in the packaged/installed registry this software ships
+    with. A record whose identity matches but whose authority-bearing fields
+    differ is a known identity carrying modified authority, and is demoted to
+    ``"pending"`` -- a proposal, not an admission -- exactly like a record the
+    installed authority has never seen. Demoted proposals flow through the
+    ordinary HOLD machinery like any other not-yet-admitted provider.
+    """
+
+    installed_admitted = {
+        (item.provider_id, item.operation_id, item.evidence_class): item.model_dump(mode="json")
+        for item in installed_registry.providers
+        if item.admission.status == "admitted"
+    }
+    installed_authorities = {item.admission.authority_id for item in installed_registry.providers}
+    demoted: list[CapabilityProvider] = []
+    reasons: list[CompositionReason] = []
+    changed = False
+    for provider in registry.providers:
+        if provider.admission.status != "admitted":
+            demoted.append(provider)
+            continue
+        key = (provider.provider_id, provider.operation_id, provider.evidence_class)
+        expected = installed_admitted.get(key)
+        if expected is not None and provider.model_dump(mode="json") == expected:
+            demoted.append(provider)
+            continue
+        changed = True
+        if provider.admission.authority_id not in installed_authorities:
+            code = "AUTHORITY_UNRECOGNIZED"
+            detail = (
+                f"provider {provider.provider_id!r} claims admission from authority "
+                f"{provider.admission.authority_id!r}, which the installed authority does not "
+                "recognize; treated as a proposal, not an admission"
+            )
+        elif expected is None:
+            code = "PROVIDER_SELF_ADMITTED"
+            detail = (
+                f"provider {provider.provider_id!r} claims admitted status for operation "
+                f"{provider.operation_id!r} at evidence class {provider.evidence_class!r}, but "
+                "no identical admission exists in the installed authority; treated as a "
+                "proposal, not an admission"
+            )
+        else:
+            code = "PROVIDER_AUTHORITY_MODIFIED"
+            detail = (
+                f"provider {provider.provider_id!r} matches an installed admitted identity for "
+                f"operation {provider.operation_id!r} at evidence class "
+                f"{provider.evidence_class!r}, but its authority-bearing record differs from "
+                "the installed authority; treated as a proposal, not an admission"
+            )
+        reasons.append(_reason(code, detail, provider_id=provider.provider_id))
+        demoted.append(
+            provider.model_copy(
+                update={"admission": provider.admission.model_copy(update={"status": "pending"})}
+            )
+        )
+    if not changed:
+        return registry, []
+    return registry.model_copy(update={"providers": demoted}), reasons
+
+
+# Facility sections whose records carry authority: operation contracts, device
+# and agent endpoint wiring, executable model bindings, backend adapters,
+# provider admission bindings, safety constraints, calibration evidence, asset
+# admission, and the declared initial material states (which seed scientific
+# conditions an agent must not fabricate). Everything else in a facility
+# document -- facility metadata, workstation layout, asset poses -- is topology
+# the agent is free to compose.
+_FACILITY_AUTHORITY_SECTIONS = (
+    "capabilities",
+    "devices",
+    "agents",
+    "model_bindings",
+    "adapter_bindings",
+    "provider_admission_bindings",
+    "constraints",
+    "calibration_evidence",
+    "asset_sources",
+    "material_states",
+)
+
+
+def authority_hold_reasons(
+    registry: CapabilityRegistry,
+    facility: FacilityDocument | None,
+    installed_registry: CapabilityRegistry,
+    installed_facility: FacilityDocument | None,
+) -> list[CompositionReason]:
+    """Compare the authority-bearing projection against the installed bundle.
+
+    The agent stays free to compose topology and to select a *subset* of
+    installed records; it cannot modify or introduce authority-bearing
+    records. Every operation contract in the supplied registry and every
+    record in the supplied facility's authority-bearing sections must be
+    identical to the installed record with the same id. Anything unknown or
+    modified is a proposal: it earns a typed reason for a structured HOLD,
+    never silent acceptance. Provider admission records are handled
+    separately by ``demote_untrusted_admissions``.
+    """
+
+    reasons: list[CompositionReason] = []
+    installed_operations = {
+        item.operation_id: item.model_dump(mode="json") for item in installed_registry.capabilities
+    }
+    for capability in registry.capabilities:
+        expected = installed_operations.get(capability.operation_id)
+        if expected is None:
+            reasons.append(
+                _reason(
+                    "AUTHORITY_UNRECOGNIZED",
+                    f"operation contract {capability.operation_id!r} is not in the installed "
+                    "capability authority; treated as a proposal",
+                )
+            )
+        elif capability.model_dump(mode="json") != expected:
+            reasons.append(
+                _reason(
+                    "AUTHORITY_MODIFIED",
+                    f"operation contract {capability.operation_id!r} differs from the installed "
+                    "capability authority; treated as a proposal",
+                )
+            )
+    if facility is None or installed_facility is None:
+        return _deduplicate_reasons(reasons)
+    for section in _FACILITY_AUTHORITY_SECTIONS:
+        installed_records = {
+            record.id: record.model_dump(mode="json")
+            for record in getattr(installed_facility, section)
+        }
+        for record in getattr(facility, section):
+            expected = installed_records.get(record.id)
+            if expected is None:
+                reasons.append(
+                    _reason(
+                        "AUTHORITY_UNRECOGNIZED",
+                        f"facility {section} record {record.id!r} is not in the installed "
+                        "facility authority; treated as a proposal",
+                    )
+                )
+            elif record.model_dump(mode="json") != expected:
+                reasons.append(
+                    _reason(
+                        "AUTHORITY_MODIFIED",
+                        f"facility {section} record {record.id!r} differs from the installed "
+                        "facility authority; treated as a proposal",
+                    )
+                )
+    return _deduplicate_reasons(reasons)
+
+
 def compose_files(
     requirement_path: str | Path,
     registry_path: str | Path,
     facility_path: str | Path,
+    *,
+    installed_registry: CapabilityRegistry | None = None,
 ) -> CompositionResult:
+    """Compose a requirement against files an agent supplies.
+
+    ``installed_registry`` is the packaged/installed authority (see
+    ``dynamical.cli``'s ``DEFAULT_REGISTRY``), not another agent-suppliable path:
+    passing it demotes any admitted claim in ``registry_path`` that authority does
+    not independently confirm (see ``demote_untrusted_admissions``) *before*
+    composing, so the demoted registry -- not the raw agent-supplied one -- is what
+    gets composed and protected as ``sources.registry``. This keeps the saved
+    result exactly reproducible from its own protected sources (no reason is added
+    here that a plain ``compose_virtual_sdl(sources.requirement, sources.registry)``
+    would not also produce); callers that want the demotion explained to an agent
+    should call ``demote_untrusted_admissions`` themselves for display, the way
+    ``dynamical.cli``'s ``compose`` command does. Omitting ``installed_registry``
+    composes ``registry_path`` as given, unchanged -- for callers that already are
+    the trust boundary, or that are composing the installed registry itself.
+    """
+
     from .schema import load_facility_manifest
 
     requirement = load_campaign_requirement(requirement_path)
     registry = load_capability_registry(registry_path)
     facility = load_facility_manifest(facility_path)
+    if installed_registry is not None:
+        registry, _ = demote_untrusted_admissions(registry, installed_registry)
     result = compose_virtual_sdl(requirement, registry)
     sources = CompositionSources(
         requirement=requirement,

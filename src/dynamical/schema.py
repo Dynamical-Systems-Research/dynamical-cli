@@ -16,6 +16,8 @@ from typing import Annotated, Any, Literal, TypeAlias
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
+from .sources import AssetSource
+
 SCHEMA_VERSION = "0.1.0"
 SHA256_PATTERN = r"^[0-9a-f]{64}$"
 
@@ -97,20 +99,31 @@ class Workstation(StrictModel):
 
 
 class GeometrySpec(StrictModel):
-    """Portable proxy plus an optional vendor reference."""
+    """Either exact source-derived geometry or a labelled execution proxy."""
 
-    portable_primitive: Literal["cube", "cylinder", "sphere", "capsule"]
+    representation: Literal["exact_source_geometry", "execution_visualization_primitive"]
     dimensions_m: Vec3
-    vendor_uri: str | None = None
+    mesh_source_id: str | None = None
+    portable_primitive: Literal["cube", "cylinder", "sphere", "capsule"] | None = None
     display_color_rgb: Annotated[
         list[Annotated[FiniteFloat, Field(ge=0.0, le=1.0)]],
         Field(min_length=3, max_length=3),
     ] = Field(default_factory=lambda: [0.55, 0.58, 0.62])
 
     @model_validator(mode="after")
-    def positive_dimensions(self) -> GeometrySpec:
+    def representation_matches_geometry(self) -> GeometrySpec:
         if min(self.dimensions_m.x, self.dimensions_m.y, self.dimensions_m.z) <= 0:
             raise ValueError("geometry dimensions must be positive")
+        if self.representation == "exact_source_geometry":
+            if self.mesh_source_id is None:
+                raise ValueError("exact_source_geometry requires mesh_source_id")
+            if self.portable_primitive is not None:
+                raise ValueError("exact_source_geometry must not declare a portable_primitive")
+        else:
+            if self.portable_primitive is None:
+                raise ValueError("execution_visualization_primitive requires a portable_primitive")
+            if self.mesh_source_id is not None:
+                raise ValueError("a proxy must not claim a mesh_source_id")
         return self
 
 
@@ -206,11 +219,55 @@ class FacilityCapability(StrictModel):
     observation_channel_ids: list[ChannelId] = Field(default_factory=list)
     precondition_constraint_ids: list[Identifier] = Field(default_factory=list)
     postcondition_constraint_ids: list[Identifier] = Field(default_factory=list)
+    # Explicit channel_id -> parameter name binding for observation channels this
+    # capability's provider can honestly echo from a commanded action (e.g. an
+    # embodied backend with no domain model for the operation reporting back
+    # exactly the parameter it was commanded with). Declared, not inferred: a
+    # backend that paired channels to parameters by list position could silently
+    # bind the wrong value the moment either list is reordered or a capability
+    # gains a same-typed parameter. Every key must be one of this capability's own
+    # ``observation_channel_ids``; every value must name one of its own
+    # ``parameters`` (see ``echo_bindings_are_declared`` below).
+    echoed_parameter_bindings: dict[ChannelId, Identifier] = Field(default_factory=dict)
+    # Explicit channel_id -> registry output_port_id binding: which of this
+    # facility's own observation channels reports the value the reusable
+    # scientific ``Capability`` (registry-level) declares as that output port.
+    # The two are different vocabularies by design (a facility channel is
+    # namespaced by device, e.g. ``squidstat.overpotential_v``; a registry
+    # output port is namespaced by operation, e.g. ``overpotential_v``), so a
+    # proof requirement's declared ``output_port_ids`` cannot be checked
+    # against a trace's observation channels without this declared bridge.
+    # Every key must be one of this capability's own ``observation_channel_ids``.
+    reported_output_port_ids: dict[ChannelId, Identifier] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def echo_bindings_are_declared(self) -> FacilityCapability:
+        channel_ids = set(self.observation_channel_ids)
+        parameter_names = {item.name for item in self.parameters}
+        unknown_channels = set(self.echoed_parameter_bindings) - channel_ids
+        if unknown_channels:
+            raise ValueError(
+                f"capability {self.id} echoes unknown channels: {sorted(unknown_channels)}"
+            )
+        unknown_parameters = set(self.echoed_parameter_bindings.values()) - parameter_names
+        if unknown_parameters:
+            raise ValueError(
+                f"capability {self.id} echoes unknown parameters: {sorted(unknown_parameters)}"
+            )
+        unknown_reported = set(self.reported_output_port_ids) - channel_ids
+        if unknown_reported:
+            raise ValueError(
+                f"capability {self.id} reports unknown channels: {sorted(unknown_reported)}"
+            )
+        return self
 
 
 EvidenceClass: TypeAlias = Literal["simulator", "calibrated_twin", "shadow", "physical"]
 PortValueType: TypeAlias = Literal[
     "number", "integer", "boolean", "string", "material_state", "sample_state"
+]
+ProviderPreference: TypeAlias = Literal[
+    "prefer_lowest_evidence_class", "prefer_highest_evidence_class"
 ]
 
 
@@ -421,9 +478,9 @@ class CapabilityRegistry(StrictModel):
         operation_ids = [item.operation_id for item in self.capabilities]
         if len(operation_ids) != len(set(operation_ids)):
             raise ValueError("registry operation IDs must be unique")
-        provider_ids = [item.provider_id for item in self.providers]
-        if len(provider_ids) != len(set(provider_ids)):
-            raise ValueError("registry provider IDs must be unique")
+        provider_keys = [(item.operation_id, item.provider_id) for item in self.providers]
+        if len(provider_keys) != len(set(provider_keys)):
+            raise ValueError("registry (operation_id, provider_id) pairs must be unique")
         unknown = {item.operation_id for item in self.providers} - set(operation_ids)
         if unknown:
             raise ValueError(f"providers refer to unknown operations: {sorted(unknown)}")
@@ -515,6 +572,7 @@ class CampaignRequirement(StrictModel):
     steps: list[CampaignStepRequirement] = Field(min_length=1)
     max_cost_usd: Annotated[FiniteFloat, Field(ge=0.0)]
     max_duration_s: Annotated[FiniteFloat, Field(ge=0.0)]
+    provider_preference: ProviderPreference = "prefer_lowest_evidence_class"
 
     @model_validator(mode="after")
     def unique_requirement_records(self) -> CampaignRequirement:
@@ -551,15 +609,6 @@ class ModelBinding(StrictModel):
     calibration_evidence_ids: list[Identifier] = Field(default_factory=list)
 
 
-class MatterixAdapterConfig(StrictModel):
-    repository: str = Field(min_length=1)
-    source_revision: str = Field(min_length=7)
-    task_id: str = Field(min_length=1)
-    workflow: str = Field(min_length=1)
-    environment_class: str | None = None
-    vendor_asset_paths: dict[Identifier, str] = Field(default_factory=dict)
-
-
 class IsaacAdapterConfig(StrictModel):
     isaac_sim_version: str = Field(min_length=1)
     isaac_lab_revision: str = Field(min_length=1)
@@ -569,9 +618,8 @@ class IsaacAdapterConfig(StrictModel):
 
 
 class OpenUsdAdapterConfig(StrictModel):
-    portable_geometry: Literal[True] = True
     material_policy: Literal["UsdPreviewSurface"] = "UsdPreviewSurface"
-    vendor_references: bool = False
+    vendor_references: bool = True
 
 
 class ReplayAdapterConfig(StrictModel):
@@ -579,14 +627,12 @@ class ReplayAdapterConfig(StrictModel):
     preserve_observation_origin: Literal[True] = True
 
 
-AdapterConfiguration: TypeAlias = (
-    MatterixAdapterConfig | IsaacAdapterConfig | OpenUsdAdapterConfig | ReplayAdapterConfig
-)
+AdapterConfiguration: TypeAlias = IsaacAdapterConfig | OpenUsdAdapterConfig | ReplayAdapterConfig
 
 
 class AdapterBinding(StrictModel):
     id: Identifier
-    target: Literal["matterix", "isaac", "openusd", "replay"]
+    target: Literal["isaac", "openusd", "replay"]
     subject_id: Identifier
     adapter_id: Identifier
     adapter_version: str = Field(min_length=1)
@@ -596,7 +642,6 @@ class AdapterBinding(StrictModel):
     @model_validator(mode="after")
     def configuration_matches_target(self) -> AdapterBinding:
         expected = {
-            "matterix": MatterixAdapterConfig,
             "isaac": IsaacAdapterConfig,
             "openusd": OpenUsdAdapterConfig,
             "replay": ReplayAdapterConfig,
@@ -626,6 +671,15 @@ class Constraint(StrictModel):
     unit: str = Field(min_length=1)
     enforcement: Literal["reject", "terminate", "report"]
     verifier_binding_id: Identifier
+    # Declared, not inferred: the one action parameter (by name, on whichever
+    # operation this constraint is bound to via a capability's
+    # precondition/postcondition_constraint_ids) that carries the value this
+    # constraint checks. Without this, a pre-action evaluator would have to guess
+    # a binding by matching units, which silently picks the wrong parameter when
+    # two of an operation's parameters share a unit. Optional: a constraint whose
+    # measured channel is never sourced from a commanded parameter (e.g. it reads
+    # a device's own sensor) has nothing to name here.
+    constrained_parameter_name: Identifier | None = None
 
     @model_validator(mode="after")
     def comparator_bound(self) -> Constraint:
@@ -639,6 +693,26 @@ class CalibrationMetric(StrictModel):
     value: FiniteFloat
     unit: str = Field(min_length=1)
     split: Literal["fit", "guard", "temporal_holdout", "independent_test"]
+    # A gated metric declares the frozen threshold it was evaluated against.
+    # Pass/fail is always recomputed from value, threshold, and comparator --
+    # never trusted from a stored boolean.
+    threshold: FiniteFloat | None = None
+    comparator: Literal["le", "ge"] | None = None
+
+    @model_validator(mode="after")
+    def threshold_and_comparator_travel_together(self) -> CalibrationMetric:
+        if (self.threshold is None) != (self.comparator is None):
+            raise ValueError("a gated metric needs both threshold and comparator")
+        return self
+
+    def gate_passed(self) -> bool | None:
+        """True/False for gated metrics, None for ungated ones."""
+
+        if self.threshold is None or self.comparator is None:
+            return None
+        if self.comparator == "le":
+            return self.value <= self.threshold
+        return self.value >= self.threshold
 
 
 class CalibrationEvidence(StrictModel):
@@ -674,6 +748,7 @@ class FacilityDocument(StrictModel):
     provider_admission_bindings: list[FacilityProviderBinding] = Field(default_factory=list)
     constraints: list[Constraint] = Field(default_factory=list)
     calibration_evidence: list[CalibrationEvidence] = Field(default_factory=list)
+    asset_sources: list[AssetSource] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_graph(self) -> FacilityDocument:
@@ -689,6 +764,7 @@ class FacilityDocument(StrictModel):
             "provider admission binding": self.provider_admission_bindings,
             "constraint": self.constraints,
             "calibration evidence": self.calibration_evidence,
+            "asset source": self.asset_sources,
         }
         all_ids: set[str] = {self.facility.id}
         ids_by_kind: dict[str, set[str]] = {}
@@ -733,9 +809,18 @@ class FacilityDocument(StrictModel):
             raise ValueError("channel IDs must be unique across all facility providers")
         channel_ids = set(channel_declarations)
 
+        admitted_source_ids = {
+            source.id for source in self.asset_sources if source.admission == "admitted"
+        }
         for asset in self.assets:
             if asset.workstation_id not in workstation_ids:
                 raise ValueError(f"asset {asset.id} refers to an unknown workstation")
+            mesh_source_id = asset.geometry.mesh_source_id
+            if mesh_source_id is not None and mesh_source_id not in admitted_source_ids:
+                raise ValueError(
+                    f"asset {asset.id} geometry mesh_source_id {mesh_source_id!r} does not "
+                    "resolve to an admitted asset source"
+                )
         for endpoint in [*self.devices, *self.agents]:
             if endpoint.asset_id not in asset_ids:
                 raise ValueError(f"{endpoint.id} refers to an unknown asset")

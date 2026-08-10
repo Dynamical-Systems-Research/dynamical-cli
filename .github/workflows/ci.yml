@@ -54,16 +54,56 @@ jobs:
             .
           uv run python -m json.tool .agents/plugins/marketplace.json >/dev/null
 
-      - name: Build and smoke-test the wheel
+      - name: Build and inspect the wheel and sdist
+        run: |
+          wheel_dir="$RUNNER_TEMP/wheelhouse"
+          uv build --out-dir "$wheel_dir"
+          uv run python - "$wheel_dir" <<'EOF'
+          import sys, tarfile, zipfile
+          from pathlib import Path
+
+          wheel_dir = Path(sys.argv[1])
+          [wheel] = wheel_dir.glob("*.whl")
+          [sdist] = wheel_dir.glob("*.tar.gz")
+          with zipfile.ZipFile(wheel) as zf:
+              members = zf.namelist()
+          with tarfile.open(sdist) as tf:
+              members += tf.getnames()
+          forbidden = (
+              "evals/", "docs/", "scripts/", "examples/", "sources/",
+              ".step", ".stl", ".mp4", ".ndjson", "artifacts/", "uv.lock",
+              "requirement.yaml", "api-log", "api_log", ".env",
+          )
+          bad = [m for m in members for f in forbidden if f in m.lower()]
+          if bad:
+              raise SystemExit(f"forbidden members in built packages: {bad}")
+          print(f"package inspection passed: {len(members)} members")
+          EOF
+
+      - name: Smoke-test the wheel end to end
         run: |
           wheel_dir="$RUNNER_TEMP/wheelhouse"
           smoke_venv="$RUNNER_TEMP/smoke-venv"
-          uv build --wheel --out-dir "$wheel_dir"
           uv venv --python 3.11 "$smoke_venv"
           uv pip install --python "$smoke_venv/bin/python" "$wheel_dir"/*.whl
+          uv run python -c "
+          import sys
+          from pathlib import Path
+          sys.path.insert(0, 'tests')
+          from _fixtures import write_reference_requirement
+          import os
+          write_reference_requirement(Path(os.environ['RUNNER_TEMP']) / 'requirement.yaml')
+          "
           cd "$RUNNER_TEMP"
           "$smoke_venv/bin/dynamical" --version
           "$smoke_venv/bin/dynamical" capabilities --json >capabilities.json
           "$smoke_venv/bin/dynamical" compose --schema >composition-schema.json
           "$smoke_venv/bin/python" -m json.tool capabilities.json >/dev/null
           "$smoke_venv/bin/python" -m json.tool composition-schema.json >/dev/null
+          "$smoke_venv/bin/dynamical" compose requirement.yaml -o composition.json
+          "$smoke_venv/bin/dynamical" compile composition.json -o compiled-world
+          "$smoke_venv/bin/dynamical" validate compiled-world --json >/dev/null
+          "$smoke_venv/bin/dynamical" run compiled-world -o trace.ndjson
+          "$smoke_venv/bin/dynamical" validate trace.ndjson --json >/dev/null
+          "$smoke_venv/bin/dynamical" run trace.ndjson --mode replay -o replay.ndjson
+          "$smoke_venv/bin/dynamical" validate replay.ndjson --json >/dev/null

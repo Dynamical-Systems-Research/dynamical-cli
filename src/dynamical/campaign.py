@@ -1,4 +1,4 @@
-"""Stable campaign records and the deterministic composed thermal runner."""
+"""Stable campaign records and the deterministic composed campaign runner."""
 
 from __future__ import annotations
 
@@ -6,11 +6,18 @@ import argparse
 import hashlib
 import json
 import math
+import re
+import sys
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
+
+from . import instruments
+from .instruments import InstrumentRequest, InstrumentResult
+from .reasons import RuntimeReason
+from .samples import Sample, apply_transition, build_transition, check_invariants, state_digest
 
 SCHEMA_VERSION = "dynamical.campaign.v0.1"
 EVENT_KEYS = {
@@ -45,41 +52,23 @@ class RunMode(StrEnum):
     REPLAY = "replay"
 
 
-class ActionKind(StrEnum):
-    APPLY_THERMAL_PROGRAM = "apply-thermal-program"
-    AGITATE_SAMPLE = "agitate-sample"
-    MEASURE_PLATE_TEMPERATURE = "measure-plate-temperature"
-    MEASURE_SAMPLE_TEMPERATURE = "measure-sample-temperature"
-    ESTIMATE_TEMPERATURE_GRADIENT = "estimate-temperature-gradient"
-    MEASURE_SAMPLE_MASS = "measure-sample-mass"
-    MEASURE_MIXING_LOAD = "measure-mixing-load"
-    ESTIMATE_REACTION_PROGRESS = "estimate-reaction-progress"
-    MEASURE_REACTION_PROGRESS = "measure-reaction-progress"
-    DISPENSE_LIQUID = "dispense_liquid"
-    DISPENSE_SOLID = "dispense_solid"
-    MATERIAL_TRANSFER = "material_transfer"
-    SET_AIRFLOW = "set_airflow"
-    SET_GLOVEBOX_STATE = "set_glovebox_state"
-    TRANSPORT = "transport"
-    WASH_AND_DRY = "wash_and_dry"
-    SET_HEATER = "set_heater"
-    PICK = "pick"
-    PLACE = "place"
-    WAIT = "wait"
-    OBSERVE = "observe"
-    STOP = "stop"
+ACTION_KIND_PATTERN = r"^[a-z][a-z0-9]*([-_][a-z0-9]+)*$"
+_ACTION_KIND_RE = re.compile(ACTION_KIND_PATTERN)
 
 
-THERMAL_OPERATION_IDS = {
-    ActionKind.AGITATE_SAMPLE.value,
-    ActionKind.APPLY_THERMAL_PROGRAM.value,
-    ActionKind.MEASURE_PLATE_TEMPERATURE.value,
-    ActionKind.MEASURE_SAMPLE_TEMPERATURE.value,
-    ActionKind.ESTIMATE_TEMPERATURE_GRADIENT.value,
-    ActionKind.MEASURE_SAMPLE_MASS.value,
-    ActionKind.MEASURE_MIXING_LOAD.value,
-    ActionKind.ESTIMATE_REACTION_PROGRESS.value,
-}
+def _validate_action_kind(value: str, name: str) -> str:
+    """Validate one action-kind identifier against the open vocabulary pattern.
+
+    There is no closed, global enum of action kinds. Which identifiers are
+    admitted for one compiled pack is enforced per pack: the declared facility
+    capabilities must exactly match the pack's own action_schema.json enum
+    (see load_compiled_campaign_contract), and which operations are actually
+    executable is decided by dynamical.instruments.resolve at run time.
+    """
+
+    if not isinstance(value, str) or not _ACTION_KIND_RE.match(value):
+        raise CampaignValidationError(f"{name} must match {ACTION_KIND_PATTERN!r}: {value!r}")
+    return value
 
 
 class ObservationOrigin(StrEnum):
@@ -172,11 +161,14 @@ def trace_event_json_schema() -> dict[str, Any]:
                 ],
                 "properties": {
                     "action_id": {"type": "string", "minLength": 1},
-                    "kind": {"enum": [item.value for item in ActionKind]},
+                    "kind": {"type": "string", "pattern": ACTION_KIND_PATTERN},
                     "actor_id": {"type": "string", "minLength": 1},
                     "provider_id": {"type": "string", "minLength": 1},
                     "evidence_class": {"enum": [item.value for item in EvidenceClass]},
                     "parameters": {"type": "object"},
+                    "sample_id": {"anyOf": [{"type": "string", "minLength": 1}, {"type": "null"}]},
+                    "sample_lineage": {"type": "array", "items": {"type": "string"}},
+                    "station_id": {"anyOf": [{"type": "string", "minLength": 1}, {"type": "null"}]},
                 },
             },
             "observation_channel": {
@@ -190,6 +182,7 @@ def trace_event_json_schema() -> dict[str, Any]:
                     "origin",
                     "provider_id",
                     "evidence_class",
+                    "uncertainty",
                 ],
                 "properties": {
                     "name": {"type": "string", "minLength": 1},
@@ -199,6 +192,16 @@ def trace_event_json_schema() -> dict[str, Any]:
                     "origin": {"enum": [item.value for item in ObservationOrigin]},
                     "provider_id": {"type": "string", "minLength": 1},
                     "evidence_class": {"enum": [item.value for item in EvidenceClass]},
+                    "uncertainty": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "required": ["value", "kind", "origin"],
+                        "properties": {
+                            "value": {"type": ["number", "null"], "minimum": 0},
+                            "kind": {"enum": sorted(UNCERTAINTY_KINDS)},
+                            "origin": {"type": "string", "minLength": 1},
+                        },
+                    },
                 },
             },
             "observation": {
@@ -223,6 +226,8 @@ def trace_event_json_schema() -> dict[str, Any]:
                         "items": {"$ref": "#/$defs/observation_channel"},
                     },
                     "evidence_ids": {"type": "array", "items": {"type": "string"}},
+                    "sample_id": {"anyOf": [{"type": "string", "minLength": 1}, {"type": "null"}]},
+                    "sample_lineage": {"type": "array", "items": {"type": "string"}},
                 },
             },
             "constraint": {
@@ -232,7 +237,9 @@ def trace_event_json_schema() -> dict[str, Any]:
                     "constraint_id",
                     "phase",
                     "passed",
+                    "outcome",
                     "measured_value",
+                    "margin",
                     "limit",
                     "verifier",
                 ],
@@ -240,7 +247,9 @@ def trace_event_json_schema() -> dict[str, Any]:
                     "constraint_id": {"type": "string", "minLength": 1},
                     "phase": {"enum": ["pre_action", "runtime", "post_action"]},
                     "passed": {"type": "boolean"},
+                    "outcome": {"enum": ["passed", "violated", "unavailable"]},
                     "measured_value": scalar_schema,
+                    "margin": {"anyOf": [{"type": "number"}, {"type": "null"}]},
                     "limit": {"type": "object"},
                     "verifier": {"type": "string", "minLength": 1},
                 },
@@ -396,30 +405,43 @@ class EvidenceReference:
 @dataclass(frozen=True)
 class ActionRequest:
     action_id: str
-    kind: ActionKind
+    kind: str
     actor_id: str
     provider_id: str
     evidence_class: EvidenceClass
     parameters: Mapping[str, Any] = field(default_factory=dict)
+    sample_id: str | None = None
+    sample_lineage: list[str] = field(default_factory=list)
+    station_id: str | None = None
 
     def __post_init__(self) -> None:
         if not self.action_id or not self.actor_id or not self.provider_id:
             raise CampaignValidationError("action id, actor id, and provider id are required")
+        _validate_action_kind(self.kind, "action.kind")
+        if self.sample_id is not None and not self.sample_id:
+            raise CampaignValidationError("action sample_id must not be empty when present")
+        if any(not item for item in self.sample_lineage):
+            raise CampaignValidationError("action sample_lineage entries must not be empty")
+        if self.station_id is not None and not self.station_id:
+            raise CampaignValidationError("action station_id must not be empty when present")
         canonical_json(self.parameters)
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "action_id": self.action_id,
-            "kind": self.kind.value,
+            "kind": self.kind,
             "actor_id": self.actor_id,
             "provider_id": self.provider_id,
             "evidence_class": self.evidence_class.value,
             "parameters": dict(self.parameters),
+            "sample_id": self.sample_id,
+            "sample_lineage": list(self.sample_lineage),
+            "station_id": self.station_id,
         }
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> ActionRequest:
-        keys = {
+        required_keys = {
             "action_id",
             "kind",
             "actor_id",
@@ -427,19 +449,37 @@ class ActionRequest:
             "evidence_class",
             "parameters",
         }
-        _strict_mapping(value, keys, "action")
-        if set(value) != keys or not isinstance(value["parameters"], Mapping):
+        optional_keys = {"sample_id", "sample_lineage", "station_id"}
+        _strict_mapping(value, required_keys | optional_keys, "action")
+        if not required_keys.issubset(value) or not isinstance(value["parameters"], Mapping):
             raise CampaignValidationError("action record is incomplete or invalid")
+        sample_id_raw = value.get("sample_id")
+        if sample_id_raw is not None:
+            sample_id_raw = _require_string(sample_id_raw, "action.sample_id")
+        sample_lineage_raw = value.get("sample_lineage", [])
+        if not isinstance(sample_lineage_raw, list):
+            raise CampaignValidationError("action.sample_lineage must be an array")
+        station_id_raw = value.get("station_id")
+        if station_id_raw is not None:
+            station_id_raw = _require_string(station_id_raw, "action.station_id")
         return cls(
             action_id=_require_string(value["action_id"], "action.action_id"),
-            kind=ActionKind(_require_string(value["kind"], "action.kind")),
+            kind=_require_string(value["kind"], "action.kind"),
             actor_id=_require_string(value["actor_id"], "action.actor_id"),
             provider_id=_require_string(value["provider_id"], "action.provider_id"),
             evidence_class=EvidenceClass(
                 _require_string(value["evidence_class"], "action.evidence_class")
             ),
             parameters=dict(value["parameters"]),
+            sample_id=sample_id_raw,
+            sample_lineage=[
+                _require_string(item, "action.sample_lineage item") for item in sample_lineage_raw
+            ],
+            station_id=station_id_raw,
         )
+
+
+UNCERTAINTY_KINDS = {"declared", "propagated", "measured"}
 
 
 @dataclass(frozen=True)
@@ -451,6 +491,7 @@ class ObservationChannel:
     origin: ObservationOrigin
     provider_id: str
     evidence_class: EvidenceClass
+    uncertainty: Mapping[str, Any]
 
     def __post_init__(self) -> None:
         if not self.name or not self.unit or not self.quality or not self.provider_id:
@@ -461,6 +502,31 @@ class ObservationChannel:
             raise CampaignValidationError("observation quality is invalid")
         if isinstance(self.value, float) and not math.isfinite(self.value):
             raise CampaignValidationError("numeric observations must be finite")
+        if set(self.uncertainty) != {"value", "kind", "origin"}:
+            raise CampaignValidationError(
+                "observation uncertainty must have exactly value, kind, and origin"
+            )
+        uncertainty_value = self.uncertainty["value"]
+        # An unavailable or unreported measurement's uncertainty is genuinely
+        # unknown, not zero -- zero is an exact-measurement claim no provider
+        # that reports nothing has actually made. ``None`` is the honest value;
+        # when a number is reported instead, it must still be finite and
+        # non-negative.
+        if uncertainty_value is not None:
+            if isinstance(uncertainty_value, bool) or not isinstance(
+                uncertainty_value, (int, float)
+            ):
+                raise CampaignValidationError(
+                    "observation uncertainty value must be a number or null"
+                )
+            if not math.isfinite(float(uncertainty_value)) or float(uncertainty_value) < 0:
+                raise CampaignValidationError(
+                    "observation uncertainty value must be finite and non-negative"
+                )
+        if self.uncertainty["kind"] not in UNCERTAINTY_KINDS:
+            raise CampaignValidationError("observation uncertainty kind is invalid")
+        if not self.uncertainty["origin"]:
+            raise CampaignValidationError("observation uncertainty origin is required")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -471,6 +537,7 @@ class ObservationChannel:
             "origin": self.origin.value,
             "provider_id": self.provider_id,
             "evidence_class": self.evidence_class.value,
+            "uncertainty": dict(self.uncertainty),
         }
 
     @classmethod
@@ -483,6 +550,7 @@ class ObservationChannel:
             "origin",
             "provider_id",
             "evidence_class",
+            "uncertainty",
         }
         _strict_mapping(value, keys, "observation channel")
         if set(value) != keys:
@@ -502,6 +570,9 @@ class ObservationChannel:
             evidence_class=EvidenceClass(
                 _require_string(value["evidence_class"], "observation channel.evidence_class")
             ),
+            uncertainty=dict(
+                _require_mapping(value["uncertainty"], "observation channel.uncertainty")
+            ),
         )
 
 
@@ -513,6 +584,8 @@ class ObservationFrame:
     evidence_class: EvidenceClass
     channels: tuple[ObservationChannel, ...]
     evidence_ids: tuple[str, ...] = ()
+    sample_id: str | None = None
+    sample_lineage: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if not self.frame_id or not self.provider_id or not self.channels:
@@ -527,6 +600,10 @@ class ObservationFrame:
             raise CampaignValidationError("observation channels must belong to the frame provider")
         if any(channel.evidence_class is not self.evidence_class for channel in self.channels):
             raise CampaignValidationError("observation channels must use the frame evidence class")
+        if self.sample_id is not None and not self.sample_id:
+            raise CampaignValidationError("observation sample_id must not be empty when present")
+        if any(not item for item in self.sample_lineage):
+            raise CampaignValidationError("observation sample_lineage entries must not be empty")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -536,11 +613,13 @@ class ObservationFrame:
             "evidence_class": self.evidence_class.value,
             "channels": [channel.to_dict() for channel in self.channels],
             "evidence_ids": list(self.evidence_ids),
+            "sample_id": self.sample_id,
+            "sample_lineage": list(self.sample_lineage),
         }
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> ObservationFrame:
-        keys = {
+        required_keys = {
             "frame_id",
             "logical_time_s",
             "provider_id",
@@ -548,11 +627,18 @@ class ObservationFrame:
             "channels",
             "evidence_ids",
         }
-        _strict_mapping(value, keys, "observation")
-        if set(value) != keys or not isinstance(value["channels"], list):
+        optional_keys = {"sample_id", "sample_lineage"}
+        _strict_mapping(value, required_keys | optional_keys, "observation")
+        if not required_keys.issubset(value) or not isinstance(value["channels"], list):
             raise CampaignValidationError("observation frame is incomplete or invalid")
         if not isinstance(value["evidence_ids"], list):
             raise CampaignValidationError("observation evidence_ids must be an array")
+        sample_id_raw = value.get("sample_id")
+        if sample_id_raw is not None:
+            sample_id_raw = _require_string(sample_id_raw, "observation.sample_id")
+        sample_lineage_raw = value.get("sample_lineage", [])
+        if not isinstance(sample_lineage_raw, list):
+            raise CampaignValidationError("observation.sample_lineage must be an array")
         return cls(
             frame_id=_require_string(value["frame_id"], "observation.frame_id"),
             logical_time_s=_require_number(value["logical_time_s"], "observation.logical_time_s"),
@@ -568,7 +654,15 @@ class ObservationFrame:
                 _require_string(item, "observation.evidence_ids item")
                 for item in value["evidence_ids"]
             ),
+            sample_id=sample_id_raw,
+            sample_lineage=[
+                _require_string(item, "observation.sample_lineage item")
+                for item in sample_lineage_raw
+            ],
         )
+
+
+CONSTRAINT_OUTCOMES = {"passed", "violated", "unavailable"}
 
 
 @dataclass(frozen=True)
@@ -576,37 +670,64 @@ class ConstraintEvaluation:
     constraint_id: str
     phase: str
     passed: bool
+    outcome: str
     measured_value: float | int | str | bool | None
     limit: Mapping[str, Any]
     verifier: str
+    margin: float | None = None
 
     def __post_init__(self) -> None:
         if self.phase not in {"pre_action", "runtime", "post_action"}:
             raise CampaignValidationError("constraint phase is invalid")
         if not self.constraint_id or not self.verifier:
             raise CampaignValidationError("constraint id and verifier are required")
+        if self.outcome not in CONSTRAINT_OUTCOMES:
+            raise CampaignValidationError("constraint outcome is invalid")
+        if self.passed is not (self.outcome == "passed"):
+            raise CampaignValidationError("constraint passed flag disagrees with its outcome")
+        if self.margin is not None:
+            if isinstance(self.margin, bool) or not isinstance(self.margin, (int, float)):
+                raise CampaignValidationError("constraint margin must be a number or null")
+            if not math.isfinite(float(self.margin)):
+                raise CampaignValidationError("constraint margin must be finite")
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "constraint_id": self.constraint_id,
             "phase": self.phase,
             "passed": self.passed,
+            "outcome": self.outcome,
             "measured_value": self.measured_value,
+            "margin": self.margin,
             "limit": dict(self.limit),
             "verifier": self.verifier,
         }
 
     @classmethod
     def from_dict(cls, value: Mapping[str, Any]) -> ConstraintEvaluation:
-        keys = {"constraint_id", "phase", "passed", "measured_value", "limit", "verifier"}
+        keys = {
+            "constraint_id",
+            "phase",
+            "passed",
+            "outcome",
+            "measured_value",
+            "margin",
+            "limit",
+            "verifier",
+        }
         _strict_mapping(value, keys, "constraint")
         if set(value) != keys or not isinstance(value["limit"], Mapping):
             raise CampaignValidationError("constraint evaluation is incomplete or invalid")
+        margin_raw = value["margin"]
+        if margin_raw is not None:
+            margin_raw = _require_number(margin_raw, "constraint.margin")
         return cls(
             constraint_id=_require_string(value["constraint_id"], "constraint.constraint_id"),
             phase=_require_string(value["phase"], "constraint.phase"),
             passed=_require_boolean(value["passed"], "constraint.passed"),
+            outcome=_require_string(value["outcome"], "constraint.outcome"),
             measured_value=value["measured_value"],
+            margin=margin_raw,
             limit=dict(value["limit"]),
             verifier=_require_string(value["verifier"], "constraint.verifier"),
         )
@@ -773,6 +894,7 @@ def validate_events(events: Sequence[TraceEvent]) -> dict[str, Any]:
     event_ids: set[str] = set()
     actions: list[ActionRequest] = []
     failed_constraint = False
+    observation_channels_by_action: dict[str, tuple[ObservationChannel, ...]] = {}
     for expected_sequence, event in enumerate(events):
         if event.sequence != expected_sequence:
             raise CampaignValidationError("trace sequence must be contiguous from zero")
@@ -789,12 +911,12 @@ def validate_events(events: Sequence[TraceEvent]) -> dict[str, Any]:
             operator = _require_string(
                 limit.get("operator"), f"constraint operator {evaluation.constraint_id}"
             )
-            expected_passed = _constraint_passed(
+            expected_outcome = _constraint_outcome(
                 operator,
                 limit.get("bound"),
                 evaluation.measured_value,
             )
-            if evaluation.passed is not expected_passed:
+            if evaluation.outcome != expected_outcome:
                 raise CampaignValidationError(
                     f"constraint result differs from measured value: {evaluation.constraint_id}"
                 )
@@ -833,6 +955,7 @@ def validate_events(events: Sequence[TraceEvent]) -> dict[str, Any]:
             previous = events[expected_sequence - 1].action if expected_sequence else None
             if previous is None or event.observation is None:
                 raise CampaignValidationError("observation has no preceding action")
+            observation_channels_by_action[previous.action_id] = event.observation.channels
             if event.observation.provider_id != previous.provider_id:
                 raise CampaignValidationError("observation provider differs from its action")
             if event.observation.evidence_class is not previous.evidence_class:
@@ -941,22 +1064,137 @@ def validate_events(events: Sequence[TraceEvent]) -> dict[str, Any]:
                         raise CampaignValidationError(
                             f"constraint limit differs from declaration: {evaluation.constraint_id}"
                         )
-                    expected_passed = _constraint_passed(
+                    expected_outcome = _constraint_outcome(
                         _require_string(
                             declaration.get("operator"), "constraint declaration operator"
                         ),
                         declaration.get("bound"),
                         evaluation.measured_value,
                     )
-                    if evaluation.passed is not expected_passed:
+                    if evaluation.outcome != expected_outcome:
                         raise CampaignValidationError(
                             f"constraint result differs from measured value: "
                             f"{evaluation.constraint_id}"
                         )
-    if failed_constraint and events[-1].provenance.get("execution_status") != "failed":
+    # The compiled runtime's own copy of this contract (compiled_runtime.py's
+    # validate_trace) already refuses a missing/unrecognized terminal status;
+    # this is the one public validator every trace passes through (a local run's
+    # own self-check, `dynamical validate`, and replay's read of a raw backend
+    # trace), so it enforces the identical rule rather than defaulting a missing
+    # status to a false "completed" success.
+    terminal_status = events[-1].provenance.get("execution_status")
+    if terminal_status not in {"passed", "failed"}:
+        raise CampaignValidationError("campaign_end needs an explicit passed or failed status")
+    if failed_constraint and terminal_status != "failed":
         raise CampaignValidationError("a failed constraint needs failed campaign status")
+    execution_status = terminal_status
+    reasons: list[dict[str, object]] = [
+        dict(item) for item in (events[-1].provenance.get("reasons") or [])
+    ]
+    declared_steps = {str(step) for step in (events[0].provenance.get("declared_step_ids") or [])}
+    covered_steps = {event.action.action_id for event in events if event.action is not None}
+    missing = sorted(declared_steps - covered_steps)
+    if missing:
+        reasons.append(
+            {
+                "code": "STEP_COVERAGE_INCOMPLETE",
+                "detail": f"composition declares steps not present in the trace: {missing}",
+                "step_id": None,
+                "channel_id": None,
+                "recoverable": False,
+            }
+        )
+        execution_status = "failed"
+    # The declared proof block itself must be tamper-evident before its
+    # contents are worth checking: every event carries proof_contract_sha256,
+    # the hash of exactly the campaign_start-declared step ids and proof
+    # requirements. A trace that drops, edits, or never carried that binding
+    # fails here -- required proof outputs come from the compiled campaign,
+    # and a trace cannot remove or redefine them. (Pack-anchored validation in
+    # the compiled pack's validate_trace additionally requires the block to
+    # equal the verified pack's own record.)
+    expected_proof_contract = stable_hash(
+        {
+            "declared_step_ids": events[0].provenance.get("declared_step_ids") or [],
+            "proof_requirements": events[0].provenance.get("proof_requirements") or [],
+        }
+    )
+    unbound = [
+        event.sequence
+        for event in events
+        if event.provenance.get("proof_contract_sha256") != expected_proof_contract
+    ]
+    if unbound:
+        reasons.append(
+            {
+                "code": "PROOF_CONTRACT_MISMATCH",
+                "detail": (
+                    "the trace's declared proof requirements are not bound by a matching "
+                    f"proof_contract_sha256 on every event (first unbound sequence: {unbound[0]}); "
+                    "a trace cannot remove or redefine its required proof outputs"
+                ),
+                "step_id": None,
+                "channel_id": None,
+                "recoverable": False,
+            }
+        )
+        execution_status = "failed"
+    # A required proof output's own runtime completion is not proof completion:
+    # a backend can finish every action and pass every constraint while a proof
+    # requirement's declared output_port_ids stay unavailable (an embodied
+    # backend with no domain model for the operation, for example). The proof
+    # requirements are declared on the requirement and carried into the
+    # composition (VirtualSDL.proof_requirements) and from there into every
+    # compiled campaign's provenance -- checked here, once, for every backend
+    # and every replay, rather than trusted from each backend's own terminal
+    # status claim.
+    for requirement in events[0].provenance.get("proof_requirements") or []:
+        if not isinstance(requirement, Mapping):
+            continue
+        output_port_ids = [str(item) for item in (requirement.get("output_port_ids") or [])]
+        # channel_ids is each output_port_id resolved to the concrete observation
+        # channel name this backend actually reports it on (see
+        # _resolved_proof_requirements in campaign.py and _runtime_pack.py) --
+        # a different, device-namespaced vocabulary for an embodied backend, so
+        # availability is checked against channel_ids, never output_port_ids
+        # directly.
+        raw_channel_ids = requirement.get("channel_ids")
+        channel_ids = (
+            [str(item) for item in raw_channel_ids] if raw_channel_ids else output_port_ids
+        )
+        for action_id in (str(item) for item in (requirement.get("action_ids") or [])):
+            channels = observation_channels_by_action.get(action_id, ())
+            available = {
+                channel.name
+                for channel in channels
+                if channel.quality != "unavailable" and channel.value is not None
+            }
+            unmet = sorted(
+                (port_id, channel_id)
+                for port_id, channel_id in zip(output_port_ids, channel_ids, strict=True)
+                if channel_id not in available
+            )
+            if unmet:
+                unmet_ports = [port_id for port_id, _ in unmet]
+                reasons.append(
+                    {
+                        "code": "PROOF_OUTPUT_UNAVAILABLE",
+                        "detail": (
+                            f"proof requirement {requirement.get('id')!r} needs {unmet_ports} "
+                            f"from {action_id!r}, which the trace reports as unavailable"
+                        ),
+                        "step_id": action_id,
+                        "channel_id": unmet[0][1],
+                        "recoverable": False,
+                    }
+                )
+    reasons.extend(item.model_dump() for item in check_invariants(events))
+    if reasons:
+        execution_status = "failed"
     return {
-        "valid": True,
+        "valid": execution_status != "failed",
+        "execution_status": execution_status,
+        "reasons": reasons,
         "schema_version": SCHEMA_VERSION,
         "mode": events[0].mode.value,
         "event_count": len(events),
@@ -1010,25 +1248,74 @@ def write_trace(path: str | Path, events: Sequence[TraceEvent]) -> str:
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
-def _constraint_passed(operator: str, bound: Any, measured: Any) -> bool:
+def _constraint_outcome(operator: str, bound: Any, measured: Any) -> str:
+    """Classify a declared constraint result as passed, violated, or unavailable.
+
+    A missing measurement (``measured is None``, produced when a channel has no
+    recorded value) is ``unavailable`` rather than a silent violation: it is a
+    different failure mode and must be reportable as such.
+    """
+
+    if measured is None:
+        return "unavailable"
     if isinstance(measured, bool) or not isinstance(measured, (int, float)):
-        return False
+        return "violated"
     value = float(measured)
     if not math.isfinite(value):
-        return False
+        return "violated"
     if operator == "between":
         bounds = _require_mapping(bound, "constraint bound")
-        return float(bounds["minimum"]) <= value <= float(bounds["maximum"])
+        ok = float(bounds["minimum"]) <= value <= float(bounds["maximum"])
+    elif operator == "gt":
+        ok = value > float(bound)
+    elif operator in {"ge", "gte"}:
+        ok = value >= float(bound)
+    elif operator == "lt":
+        ok = value < float(bound)
+    elif operator in {"le", "lte"}:
+        ok = value <= float(bound)
+    elif operator == "eq":
+        ok = value == float(bound)
+    else:
+        raise CampaignValidationError(f"unsupported declared constraint operator: {operator}")
+    return "passed" if ok else "violated"
+
+
+def _constraint_passed(operator: str, bound: Any, measured: Any) -> bool:
+    """Backward-compatible boolean view: only a ``passed`` outcome is True."""
+
+    return _constraint_outcome(operator, bound, measured) == "passed"
+
+
+def _constraint_margin(operator: str, bound: Any, measured: Any) -> float | None:
+    """Signed distance from a measured value to its declared bound, in the constraint's unit.
+
+    Positive means the bound is satisfied by that much; zero means exactly at
+    the bound; negative means it is violated by that much. ``None`` when the
+    measurement is missing or non-numeric -- the same case ``_constraint_outcome``
+    reports as ``unavailable``, not a fabricated distance.
+    """
+
+    if measured is None or isinstance(measured, bool) or not isinstance(measured, (int, float)):
+        return None
+    value = float(measured)
+    if not math.isfinite(value):
+        return None
+    if operator == "between":
+        bounds = _require_mapping(bound, "constraint bound")
+        minimum = float(bounds["minimum"])
+        maximum = float(bounds["maximum"])
+        return min(value - minimum, maximum - value)
     if operator == "gt":
-        return value > float(bound)
+        return value - float(bound)
     if operator in {"ge", "gte"}:
-        return value >= float(bound)
+        return value - float(bound)
     if operator == "lt":
-        return value < float(bound)
+        return float(bound) - value
     if operator in {"le", "lte"}:
-        return value <= float(bound)
+        return float(bound) - value
     if operator == "eq":
-        return value == float(bound)
+        return -abs(value - float(bound))
     raise CampaignValidationError(f"unsupported declared constraint operator: {operator}")
 
 
@@ -1059,12 +1346,16 @@ def evaluate_declared_constraints(
             )
         operator = _require_string(constraint.get("operator"), "constraint.operator")
         bound = constraint.get("bound")
+        outcome = _constraint_outcome(operator, bound, measured_value)
+        margin = _constraint_margin(operator, bound, measured_value)
         checks.append(
             ConstraintEvaluation(
                 constraint_id=constraint_id,
                 phase=_require_string(constraint.get("phase"), "constraint.phase"),
-                passed=_constraint_passed(operator, bound, measured_value),
+                passed=outcome == "passed",
+                outcome=outcome,
                 measured_value=measured_value,
+                margin=margin,
                 limit={
                     "operator": operator,
                     "bound": bound,
@@ -1119,13 +1410,24 @@ class CompiledCampaignContract:
     facility_ir_sha256: str
     action_schema_sha256: str
     observation_schema_sha256: str
-    action_kinds: frozenset[ActionKind]
+    action_kinds: frozenset[str]
     observation_channels: frozenset[str]
     channel_units: Mapping[str, str]
-    capability_by_action: Mapping[ActionKind, Mapping[str, Any]]
+    capability_by_action: Mapping[str, Mapping[str, Any]]
     constraint_by_id: Mapping[str, Mapping[str, Any]]
     composition_sha256: str | None = None
     operation_bindings: tuple[Mapping[str, Any], ...] = ()
+    # Keyed by facility model_binding id, which is exactly the composition's
+    # endpoint_id/action.actor_id when that endpoint is a Python instrument model
+    # (see FacilityProviderBinding.endpoint_id / CapabilityProvider.endpoint_id).
+    # Not every endpoint has one -- a device- or agent-backed provider with no
+    # model_binding entry has nothing declared to verify against.
+    model_binding_by_id: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
+    # The objective's proof requirements, each resolved to the concrete compiled
+    # action_ids that embody its declared operation_id (see composition.py's
+    # VirtualSDL.proof_requirements). Empty when the compiled pack was produced
+    # without a composition_result.json (e.g. directly from a facility document).
+    proof_requirements: tuple[Mapping[str, Any], ...] = ()
 
     def provenance_binding(self) -> dict[str, Any]:
         result = {
@@ -1137,16 +1439,14 @@ class CompiledCampaignContract:
             "facility_ir_sha256": self.facility_ir_sha256,
             "action_schema_sha256": self.action_schema_sha256,
             "observation_schema_sha256": self.observation_schema_sha256,
-            "declared_action_kinds": sorted(item.value for item in self.action_kinds),
+            "declared_action_kinds": sorted(self.action_kinds),
             "declared_observation_channels": sorted(self.observation_channels),
             "capability_by_action": {
-                kind.value: {
+                kind: {
                     "capability_id": capability["id"],
                     "provider_id": capability["provider_id"],
                 }
-                for kind, capability in sorted(
-                    self.capability_by_action.items(), key=lambda item: item[0].value
-                )
+                for kind, capability in sorted(self.capability_by_action.items())
             },
             "constraint_by_id": {
                 constraint_id: {
@@ -1202,12 +1502,12 @@ def _manifest_artifact_hashes(manifest: Mapping[str, Any]) -> dict[str, str]:
 def _facility_contract(
     facility_ir: Mapping[str, Any],
 ) -> tuple[
-    dict[ActionKind, Mapping[str, Any]],
+    dict[str, Mapping[str, Any]],
     set[str],
     dict[str, str],
     dict[str, Mapping[str, Any]],
 ]:
-    capabilities: dict[ActionKind, Mapping[str, Any]] = {}
+    capabilities: dict[str, Mapping[str, Any]] = {}
     provider_ids: set[str] = set()
     channels: set[str] = set()
     channel_units: dict[str, str] = {}
@@ -1244,14 +1544,9 @@ def _facility_contract(
         action_type = _require_string(
             capability.get("action_type"), "facility capability.action_type"
         )
-        try:
-            kind = ActionKind(action_type)
-        except ValueError as exc:
-            raise CampaignValidationError(
-                f"compiled pack action is not supported by the reference campaign: {action_type}"
-            ) from exc
+        kind = _validate_action_kind(action_type, "facility capability.action_type")
         if kind in capabilities:
-            raise CampaignValidationError(f"reference action kind is ambiguous: {kind.value}")
+            raise CampaignValidationError(f"reference action kind is ambiguous: {kind}")
         provider_id = _require_string(
             capability.get("provider_id"), "facility capability.provider_id"
         )
@@ -1296,6 +1591,58 @@ def _facility_contract(
                         f"capability constraint has an invalid phase: {constraint_id}"
                     )
     return capabilities, channels, channel_units, constraints
+
+
+def _model_binding_index(facility_ir: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
+    """Map each facility model binding id to its declared implementation identity."""
+
+    index: dict[str, Mapping[str, Any]] = {}
+    for raw_model in _require_list(facility_ir.get("model_bindings"), "facility IR.model_bindings"):
+        model = _require_mapping(raw_model, "facility IR model binding")
+        model_id = _require_string(model.get("id"), "facility model binding.id")
+        index[model_id] = model
+    return index
+
+
+def _resolved_proof_requirements(
+    proof_requirements: Sequence[Any],
+    operation_bindings: Sequence[Mapping[str, Any]],
+) -> tuple[Mapping[str, Any], ...]:
+    """Bind each proof requirement's declared ``operation_id`` to this campaign's own action_ids.
+
+    Resolved once, here, from the same ``operation_bindings`` this composition
+    already selected -- an operation_id can map to more than one compiled
+    action (a retried or repeated step), so every matching action_id is kept,
+    not just the first. This is the local composed runtime's own trace, whose
+    observation channels are named directly from the registry Capability's own
+    output_ports (see ``run_composed_campaign``'s channel construction), so
+    ``channel_ids`` is ``output_port_ids`` verbatim -- unlike an embodied
+    backend's compiled campaign (``_runtime_pack.py``'s
+    ``_resolved_proof_requirements``), which must bridge to a separate,
+    device-namespaced channel vocabulary.
+    """
+
+    action_ids_by_operation: dict[str, list[str]] = {}
+    for binding in operation_bindings:
+        operation_id = str(binding.get("operation_id") or "")
+        step_id = str(binding.get("step_id") or "")
+        if operation_id and step_id:
+            action_ids_by_operation.setdefault(operation_id, []).append(step_id)
+    resolved: list[Mapping[str, Any]] = []
+    for item in proof_requirements:
+        payload = item.model_dump(mode="json") if hasattr(item, "model_dump") else dict(item)
+        operation_id = str(payload.get("operation_id") or "")
+        output_port_ids = [str(x) for x in (payload.get("output_port_ids") or [])]
+        resolved.append(
+            {
+                "id": str(payload.get("id") or ""),
+                "operation_id": operation_id,
+                "output_port_ids": output_port_ids,
+                "channel_ids": output_port_ids,
+                "action_ids": sorted(action_ids_by_operation.get(operation_id, [])),
+            }
+        )
+    return tuple(resolved)
 
 
 def load_compiled_campaign_contract(path: str | Path) -> CompiledCampaignContract:
@@ -1363,12 +1710,14 @@ def load_compiled_campaign_contract(path: str | Path) -> CompiledCampaignContrac
         channel_units,
         constraint_by_id,
     ) = _facility_contract(facility_ir)
+    model_binding_by_id = _model_binding_index(facility_ir)
     raw_declared_actions = _require_list(
         action_schema.get("x-dynamical-declared-capability-action-types"),
         "action schema declared action types",
     )
     declared_actions = {
-        ActionKind(_require_string(item, "declared action type")) for item in raw_declared_actions
+        _validate_action_kind(_require_string(item, "declared action type"), "declared action type")
+        for item in raw_declared_actions
     }
     if len(raw_declared_actions) != len(declared_actions):
         raise CampaignValidationError("action schema has duplicate action declarations")
@@ -1381,7 +1730,7 @@ def load_compiled_campaign_contract(path: str | Path) -> CompiledCampaignContrac
     )
     kind_schema = _require_mapping(action_properties.get("kind"), "action schema.kind")
     schema_action_enum = {
-        ActionKind(_require_string(item, "action schema kind"))
+        _validate_action_kind(_require_string(item, "action schema kind"), "action schema kind")
         for item in _require_list(kind_schema.get("enum"), "action schema kind.enum")
     }
     if not declared_actions.issubset(schema_action_enum):
@@ -1402,7 +1751,7 @@ def load_compiled_campaign_contract(path: str | Path) -> CompiledCampaignContrac
         )
 
     target = _require_string(manifest.get("target"), "compile manifest.target")
-    if target not in {"matterix", "isaac", "openusd"}:
+    if target not in {"isaac", "openusd"}:
         raise CampaignValidationError(f"compile manifest target is unsupported: {target}")
     core_hash = _require_string(manifest.get("core_ir_sha256"), "compile manifest.core hash")
     world_hash = _require_string(manifest.get("world_sha256"), "compile manifest.world hash")
@@ -1419,6 +1768,7 @@ def load_compiled_campaign_contract(path: str | Path) -> CompiledCampaignContrac
 
     composition_sha256: str | None = None
     operation_bindings: tuple[Mapping[str, Any], ...] = ()
+    proof_requirements: tuple[Mapping[str, Any], ...] = ()
     composition_path = destination / "composition_result.json"
     if composition_path.is_file():
         from .composition import validate_composition_result
@@ -1431,6 +1781,9 @@ def load_compiled_campaign_contract(path: str | Path) -> CompiledCampaignContrac
         operation_bindings = tuple(
             binding.model_dump(mode="json", exclude_none=True)
             for binding in composition.virtual_sdl.operation_bindings
+        )
+        proof_requirements = _resolved_proof_requirements(
+            composition.virtual_sdl.proof_requirements, operation_bindings
         )
     return CompiledCampaignContract(
         target=target,
@@ -1448,6 +1801,8 @@ def load_compiled_campaign_contract(path: str | Path) -> CompiledCampaignContrac
         constraint_by_id=constraint_by_id,
         composition_sha256=composition_sha256,
         operation_bindings=operation_bindings,
+        model_binding_by_id=model_binding_by_id,
+        proof_requirements=proof_requirements,
     )
 
 
@@ -1495,7 +1850,13 @@ def _validate_capability_parameters(action: ActionRequest, capability: Mapping[s
 
 
 def _event(
-    identity: CampaignIdentity, sequence: int, logical_time_s: float, event_type: str, **kwargs: Any
+    identity: CampaignIdentity,
+    sequence: int,
+    logical_time_s: float,
+    event_type: str,
+    *,
+    provenance: Mapping[str, Any] | None = None,
+    **kwargs: Any,
 ) -> TraceEvent:
     return TraceEvent(
         event_type=event_type,
@@ -1510,17 +1871,9 @@ def _event(
         ir_hash=identity.ir_hash,
         world_hash=identity.world_hash,
         campaign_hash=identity.campaign_hash,
-        provenance=identity.provenance,
+        provenance=provenance if provenance is not None else identity.provenance,
         **kwargs,
     )
-
-
-def _thermal_composition(contract: CompiledCampaignContract) -> bool:
-    operation_ids = {
-        _require_string(binding.get("operation_id"), "operation binding.operation_id")
-        for binding in contract.operation_bindings
-    }
-    return bool(operation_ids) and operation_ids.issubset(THERMAL_OPERATION_IDS)
 
 
 def _composed_actions(contract: CompiledCampaignContract) -> tuple[ActionRequest, ...]:
@@ -1529,13 +1882,11 @@ def _composed_actions(contract: CompiledCampaignContract) -> tuple[ActionRequest
         operation_id = _require_string(
             binding.get("operation_id"), "operation binding.operation_id"
         )
-        if operation_id not in THERMAL_OPERATION_IDS:
-            raise CampaignValidationError(
-                f"local composed runtime has no admitted handler for {operation_id!r}"
-            )
+        sample_id_raw = binding.get("sample_id")
+        station_id_raw = binding.get("selected_facility_id")
         action = ActionRequest(
             action_id=_require_string(binding.get("step_id"), "operation binding.step_id"),
-            kind=ActionKind(operation_id),
+            kind=operation_id,
             actor_id=_require_string(binding.get("endpoint_id"), "operation binding.endpoint_id"),
             provider_id=_require_string(
                 binding.get("provider_id"), "operation binding.provider_id"
@@ -1550,6 +1901,23 @@ def _composed_actions(contract: CompiledCampaignContract) -> tuple[ActionRequest
                 )
                 for item in [_require_mapping(raw_item, "operation parameter")]
             },
+            sample_id=(
+                _require_string(sample_id_raw, "operation binding.sample_id")
+                if sample_id_raw is not None
+                else None
+            ),
+            # The *workstation* this step actually executes at -- not
+            # actor_id/endpoint_id, which names the acting instrument's own
+            # endpoint (e.g. a registered simulator model id) and lives in a
+            # different vocabulary that a Sample's station_id never matches.
+            # Composition already resolves exactly one facility per step
+            # (selected_facility_id); dynamical.samples.check_invariants
+            # compares like with like using this field, not actor_id.
+            station_id=(
+                _require_string(station_id_raw, "operation binding.selected_facility_id")
+                if station_id_raw is not None
+                else None
+            ),
         )
         capability = _require_mapping(
             binding.get("capability_contract"), "operation binding.capability_contract"
@@ -1595,41 +1963,6 @@ def _resolved_step_inputs(
     return values, units
 
 
-def _execute_thermal_operation(
-    operation_id: str,
-    inputs: Mapping[str, Any],
-    parameters: Mapping[str, Any],
-) -> dict[str, Any]:
-    from .thermal import (
-        agitate_sample,
-        apply_thermal_program,
-        estimate_reaction_progress,
-        estimate_temperature_gradient,
-        measure_mixing_load,
-        measure_plate_temperature,
-        measure_sample_mass,
-        measure_sample_temperature,
-    )
-
-    if operation_id == ActionKind.APPLY_THERMAL_PROGRAM.value:
-        return apply_thermal_program(inputs, parameters)
-    if operation_id == ActionKind.AGITATE_SAMPLE.value:
-        return agitate_sample(inputs, parameters)
-    if operation_id == ActionKind.MEASURE_PLATE_TEMPERATURE.value:
-        return measure_plate_temperature(inputs, parameters)
-    if operation_id == ActionKind.MEASURE_SAMPLE_TEMPERATURE.value:
-        return measure_sample_temperature(inputs, parameters)
-    if operation_id == ActionKind.ESTIMATE_TEMPERATURE_GRADIENT.value:
-        return estimate_temperature_gradient(inputs, parameters)
-    if operation_id == ActionKind.MEASURE_SAMPLE_MASS.value:
-        return measure_sample_mass(inputs, parameters)
-    if operation_id == ActionKind.MEASURE_MIXING_LOAD.value:
-        return measure_mixing_load(inputs, parameters)
-    if operation_id == ActionKind.ESTIMATE_REACTION_PROGRESS.value:
-        return estimate_reaction_progress(inputs, parameters)
-    raise CampaignValidationError(f"bounded thermal operation is not executable: {operation_id}")
-
-
 def _composed_constraint_ids(
     binding: Mapping[str, Any],
     contract: CompiledCampaignContract,
@@ -1656,6 +1989,199 @@ def _composed_constraint_ids(
                 f"selected provider safety limit has an invalid phase: {constraint_id}"
             )
     return tuple(sorted(pre_action)), tuple(sorted(observation))
+
+
+def _dataflow_edges(contract: CompiledCampaignContract) -> list[dict[str, str]]:
+    """Serialize step-to-step wiring from each binding's declared inputs.
+
+    This is exactly the ``(step_id, port_id)`` lookup ``_resolved_step_inputs``
+    performs against the runtime's ``prior_outputs`` dict -- computed here
+    from the same declared source (``operation_bindings[*].inputs``) so the
+    causal graph survives into the trace instead of dying with that
+    in-process dict at exit.
+    """
+
+    edges: list[dict[str, str]] = []
+    for binding in contract.operation_bindings:
+        to_step = _require_string(binding.get("step_id"), "operation binding.step_id")
+        for raw_input in _require_list(binding.get("inputs"), "operation binding.inputs"):
+            item = _require_mapping(raw_input, "operation input")
+            if item.get("source_kind") != "step_output":
+                continue
+            edges.append(
+                {
+                    "from_step": _require_string(
+                        item.get("source_id"), "operation input.source_id"
+                    ),
+                    "from_port": _require_string(
+                        item.get("source_port_id"), "operation input.source_port_id"
+                    ),
+                    "to_step": to_step,
+                    "to_port": _require_string(
+                        item.get("target_port_id"), "operation input.target_port_id"
+                    ),
+                }
+            )
+    return edges
+
+
+def _capability_parameter_units(
+    capability: Mapping[str, Any], *, numeric_only: bool
+) -> dict[str, str]:
+    units: dict[str, str] = {}
+    for raw_spec in _require_list(capability.get("parameters"), "capability.parameters"):
+        spec = _require_mapping(raw_spec, "capability parameter")
+        name = _require_string(spec.get("name"), "capability parameter.name")
+        unit = spec.get("unit")
+        if not isinstance(unit, str) or not unit:
+            continue
+        if numeric_only and spec.get("value_type") not in {"number", "duration"}:
+            continue
+        units[name] = unit
+    return units
+
+
+def _envelope_in_force(capability: Mapping[str, Any]) -> dict[str, Any]:
+    """Each declared parameter's admitted bounds for this action.
+
+    Makes unexplored operating space legible in the trace itself, so an
+    agent can reason about counterfactuals rather than rediscover bounds by
+    hitting them.
+    """
+
+    envelope: dict[str, Any] = {}
+    for raw_spec in _require_list(capability.get("parameters"), "capability.parameters"):
+        spec = _require_mapping(raw_spec, "capability parameter")
+        name = _require_string(spec.get("name"), "capability parameter.name")
+        envelope[name] = {
+            "unit": spec.get("unit"),
+            "minimum": spec.get("minimum"),
+            "maximum": spec.get("maximum"),
+        }
+    return envelope
+
+
+def _parameter_channel_values(
+    action: ActionRequest,
+    capability: Mapping[str, Any],
+    constraint_ids: Iterable[str],
+    contract: CompiledCampaignContract,
+) -> dict[str, tuple[Any, str]]:
+    """Generic parameter -> channel mapping for pre-action constraint evaluation.
+
+    Replaces the heater-era special case that injected
+    ``action.parameters['target-temperature']`` as a hardcoded
+    ``heater.target_temperature_K`` channel, and the later unit-matching
+    inference that replaced it: matching a constraint to "the one action
+    parameter that shares its declared unit" silently picks the wrong
+    parameter the moment an operation declares two parameters in the same
+    unit (e.g. two durations). The declared contract is the source of truth
+    instead -- each constraint names the exact parameter it constrains via
+    its own ``constrained_parameter_name`` (schema.py's ``Constraint``). A
+    constraint that declares no such name, names one this operation does not
+    have, or whose named parameter this action did not supply, is left out,
+    so ``evaluate_declared_constraints`` reports it honestly as
+    ``MEASUREMENT_UNAVAILABLE`` rather than guessing.
+    """
+
+    capability_parameter_names = {
+        _require_string(item.get("name"), "capability parameter.name")
+        for raw_item in _require_list(capability.get("parameters"), "capability.parameters")
+        for item in [_require_mapping(raw_item, "capability parameter")]
+    }
+    measured: dict[str, tuple[Any, str]] = {}
+    for constraint_id in constraint_ids:
+        declaration = contract.constraint_by_id.get(constraint_id)
+        if declaration is None:
+            continue
+        channel_id = declaration.get("channel_id")
+        unit = declaration.get("unit")
+        name = declaration.get("constrained_parameter_name")
+        if (
+            not isinstance(channel_id, str)
+            or not isinstance(unit, str)
+            or not isinstance(name, str)
+        ):
+            continue
+        if name not in capability_parameter_names:
+            continue
+        if name in action.parameters:
+            measured[channel_id] = (action.parameters[name], unit)
+    return measured
+
+
+def _applied_parameter_values(
+    capability: Mapping[str, Any],
+    output_ports: Mapping[str, str],
+    result: Mapping[str, Any],
+    instrument_result: InstrumentResult,
+) -> dict[str, Any]:
+    """Best-effort applied value per numeric declared parameter.
+
+    Derived from the instrument's own declared output units, not a
+    per-operation name list: a numeric parameter's applied value is the
+    instrument's own output when exactly one declared output port shares
+    that parameter's unit and carries a genuine numeric reading. Clamping,
+    like the OT-2 pump's quantized time step, shows up here as requested !=
+    applied. When a unit collision leaves more than one numeric candidate,
+    the one carrying a declared measurement uncertainty is preferred -- an
+    echoed request typically has none. Anything still ambiguous, or with no
+    matching output at all, is left equal to the requested value: an honest
+    "the instrument did not report a distinct applied value", not an
+    invented one.
+    """
+
+    param_units = _capability_parameter_units(capability, numeric_only=True)
+    applied: dict[str, Any] = {}
+    for name, unit in param_units.items():
+        candidates = [
+            port_id
+            for port_id, port_unit in output_ports.items()
+            if port_unit == unit
+            and isinstance(result.get(port_id), (int, float))
+            and not isinstance(result.get(port_id), bool)
+        ]
+        if len(candidates) > 1:
+            with_uncertainty = [pid for pid in candidates if pid in instrument_result.uncertainty]
+            if len(with_uncertainty) == 1:
+                candidates = with_uncertainty
+        if len(candidates) == 1:
+            applied[name] = result[candidates[0]]
+    return applied
+
+
+def _channel_uncertainty(
+    name: str,
+    *,
+    evidence_class: EvidenceClass,
+    provider_id: str,
+    instrument_result: InstrumentResult | None,
+) -> dict[str, Any]:
+    """Typed uncertainty for one observation channel.
+
+    Driven by the instrument model's own declared ``uncertainty`` dict
+    (keyed by output port name), not a naming convention: every model in
+    ``dynamical.instruments`` reports uncertainty it declares as an
+    engineering assumption, so a channel it covers is ``declared`` (or
+    ``measured`` for a physical provider). A channel with no reported figure
+    -- including when the step never executed because a precondition
+    constraint failed -- has genuinely unknown uncertainty, not zero: zero
+    claims an exact measurement no provider that reports nothing has
+    actually made. ``value`` is left ``None`` with an origin saying so.
+    """
+
+    kind = "measured" if evidence_class is EvidenceClass.PHYSICAL else "declared"
+    if instrument_result is not None and name in instrument_result.uncertainty:
+        return {
+            "value": float(instrument_result.uncertainty[name]),
+            "kind": kind,
+            "origin": f"{provider_id} instrument model",
+        }
+    return {
+        "value": None,
+        "kind": kind,
+        "origin": f"{provider_id} reports no uncertainty for {name}",
+    }
 
 
 def _composed_identity(
@@ -1695,7 +2221,7 @@ def _composed_identity(
         seed=seed,
         backend_revision=(
             f"compiled_target={contract.target};adapter={contract.adapter_pack_sha256};"
-            "bounded_thermal_virtual_sdl:not_embodied"
+            "composed_virtual_sdl:not_embodied"
         ),
         ir_hash=contract.core_ir_sha256,
         world_hash=contract.world_sha256,
@@ -1708,6 +2234,16 @@ def _composed_identity(
             "compiled_pack": contract.provenance_binding(),
             "constraint_contract": constraint_contract,
             "constraint_contract_sha256": stable_hash(constraint_contract),
+            # Binds the campaign_start proof block on every event, so removing
+            # or rewriting the trace's declared proof requirements is detectable
+            # without the compiled pack in hand (the pack-anchored check lives
+            # in the pack's own validate_trace).
+            "proof_contract_sha256": stable_hash(
+                {
+                    "declared_step_ids": [action.action_id for action in actions],
+                    "proof_requirements": [dict(item) for item in contract.proof_requirements],
+                }
+            ),
             "provider_contract": {
                 action.action_id: {
                     "provider_id": action.provider_id,
@@ -1719,13 +2255,74 @@ def _composed_identity(
     )
 
 
+def _model_implementation_mismatch(
+    contract: CompiledCampaignContract,
+    action: ActionRequest,
+    model: instruments.InstrumentModel,
+) -> RuntimeReason | None:
+    """Fail closed when the module that will execute differs from what was declared.
+
+    ``action.actor_id`` is the composition's ``endpoint_id`` -- the same identifier
+    a facility's ``model_bindings`` entry is keyed on when that endpoint is a Python
+    instrument model. This hashes the bytes backing the already-resolved callable
+    -- what Python actually loaded, not a declared path -- so it catches drift
+    between a manifest's ``implementation_sha256`` and the installed module however
+    the two came to differ. An endpoint with no declared model binding, or one that
+    declares no hash, has nothing to verify and is left alone.
+    """
+
+    declared = contract.model_binding_by_id.get(action.actor_id)
+    if declared is None:
+        return None
+    declared_hash = declared.get("implementation_sha256")
+    if not declared_hash:
+        return None
+    module = sys.modules.get(getattr(model, "__module__", ""))
+    module_file = getattr(module, "__file__", None) if module is not None else None
+    if not module_file:
+        return RuntimeReason(
+            code="MODEL_IMPLEMENTATION_UNRESOLVABLE",
+            detail=(
+                f"instrument model for endpoint {action.actor_id!r} has no resolvable module "
+                "file to verify against its declared implementation_sha256"
+            ),
+            step_id=action.action_id,
+            recoverable=False,
+        )
+    actual_hash = file_sha256(Path(module_file))
+    if actual_hash == declared_hash:
+        return None
+    return RuntimeReason(
+        code="MODEL_IMPLEMENTATION_MISMATCH",
+        detail=(
+            f"executed module for endpoint {action.actor_id!r} hashes to {actual_hash!r}, "
+            f"declared implementation_sha256 is {declared_hash!r}"
+        ),
+        step_id=action.action_id,
+        recoverable=False,
+    )
+
+
 def run_composed_campaign(
     contract: CompiledCampaignContract,
     output_path: Path,
     *,
     seed: int,
 ) -> tuple[list[TraceEvent], str]:
-    """Execute only the ordered providers selected by a compiled thermal composition."""
+    """Execute only the ordered providers selected by a compiled composition.
+
+    Each step's operation is dispatched through ``dynamical.instruments.resolve``;
+    an operation with no admitted instrument model fails closed rather than
+    silently no-op-ing.
+
+    A ``dict[str, Sample]`` ledger is threaded across steps: each action's
+    known sample (looked up by ``action.sample_id``, itself read from the
+    compiled binding's optional ``sample_id`` key) is passed as
+    ``InstrumentRequest.sample``. When a model returns a moved sample on
+    ``InstrumentResult.sample``, the resulting ``SampleTransition`` is folded
+    into the ledger and embedded on that same action event, so
+    ``dynamical.samples.check_invariants`` can enforce lineage across the run.
+    """
 
     actions = _composed_actions(contract)
     identity = _composed_identity(contract, actions, seed)
@@ -1739,37 +2336,76 @@ def run_composed_campaign(
             stream.write(canonical_json(event.to_dict()) + "\n")
             stream.flush()
 
-    append(_event(identity, 0, 0.0, "campaign_start"))
+    start_identity = CampaignIdentity(
+        campaign_id=identity.campaign_id,
+        run_id=identity.run_id,
+        seed=identity.seed,
+        backend_revision=identity.backend_revision,
+        ir_hash=identity.ir_hash,
+        world_hash=identity.world_hash,
+        campaign_hash=identity.campaign_hash,
+        provenance={
+            **identity.provenance,
+            "declared_step_ids": [action.action_id for action in actions],
+            "dataflow_edges": _dataflow_edges(contract),
+            "proof_requirements": [dict(item) for item in contract.proof_requirements],
+        },
+    )
+    append(_event(start_identity, 0, 0.0, "campaign_start"))
     prior_outputs: dict[tuple[str, str], Any] = {}
+    samples: dict[str, Sample] = {}
+    last_known_station: dict[str, str] = {}
     logical_time = 0.0
     failed = False
+    reasons: list[RuntimeReason] = []
+    consumed_cost_usd = 0.0
+    consumed_duration_s = 0.0
+
+    def constraint_reasons(
+        evaluations: Iterable[ConstraintEvaluation], step_id: str
+    ) -> list[RuntimeReason]:
+        found: list[RuntimeReason] = []
+        for evaluation in evaluations:
+            declaration = contract.constraint_by_id.get(evaluation.constraint_id, {})
+            channel_id = declaration.get("channel_id")
+            if evaluation.outcome == "unavailable":
+                found.append(
+                    RuntimeReason(
+                        code="MEASUREMENT_UNAVAILABLE",
+                        detail=(
+                            f"constraint {evaluation.constraint_id} has no measured value "
+                            f"for channel {channel_id}"
+                        ),
+                        step_id=step_id,
+                        channel_id=channel_id,
+                        recoverable=True,
+                    )
+                )
+            elif evaluation.outcome == "violated":
+                found.append(
+                    RuntimeReason(
+                        code="CONSTRAINT_VIOLATED",
+                        detail=f"constraint {evaluation.constraint_id} failed its declared limit",
+                        step_id=step_id,
+                        channel_id=channel_id,
+                        recoverable=False,
+                    )
+                )
+        return found
+
     for binding, action in zip(contract.operation_bindings, actions, strict=True):
+        capability = _require_mapping(
+            binding.get("capability_contract"), "operation binding.capability_contract"
+        )
         inputs, input_units = _resolved_step_inputs(binding, prior_outputs)
         measured = {name: (value, input_units[name]) for name, value in inputs.items()}
-        if "target-temperature" in action.parameters:
-            measured["heater.target_temperature_K"] = (
-                action.parameters["target-temperature"],
-                "K",
-            )
         pre_ids, post_ids = _composed_constraint_ids(binding, contract)
+        measured.update(_parameter_channel_values(action, capability, pre_ids, contract))
         pre_constraints = evaluate_action_constraints(
             action,
             declared_constraints=contract.constraint_by_id,
             constraint_ids=pre_ids,
             measured_channels=measured,
-        )
-        append(
-            _event(
-                identity,
-                len(events),
-                logical_time,
-                "action",
-                action=action,
-                constraints=pre_constraints,
-            )
-        )
-        capability = _require_mapping(
-            binding.get("capability_contract"), "operation binding.capability_contract"
         )
         output_ports = {
             _require_string(port.get("id"), "operation output port.id"): _require_string(
@@ -1778,22 +2414,148 @@ def run_composed_campaign(
             for raw_port in _require_list(capability.get("output_ports"), "operation outputs")
             for port in [_require_mapping(raw_port, "operation output port")]
         }
+        reasons.extend(constraint_reasons(pre_constraints, action.action_id))
+        current_sample = samples.get(action.sample_id) if action.sample_id else None
+        instrument_result: InstrumentResult | None = None
         if any(not item.passed for item in pre_constraints):
             result = {name: None for name in output_ports}
             failed = True
         else:
-            result = _execute_thermal_operation(
-                action.kind.value,
-                inputs,
-                action.parameters,
-            )
-            if set(result) != set(output_ports):
+            model = instruments.resolve(action.kind, action.provider_id)
+            if model is None:
                 raise CampaignValidationError(
-                    f"operation {action.action_id} outputs differ from its compiled contract: "
-                    f"expected={sorted(output_ports)}, found={sorted(result)}"
+                    f"no admitted instrument model for operation {action.kind!r} "
+                    f"and provider {action.provider_id!r}"
                 )
-            for port_id, value in result.items():
-                prior_outputs[(action.action_id, port_id)] = value
+            mismatch = _model_implementation_mismatch(contract, action, model)
+            if mismatch is not None:
+                # Fail closed exactly like a failed pre-condition: the declared
+                # implementation hash does not bind the module that would actually
+                # run, so nothing is executed and no output is produced.
+                reasons.append(mismatch)
+                result = {name: None for name in output_ports}
+                failed = True
+            else:
+                instrument_result = model(
+                    InstrumentRequest(
+                        parameters=dict(action.parameters),
+                        inputs=dict(inputs),
+                        sample=current_sample,
+                    )
+                )
+                result = instrument_result.outputs
+                if set(result) != set(output_ports):
+                    raise CampaignValidationError(
+                        f"operation {action.action_id} outputs differ from its compiled "
+                        f"contract: expected={sorted(output_ports)}, found={sorted(result)}"
+                    )
+                for port_id, value in result.items():
+                    prior_outputs[(action.action_id, port_id)] = value
+                reasons.extend(instrument_result.reasons)
+                consumed_cost_usd += instrument_result.cost_usd
+                consumed_duration_s += instrument_result.duration_s
+                # A sample-moving model (a transfer, an aliquot, or a consume)
+                # returns the sample's new state on InstrumentResult.sample. Fold
+                # it into the ledger and embed the resulting SampleTransition on
+                # this action, per the convention samples.py enforces: an action
+                # that moves a sample carries the transition at
+                # action.parameters["sample_transition"], not a bare sample_id.
+                if (
+                    instrument_result.sample is not None
+                    and current_sample is not None
+                    and instrument_result.sample.station_id == current_sample.station_id
+                    and instrument_result.sample.state != current_sample.state
+                ):
+                    # A processing model wrote process state onto the sample in
+                    # place -- a deposit, not a move. Fold the new state into the
+                    # ledger so the next instrument measures this film, but do
+                    # not fabricate a SampleTransition: nothing changed custody,
+                    # and a transition whose from_station equals its to_station
+                    # would be a false custody record.
+                    samples = {**samples, instrument_result.sample.id: instrument_result.sample}
+                    if action.sample_id is not None and action.station_id is not None:
+                        last_known_station[action.sample_id] = action.station_id
+                elif instrument_result.sample is not None:
+                    moved = instrument_result.sample
+                    from_station_hint = str(
+                        action.parameters.get("from_station")
+                        or (action.sample_id and last_known_station.get(action.sample_id))
+                        or action.station_id
+                    )
+                    transition = build_transition(
+                        moved,
+                        current_sample=current_sample,
+                        from_station_hint=from_station_hint,
+                        timestamp_s=logical_time,
+                        step_id=action.action_id,
+                    )
+                    samples = apply_transition(samples, transition)
+                    action = replace(
+                        action,
+                        parameters={
+                            **action.parameters,
+                            "sample_transition": transition.model_dump(mode="json"),
+                        },
+                        sample_id=transition.sample_id,
+                    )
+                    last_known_station[transition.sample_id] = transition.to_station
+                elif action.sample_id is not None and action.station_id is not None:
+                    # A plain (non-moving) action honestly reporting the sample it
+                    # acted on, at the workstation it acted at. Recorded *only* in
+                    # this from_station lookup, deliberately kept separate from
+                    # the `samples` ledger above: `samples` feeds
+                    # InstrumentRequest.sample into the next real instrument
+                    # model (transfer_sample copies an existing sample's own
+                    # quantity/unit forward when one is passed in), so seeding it
+                    # from a plain action with no real measured quantity would
+                    # silently corrupt that model's physics. This dict only ever
+                    # supplies a cold-start from_station guess for a sample's
+                    # first-ever transfer -- e.g. dispense has no upstream
+                    # "create sample" operation, so its station is the closest
+                    # thing to a declared origin. check_invariants performs the
+                    # equivalent origin bookkeeping on its own independent replay
+                    # of the trace (dynamical.samples.establish_origin), so what
+                    # this runner implies here and what the validator reconstructs
+                    # from the written trace agree without this dict being
+                    # written into the trace itself.
+                    last_known_station[action.sample_id] = action.station_id
+        # The trace records both what was commanded and what the instrument
+        # actually did with it: declared parameters are widened to
+        # {"requested", "applied"} for the emitted event only -- the
+        # internal `action` used above for execution (instrument dispatch,
+        # the "dwell-time"/"from_station" fallbacks below) stays flat, and
+        # the "sample_transition" key Task 8's check_invariants reads is
+        # left untouched rather than wrapped.
+        applied_values = (
+            _applied_parameter_values(capability, output_ports, result, instrument_result)
+            if instrument_result is not None
+            else {}
+        )
+        trace_action = replace(
+            action,
+            parameters={
+                name: (
+                    value
+                    if name == "sample_transition"
+                    else {"requested": value, "applied": applied_values.get(name, value)}
+                )
+                for name, value in action.parameters.items()
+            },
+        )
+        append(
+            _event(
+                identity,
+                len(events),
+                logical_time,
+                "action",
+                action=trace_action,
+                constraints=pre_constraints,
+                provenance={
+                    **identity.provenance,
+                    "envelope_in_force": _envelope_in_force(capability),
+                },
+            )
+        )
         duration = action.parameters.get("dwell-time")
         if duration is None:
             duration = _require_mapping(binding.get("duration"), "operation binding.duration").get(
@@ -1809,6 +2571,12 @@ def run_composed_campaign(
                 origin=ObservationOrigin.SOURCE_MODEL,
                 provider_id=action.provider_id,
                 evidence_class=action.evidence_class,
+                uncertainty=_channel_uncertainty(
+                    name,
+                    evidence_class=action.evidence_class,
+                    provider_id=action.provider_id,
+                    instrument_result=instrument_result,
+                ),
             )
             for name, unit in sorted(output_ports.items())
         )
@@ -1824,7 +2592,23 @@ def run_composed_campaign(
             declared_constraints=contract.constraint_by_id,
             constraint_ids=post_ids,
         )
+        reasons.extend(constraint_reasons(post_constraints, action.action_id))
         failed = failed or any(not item.passed for item in post_constraints)
+        # Scientific-state continuity evidence: the observation records which
+        # sample the action touched, the digest of that sample's state after
+        # the action, and whether this action wrote state. check_invariants
+        # verifies every pure read saw exactly the last written state.
+        observed_sample = samples.get(action.sample_id) if action.sample_id else None
+        observation_provenance = None
+        if action.sample_id is not None and observed_sample is not None:
+            observation_provenance = {
+                **identity.provenance,
+                "sample_id": action.sample_id,
+                "sample_state_sha256": state_digest(observed_sample.state),
+                "sample_state_written": bool(
+                    instrument_result is not None and instrument_result.sample is not None
+                ),
+            }
         append(
             _event(
                 identity,
@@ -1833,6 +2617,7 @@ def run_composed_campaign(
                 "observation",
                 observation=observation,
                 constraints=post_constraints,
+                provenance=observation_provenance,
             )
         )
         if failed:
@@ -1848,6 +2633,9 @@ def run_composed_campaign(
         provenance={
             **identity.provenance,
             "execution_status": "failed" if failed else "passed",
+            "reasons": [item.model_dump(mode="json") for item in reasons],
+            "cost_consumed_usd": consumed_cost_usd,
+            "duration_consumed_s": consumed_duration_s,
         },
     )
     append(_event(terminal_identity, len(events), logical_time, "campaign_end"))
@@ -1894,20 +2682,17 @@ def run_cli(args: argparse.Namespace) -> int:
     else:
         contract = load_compiled_campaign_contract(input_path)
         seed = int(getattr(args, "seed", 0) or 0)
-        if _thermal_composition(contract):
+        if contract.operation_bindings:
             events, trace_hash = run_composed_campaign(
                 contract,
                 output_path,
                 seed=seed,
             )
         else:
-            operation_ids = sorted(
-                str(binding["operation_id"]) for binding in contract.operation_bindings
-            )
             raise CampaignValidationError(
-                "local composed runtime has no complete executable route for operations: "
-                f"{operation_ids}; use a complete admitted thermal composition or the exact "
-                "external provider runtime artifacts"
+                "local composed runtime has no complete executable route: the compiled pack "
+                "has no composed operation bindings; compose a campaign before running it, or "
+                "use the exact external provider runtime artifacts"
             )
         result = {"trace_sha256": trace_hash, **validate_events(events)}
         result["w1_evidence"] = False
@@ -1925,6 +2710,8 @@ def run_cli(args: argparse.Namespace) -> int:
                 "source_trace_sha256",
                 "event_count",
                 "valid",
+                "execution_status",
+                "reasons",
                 "w1_evidence",
                 "provider_ids",
                 "evidence_classes",
@@ -1935,4 +2722,4 @@ def run_cli(args: argparse.Namespace) -> int:
         print(json.dumps(compact_receipt, sort_keys=True, separators=(",", ":")))
     else:
         print(json.dumps(receipt, indent=2, sort_keys=True))
-    return 0
+    return 0 if receipt.get("valid", True) else 1

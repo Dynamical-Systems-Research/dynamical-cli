@@ -30,17 +30,45 @@ dev = [
 [project.scripts]
 dynamical = "dynamical.cli:main"
 
+[tool.hatch.build.targets.sdist]
+# Allowlist: the sdist carries exactly what a wheel build and a skill install
+# need. No evals, docs, raw source CAD, scripts, or lockfiles.
+only-include = [
+  "src",
+  "registries/electrodeposition-capabilities.yaml",
+  "registries/electrodeposition-source-lock.json",
+  "registries/calibration",
+  "manifests/ac-electrodeposition-cell.yaml",
+  "assets/usd",
+  "schemas",
+  "skills",
+  "THIRD_PARTY_NOTICES.md",
+]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/dynamical"]
 
 [tool.hatch.build.targets.wheel.force-include]
-"registries/reference-capabilities.yaml" = "dynamical/data/reference-capabilities.yaml"
-"registries/figure5-source-lock.json" = "dynamical/data/figure5-source-lock.json"
-"manifests/matterix-heater-workstation.yaml" = "dynamical/data/matterix-heater-workstation.yaml"
+"THIRD_PARTY_NOTICES.md" = "dynamical/data/THIRD_PARTY_NOTICES.md"
+"registries/calibration/ampere2-oer" = "dynamical/data/calibration/ampere2-oer"
+"registries/electrodeposition-capabilities.yaml" = "dynamical/data/electrodeposition-capabilities.yaml"
+"registries/electrodeposition-source-lock.json" = "dynamical/data/electrodeposition-source-lock.json"
+"manifests/ac-electrodeposition-cell.yaml" = "dynamical/data/ac-electrodeposition-cell.yaml"
+"assets/usd/1-well-catridge-ultrasound-mount-v5.usdc" = "dynamical/data/assets/usd/1-well-catridge-ultrasound-mount-v5.usdc"
+"assets/usd/assembly-cleaning-cartridge-v15.usdc" = "dynamical/data/assets/usd/assembly-cleaning-cartridge-v15.usdc"
+"assets/usd/assembly-well-cartridge-v44.usdc" = "dynamical/data/assets/usd/assembly-well-cartridge-v44.usdc"
+"assets/usd/cap-body-v5-3.3.usdc" = "dynamical/data/assets/usd/cap-body-v5-3.3.usdc"
+"assets/usd/foil-base-v5-1.3.usdc" = "dynamical/data/assets/usd/foil-base-v5-1.3.usdc"
+"assets/usd/main-body-v5-wo-block-2.3-us.usdc" = "dynamical/data/assets/usd/main-body-v5-wo-block-2.3-us.usdc"
+"assets/usd/nickel-electrode-v30.usdc" = "dynamical/data/assets/usd/nickel-electrode-v30.usdc"
+"assets/usd/platinum-electrode-v46.usdc" = "dynamical/data/assets/usd/platinum-electrode-v46.usdc"
+"assets/usd/tool-cartridge-v7.usdc" = "dynamical/data/assets/usd/tool-cartridge-v7.usdc"
+"assets/usd/vial-rack-v3.usdc" = "dynamical/data/assets/usd/vial-rack-v3.usdc"
 
 [tool.pytest.ini_options]
 addopts = "-ra"
 testpaths = ["tests"]
+pythonpath = ["src"]
 
 [tool.ruff]
 line-length = 100

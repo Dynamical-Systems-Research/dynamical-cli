@@ -1,0 +1,167 @@
+{
+ "protocol_id": "ampere2-oer-calibration-v1",
+ "frozen_protocol_sha256": "7098893d2f556084135c3c93b73b1ef8827b1292e6d258f6ad0b2f5573f5e3de",
+ "corrected_voltage_column_used": "Corrected Working Electrode Voltage [V]",
+ "counts": {
+  "metadata_rows": 70,
+  "domain_samples": 63,
+  "n_conditions": 32,
+  "n_fit_conditions": 23,
+  "n_held_out_conditions": 9,
+  "n_extraction_rows": 126,
+  "n_fit_rows": 90,
+  "n_held_out_rows": 26
+ },
+ "samples_missing_cp_files": [
+  {
+   "unique_id": "97",
+   "missing": [
+    "CP 20 mA cm-2",
+    "CP 50 mA cm-2"
+   ]
+  },
+  {
+   "unique_id": "100",
+   "missing": [
+    "CP 20 mA cm-2",
+    "CP 50 mA cm-2"
+   ]
+  },
+  {
+   "unique_id": "101",
+   "missing": [
+    "CP 20 mA cm-2",
+    "CP 50 mA cm-2"
+   ]
+  },
+  {
+   "unique_id": "107",
+   "missing": [
+    "CP 20 mA cm-2",
+    "CP 50 mA cm-2"
+   ]
+  },
+  {
+   "unique_id": "108",
+   "missing": [
+    "CP 20 mA cm-2",
+    "CP 50 mA cm-2"
+   ]
+  },
+  {
+   "unique_id": "111",
+   "missing": [
+    "CP 20 mA cm-2",
+    "CP 50 mA cm-2"
+   ]
+  },
+  {
+   "unique_id": "113",
+   "missing": [
+    "CP 20 mA cm-2",
+    "CP 50 mA cm-2"
+   ]
+  }
+ ],
+ "exclusions": [
+  {
+   "unique_id": "97",
+   "j_A_cm2": null,
+   "reason": "missing CP file(s): CP 20 mA cm-2, CP 50 mA cm-2"
+  },
+  {
+   "unique_id": "100",
+   "j_A_cm2": null,
+   "reason": "missing CP file(s): CP 20 mA cm-2, CP 50 mA cm-2"
+  },
+  {
+   "unique_id": "101",
+   "j_A_cm2": null,
+   "reason": "missing CP file(s): CP 20 mA cm-2, CP 50 mA cm-2"
+  },
+  {
+   "unique_id": "107",
+   "j_A_cm2": null,
+   "reason": "missing CP file(s): CP 20 mA cm-2, CP 50 mA cm-2"
+  },
+  {
+   "unique_id": "108",
+   "j_A_cm2": null,
+   "reason": "missing CP file(s): CP 20 mA cm-2, CP 50 mA cm-2"
+  },
+  {
+   "unique_id": "111",
+   "j_A_cm2": null,
+   "reason": "missing CP file(s): CP 20 mA cm-2, CP 50 mA cm-2"
+  },
+  {
+   "unique_id": "113",
+   "j_A_cm2": null,
+   "reason": "missing CP file(s): CP 20 mA cm-2, CP 50 mA cm-2"
+  },
+  {
+   "unique_id": "276",
+   "j_A_cm2": null,
+   "reason": "metal fraction normalization undefined: zero total metal content in chemicals_to_mix"
+  },
+  {
+   "unique_id": "278",
+   "j_A_cm2": null,
+   "reason": "metal fraction normalization undefined: zero total metal content in chemicals_to_mix"
+  },
+  {
+   "unique_id": "281",
+   "j_A_cm2": null,
+   "reason": "metal fraction normalization undefined: zero total metal content in chemicals_to_mix"
+  },
+  {
+   "unique_id": "285",
+   "j_A_cm2": null,
+   "reason": "metal fraction normalization undefined: zero total metal content in chemicals_to_mix"
+  },
+  {
+   "unique_id": "286",
+   "j_A_cm2": null,
+   "reason": "metal fraction normalization undefined: zero total metal content in chemicals_to_mix"
+  }
+ ],
+ "gates": {
+  "held_out_overpotential_mae_v": {
+   "value": 0.38126269391939616,
+   "threshold": 0.05,
+   "rule": "<=",
+   "pass": false
+  },
+  "uncertainty_coverage_2sigma": {
+   "value": 1.0,
+   "threshold": 0.8,
+   "rule": ">=",
+   "pass": true
+  },
+  "candidate_order_spearman": {
+   "value": -0.18793832808714067,
+   "threshold": 0.7,
+   "rule": ">=",
+   "pass": false
+  },
+  "missing_data_behavior": {
+   "value": {
+    "composition_outside_domain_refused": true,
+    "composition_refusal_reason": "composition_outside_admitted_domain",
+    "j_outside_envelope_refused": true,
+    "j_refusal_reason": "current_density_outside_envelope",
+    "in_domain_accepted": true,
+    "in_domain_prediction_v": 0.4787406787807652
+   },
+   "threshold": "typed out-of-envelope refusal for out-of-domain inputs",
+   "rule": "behavior test",
+   "pass": true
+  }
+ },
+ "w2_pass": false,
+ "sigma_v": 1.8073715433658781,
+ "notes": [
+  "held_out_rows / fit_rows counts are condition-replicate rows (sample x current density) entering the model after exclusions",
+  "extraction.csv includes zero-metal blank samples (extraction is well-defined); they are excluded from fit/eval as recorded in exclusions"
+ ]
+}

@@ -136,9 +136,9 @@ def _registry() -> dict[str, object]:
                 "source-model-facility",
             ),
             _provider(
-                "matterix-heater-workstation-simulator",
+                "legacy-heater-workstation-simulator",
                 "physical",
-                "matterix-inorganic-lab",
+                "legacy-inorganic-lab",
             ),
         ],
     }
@@ -222,7 +222,7 @@ def test_provider_independent_operation_survives_evidence_provider_change() -> N
     physical_binding = physical.virtual_sdl.operation_bindings[0]
     assert sim_binding.operation_id == physical_binding.operation_id
     assert sim_binding.provider_id == "figure5-source-condition-simulator"
-    assert physical_binding.provider_id == "matterix-heater-workstation-simulator"
+    assert physical_binding.provider_id == "legacy-heater-workstation-simulator"
 
 
 @pytest.mark.parametrize(
@@ -461,7 +461,7 @@ def test_physical_transport_needs_complete_validity_contract() -> None:
 def test_agent_request_cannot_admit_or_approve_a_provider() -> None:
     request = _request()
     request["provider_admission"] = {
-        "provider_id": "matterix-heater-workstation-simulator",
+        "provider_id": "legacy-heater-workstation-simulator",
         "status": "admitted",
     }
     with pytest.raises(ValidationError, match="extra"):
@@ -486,43 +486,291 @@ def test_reference_virtual_sdl_keeps_deterministic_execution_bindings(tmp_path: 
     requirement = write_reference_requirement(tmp_path / "requirement.yaml")
     result = compose_virtual_sdl(
         load_campaign_requirement(requirement),
-        load_capability_registry(REPOSITORY / "registries/reference-capabilities.yaml"),
+        load_capability_registry(REPOSITORY / "registries/electrodeposition-capabilities.yaml"),
     )
 
     assert result.status == "COMPILED"
     assert result.virtual_sdl is not None
-    agitation, thermal = result.virtual_sdl.operation_bindings
-    assert agitation.operation_id == "agitate-sample"
-    assert agitation.provider_id == "virtual-agitate-sample"
-    assert [item.name for item in agitation.parameters] == ["agitation-rate"]
-    assert [item.model_dump(mode="json", exclude_none=True) for item in agitation.inputs] == [
+    transfer, condition = result.virtual_sdl.operation_bindings
+    assert transfer.operation_id == "transfer-sample"
+    assert transfer.provider_id == "ac-transfer-simulator"
+    assert [item.name for item in transfer.parameters] == ["sample_id", "to_station"]
+    assert [item.model_dump(mode="json", exclude_none=True) for item in transfer.inputs] == [
         {
-            "target_port_id": "material.mass_kg",
-            "target_state_type": "number",
-            "target_unit": "kg",
+            "target_port_id": "sample.state",
+            "target_state_type": "sample_state",
+            "target_unit": "1",
             "source_kind": "campaign_input",
-            "source_id": "material.mass_kg",
-            "source_state_type": "number",
-            "source_unit": "kg",
-            "value": 0.25,
-            "source_facility_id": "matterix-heater-facility",
+            "source_id": "campaign.sample-id",
+            "source_state_type": "sample_state",
+            "source_unit": "1",
+            "value": "sample-electrodeposition-01",
+            "source_facility_id": "arduino-conditioning",
+            "sample_id": "sample-electrodeposition-01",
         }
     ]
-    assert thermal.operation_id == "apply-thermal-program"
-    assert thermal.provider_id == "matterix-heater-workstation-simulator"
-    assert [item.name for item in thermal.parameters] == [
-        "dwell-time",
-        "target-temperature",
+    assert condition.operation_id == "condition-ultrasonic"
+    assert condition.provider_id == "ac-arduino-simulator"
+    assert [item.name for item in condition.parameters] == [
+        "duration_s",
+        "setpoint_percent",
     ]
-    assert [item.target_port_id for item in thermal.inputs] == [
-        "instrument.agitation_rate_rpm",
-        "material.mass_kg",
-        "material.temperature_K",
+    assert [item.target_port_id for item in condition.inputs] == ["sample.state"]
+    assert [item.source_kind for item in condition.inputs] == ["step_output"]
+    assert [item.source_id for item in condition.inputs] == ["transfer"]
+    assert [item.source_port_id for item in condition.inputs] == ["sample.state.transferred"]
+    assert {item.source_facility_id for item in condition.inputs} == {"arduino-conditioning"}
+
+
+# --- Task 12: sample identity, transport dependency edges, and provider preference ---
+#
+# Synthetic, in the same style as `_registry()`/`_transport_case()` above, rather than
+# `registries/electrodeposition-capabilities.yaml`: that registry's real `transfer-sample`
+# capability declares a required `to_station` parameter that `_transport_candidate`
+# (composition.py `_transport_candidate`) never supplies, so every real transport candidate is
+# unconditionally rejected today regardless of these fixes -- a pre-existing gap unrelated to
+# sample identity, transport dedup, or provider preference, and out of scope here.
+
+
+def _transport_registry_document() -> dict[str, object]:
+    """Two workstations: ``condition-sample`` feeds ``deposit-sample`` across a transfer."""
+
+    return {
+        "document_type": "dynamical.capability-registry",
+        "schema_version": "0.1.0",
+        "registry_id": "transport-preference-test-registry",
+        "capabilities": [
+            _capability(
+                "condition-sample",
+                inputs=[],
+                outputs=[
+                    {
+                        "id": "reading-a",
+                        "state_type": "number",
+                        "unit": "s",
+                        "description": "Conditioning duration reading.",
+                    },
+                    {
+                        "id": "reading-b",
+                        "state_type": "number",
+                        "unit": "%",
+                        "description": "Conditioning setpoint reading.",
+                    },
+                ],
+                parameters=[],
+            ),
+            _capability(
+                "deposit-sample",
+                inputs=[
+                    {
+                        "id": "reading-a",
+                        "state_type": "number",
+                        "unit": "s",
+                        "required": False,
+                        "description": "Conditioning duration reading, if consumed.",
+                    },
+                    {
+                        "id": "reading-b",
+                        "state_type": "number",
+                        "unit": "%",
+                        "required": False,
+                        "description": "Conditioning setpoint reading, if consumed.",
+                    },
+                ],
+                outputs=[
+                    {
+                        "id": "deposited_mass_g",
+                        "state_type": "number",
+                        "unit": "g",
+                        "description": "Deposited mass.",
+                    }
+                ],
+                parameters=[],
+            ),
+            _capability("transfer-sample", kind="transport", inputs=[], outputs=[], parameters=[]),
+        ],
+        "providers": [
+            {
+                **_provider(
+                    "condition-simulator",
+                    "simulator",
+                    "arduino-conditioning",
+                    operation_id="condition-sample",
+                ),
+                "validity_envelope": [],
+            },
+            {
+                **_provider(
+                    "deposit-simulator",
+                    "simulator",
+                    "squidstat-echem",
+                    operation_id="deposit-sample",
+                ),
+                "validity_envelope": [],
+            },
+            {
+                **_provider(
+                    "ac-squidstat-shadow",
+                    "shadow",
+                    "squidstat-echem",
+                    operation_id="deposit-sample",
+                ),
+                "validity_envelope": [],
+            },
+            {
+                **_provider(
+                    "bench-transfer-simulator",
+                    "simulator",
+                    "arduino-conditioning",
+                    operation_id="transfer-sample",
+                ),
+                "validity_envelope": [],
+                "facility_ids": [
+                    "arduino-conditioning",
+                    "squidstat-echem",
+                    "ot2-liquid-handling",
+                ],
+            },
+        ],
+    }
+
+
+def _transport_requirement_document(
+    ports: list[str], *, provider_preference: str | None = None
+) -> dict[str, object]:
+    condition = {
+        "step_id": "condition",
+        "operation_id": "condition-sample",
+        "minimum_evidence_class": "simulator",
+        "parameters": [],
+        "input_bindings": [],
+        "depends_on": [],
+        "required_policy_tags": [],
+    }
+    deposit = {
+        "step_id": "deposit",
+        "operation_id": "deposit-sample",
+        "minimum_evidence_class": "simulator",
+        "parameters": [],
+        "input_bindings": [
+            {
+                "target_port_id": port,
+                "source_kind": "step_output",
+                "source_id": "condition",
+                "source_port_id": port,
+                "transport_operation_id": "transfer-sample",
+            }
+            for port in ports
+        ],
+        "depends_on": ["condition"] if ports else [],
+        "required_policy_tags": [],
+    }
+    document: dict[str, object] = {
+        "document_type": "dynamical.campaign-requirement",
+        "schema_version": "0.1.0",
+        "requirement_id": "transport-preference-test",
+        "objective": {
+            "id": "transport-preference-objective",
+            "statement": "Exercise cross-workstation transport and provider preference.",
+            "decision": "Select the admitted provider.",
+            "proof_requirements": [
+                {
+                    "id": "deposit-proof",
+                    "operation_id": "deposit-sample",
+                    "output_port_ids": ["deposited_mass_g"],
+                    "minimum_evidence_class": "simulator",
+                    "acceptance_rule": "deposited_mass_g is recorded",
+                    "independent_verification_required": True,
+                }
+            ],
+        },
+        "inputs": [],
+        "steps": [condition, deposit] if ports else [deposit],
+        "max_cost_usd": 100.0,
+        "max_duration_s": 100.0,
+    }
+    if provider_preference is not None:
+        document["provider_preference"] = provider_preference
+    return document
+
+
+@pytest.fixture
+def registry() -> CapabilityRegistry:
+    return CapabilityRegistry.model_validate(_transport_registry_document())
+
+
+@pytest.fixture
+def cross_station_requirement() -> CampaignRequirement:
+    return CampaignRequirement.model_validate(_transport_requirement_document(["reading-a"]))
+
+
+@pytest.fixture
+def two_port_requirement() -> CampaignRequirement:
+    return CampaignRequirement.model_validate(
+        _transport_requirement_document(["reading-a", "reading-b"])
+    )
+
+
+@pytest.fixture
+def preference_requirement() -> CampaignRequirement:
+    return CampaignRequirement.model_validate(
+        _transport_requirement_document([], provider_preference="prefer_highest_evidence_class")
+    )
+
+
+def test_transports_appear_in_the_dependency_graph(cross_station_requirement, registry) -> None:
+    result = compose_virtual_sdl(cross_station_requirement, registry)
+    assert result.status == "COMPILED"
+    assert result.virtual_sdl is not None
+    edge_pairs = {(e.source_step_id, e.target_step_id) for e in result.virtual_sdl.dependency_edges}
+    assert result.virtual_sdl.transport_bindings, "fixture must actually exercise a transport"
+    for transport in result.virtual_sdl.transport_bindings:
+        assert (transport.source_step_id, transport.target_step_id) in edge_pairs
+
+
+def test_one_move_feeding_two_ports_is_charged_once(two_port_requirement, registry) -> None:
+    result = compose_virtual_sdl(two_port_requirement, registry)
+    assert result.status == "COMPILED"
+    assert result.virtual_sdl is not None
+    moves = [
+        item for item in result.virtual_sdl.transport_bindings if item.source_step_id == "condition"
     ]
-    assert [item.source_kind for item in thermal.inputs] == [
-        "step_output",
-        "campaign_input",
-        "campaign_input",
-    ]
-    assert [item.value for item in thermal.inputs] == [None, 0.25, 298.15]
-    assert {item.source_facility_id for item in thermal.inputs} == {"matterix-heater-facility"}
+    assert len(moves) == 1, "one physical move must not be billed per consumed port"
+
+
+def test_requirement_may_prefer_a_higher_evidence_class(preference_requirement, registry) -> None:
+    result = compose_virtual_sdl(preference_requirement, registry)
+    assert result.status == "COMPILED"
+    assert result.virtual_sdl is not None
+    chosen = {b.provider_id for b in result.virtual_sdl.operation_bindings}
+    assert "ac-squidstat-shadow" in chosen, (
+        "selection is hardcoded to the lowest admissible evidence class, so an "
+        "admitted higher-fidelity provider is silently passed over"
+    )
+
+
+def test_provider_preference_defaults_to_lowest_evidence_class(registry) -> None:
+    request = CampaignRequirement.model_validate(_transport_requirement_document([]))
+    result = compose_virtual_sdl(request, registry)
+    assert result.status == "COMPILED"
+    assert result.virtual_sdl is not None
+    chosen = {b.provider_id for b in result.virtual_sdl.operation_bindings}
+    assert "deposit-simulator" in chosen
+
+
+def test_candidate_search_is_bounded_and_truncation_is_visible(
+    monkeypatch: pytest.MonkeyPatch, registry: CapabilityRegistry
+) -> None:
+    """A search past the explicit bound HOLDs instead of silently sampling a subset."""
+
+    import dynamical.composition as composition_module
+
+    monkeypatch.setattr(composition_module, "MAX_CANDIDATE_COMBINATIONS", 1)
+    request = CampaignRequirement.model_validate(
+        _transport_requirement_document(["reading-a", "reading-b"])
+    )
+
+    result = composition_module.compose_virtual_sdl(request, registry)
+
+    assert result.status == "HOLD"
+    assert "CANDIDATE_SEARCH_BOUNDED" in result.reason_codes

@@ -1,7 +1,7 @@
 """Standalone runtime contract copied into each compiled backend pack.
 
 This module uses only the Python standard library. Target launchers import the
-copied file inside a matched Isaac or MATTERIX environment.
+copied file inside a matched Isaac environment.
 """
 
 from __future__ import annotations
@@ -81,9 +81,9 @@ def _manifest_records(manifest: Any) -> dict[str, str]:
         raise RuntimeContractError("compiled manifest fields are invalid")
     if manifest.get("schema_version") != "dynamical.compile-manifest.v1":
         raise RuntimeContractError("compiled manifest schema version is unsupported")
-    if manifest.get("compiler_version") != "0.1.0":
+    if manifest.get("compiler_version") != "0.2.0":
         raise RuntimeContractError("compiled manifest compiler version is unsupported")
-    if manifest.get("target") not in {"matterix", "isaac", "openusd"}:
+    if manifest.get("target") not in {"isaac", "openusd"}:
         raise RuntimeContractError("compiled manifest target is unsupported")
     for field in ("core_ir_sha256", "adapter_pack_sha256", "world_sha256"):
         if not _valid_hash(manifest.get(field)):
@@ -156,25 +156,135 @@ def _validate_parameter_value(specification: dict[str, Any], value: Any) -> None
         raise RuntimeContractError(f"action parameter {name!r} is above its maximum")
 
 
+_SAMPLE_TRANSITION_REQUIRED_FIELDS = {
+    "kind",
+    "sample_id",
+    "from_station",
+    "to_station",
+    "quantity_delta",
+    "unit",
+    "timestamp_s",
+    "arrival_confirmed",
+    "parent_sample_ids",
+}
+_SAMPLE_TRANSITION_FIELDS = _SAMPLE_TRANSITION_REQUIRED_FIELDS | {"step_id", "state_sha256"}
+
+
+def _validate_sample_transition(value: Any) -> None:
+    """Structural check for ``action.parameters["sample_transition"]``.
+
+    ``dynamical.samples.SampleTransition`` (pydantic) is the full semantic
+    validator, run when ``dynamical.campaign`` processes a complete trace
+    (``check_invariants``). This module stays dependency-free -- stdlib only,
+    copied standalone into every compiled pack -- so it mirrors that model's
+    shape rather than importing it.
+    """
+
+    if not isinstance(value, dict):
+        raise RuntimeContractError("action sample_transition must be an object")
+    if not set(value).issubset(_SAMPLE_TRANSITION_FIELDS):
+        unknown = sorted(set(value) - _SAMPLE_TRANSITION_FIELDS)
+        raise RuntimeContractError(f"action sample_transition has unknown fields: {unknown}")
+    missing = sorted(_SAMPLE_TRANSITION_REQUIRED_FIELDS - set(value))
+    if missing:
+        raise RuntimeContractError(f"action sample_transition is missing fields: {missing}")
+    if value.get("kind") not in {"transfer", "aliquot", "consume"}:
+        raise RuntimeContractError("action sample_transition kind is invalid")
+    for name in ("sample_id", "from_station", "to_station", "unit"):
+        field_value = value.get(name)
+        if not isinstance(field_value, str) or not field_value:
+            raise RuntimeContractError(
+                f"action sample_transition {name} must be a non-empty string"
+            )
+    if not isinstance(value.get("arrival_confirmed"), bool):
+        raise RuntimeContractError("action sample_transition arrival_confirmed must be a boolean")
+    quantity_delta = value.get("quantity_delta")
+    if (
+        isinstance(quantity_delta, bool)
+        or not isinstance(quantity_delta, (int, float))
+        or not math.isfinite(float(quantity_delta))
+    ):
+        raise RuntimeContractError(
+            "action sample_transition quantity_delta must be a finite number"
+        )
+    timestamp_s = value.get("timestamp_s")
+    if (
+        isinstance(timestamp_s, bool)
+        or not isinstance(timestamp_s, (int, float))
+        or float(timestamp_s) < 0
+    ):
+        raise RuntimeContractError(
+            "action sample_transition timestamp_s must be a non-negative number"
+        )
+    parent_ids = value.get("parent_sample_ids")
+    if not isinstance(parent_ids, list) or not all(
+        isinstance(item, str) and item for item in parent_ids
+    ):
+        raise RuntimeContractError(
+            "action sample_transition parent_sample_ids must be an array of non-empty strings"
+        )
+    step_id = value.get("step_id")
+    if step_id is not None and (not isinstance(step_id, str) or not step_id):
+        raise RuntimeContractError(
+            "action sample_transition step_id must be a non-empty string or null"
+        )
+
+
 def _validate_parameters(
     parameters: Any,
     specifications: list[dict[str, Any]],
 ) -> None:
     if not isinstance(parameters, dict):
         raise RuntimeContractError("action parameters must be an object")
+    # "sample_transition" is reserved custody bookkeeping, not a requested
+    # capability parameter (see dynamical.samples' module docstring: a
+    # sample-moving action declares its SampleTransition under this exact
+    # key). Validated on its own shape above, then excluded from the
+    # declared-parameter closed-set check below, exactly as campaign.py's
+    # ActionRequest.parameters never treats it as a requested parameter either.
+    if "sample_transition" in parameters:
+        _validate_sample_transition(parameters["sample_transition"])
+    requested = {name: value for name, value in parameters.items() if name != "sample_transition"}
     declared = {str(item.get("name", "")): item for item in specifications}
-    extra = sorted(set(parameters) - set(declared))
+    extra = sorted(set(requested) - set(declared))
     if extra:
         raise RuntimeContractError(f"action has undeclared parameters: {extra}")
     missing = sorted(
         name
         for name, specification in declared.items()
-        if specification.get("required", True) and name not in parameters
+        if specification.get("required", True) and name not in requested
     )
     if missing:
         raise RuntimeContractError(f"action is missing required parameters: {missing}")
-    for name, value in parameters.items():
+    for name, value in requested.items():
         _validate_parameter_value(declared[name], value)
+
+
+def _validate_optional_string_field(record: dict[str, Any], field_name: str, *, label: str) -> None:
+    """A field that is either absent/null or a non-empty string."""
+
+    value = record.get(field_name)
+    if value is not None and (not isinstance(value, str) or not value):
+        raise RuntimeContractError(f"{label} {field_name} must be a non-empty string or null")
+
+
+def _validate_sample_fields(record: dict[str, Any], *, label: str) -> None:
+    """Type-check the optional sample_id/sample_lineage lineage fields.
+
+    Both fields are optional (absent means "not sample-bearing"), but when
+    present they must be well-typed: a non-empty string or null for
+    sample_id, an array of non-empty strings for sample_lineage. Presence and
+    additionalProperties are already enforced generically from the compiled
+    schema; this adds the type checks the schema's "type" keyword alone
+    would also express, kept explicit here to fail with a precise message.
+    """
+
+    _validate_optional_string_field(record, "sample_id", label=label)
+    sample_lineage = record.get("sample_lineage", [])
+    if not isinstance(sample_lineage, list) or not all(
+        isinstance(item, str) and item for item in sample_lineage
+    ):
+        raise RuntimeContractError(f"{label} sample_lineage must be an array of non-empty strings")
 
 
 def validate_action(action: Any, pack: dict[str, Any]) -> None:
@@ -198,6 +308,8 @@ def validate_action(action: Any, pack: dict[str, Any]) -> None:
     evidence_class = action.get("evidence_class")
     if evidence_class not in EVIDENCE_CLASSES:
         raise RuntimeContractError("action evidence_class is invalid")
+    _validate_sample_fields(action, label="action")
+    _validate_optional_string_field(action, "station_id", label="action")
 
     kind = action.get("kind")
     kind_schema = action_schema.get("properties", {}).get("kind", {})
@@ -293,14 +405,10 @@ def verify_compiled_pack(compiled_world: str | Path) -> dict[str, Any]:
         if item.is_symlink():
             raise RuntimeContractError(f"compiled pack contains a symbolic link: {item}")
         if item.is_file():
-            relative_item = item.relative_to(root)
-            if (
-                len(relative_item.parts) == 2
-                and relative_item.parts[0] == "__pycache__"
-                and relative_item.suffix == ".pyc"
-            ):
-                continue
-            actual_files.add(relative_item.as_posix())
+            # No exemptions: a planted .pyc could shadow the hashed contract
+            # source, so generated bytecode is an unexpected file like any
+            # other (every launcher and loader sets dont_write_bytecode).
+            actual_files.add(item.relative_to(root).as_posix())
     if actual_files != set(records) | {"compile_manifest.json"}:
         raise RuntimeContractError("compiled pack has missing or unexpected files")
 
@@ -439,6 +547,7 @@ def _validate_channel(
         "origin",
         "provider_id",
         "evidence_class",
+        "uncertainty",
     }
     if set(channel) != required:
         raise RuntimeContractError("observation channel fields do not match the contract")
@@ -473,7 +582,9 @@ def _constraint_ids(
         "constraint_id",
         "phase",
         "passed",
+        "outcome",
         "measured_value",
+        "margin",
         "limit",
         "verifier",
     }
@@ -488,6 +599,10 @@ def _constraint_ids(
             raise RuntimeContractError(f"{label} constraint is not declared: {identifier}")
         if not isinstance(record.get("passed"), bool):
             raise RuntimeContractError(f"{label} constraint result is invalid")
+        if record.get("outcome") not in {"passed", "violated", "unavailable"}:
+            raise RuntimeContractError(f"{label} constraint outcome is invalid")
+        if record.get("passed") is not (record.get("outcome") == "passed"):
+            raise RuntimeContractError(f"{label} constraint passed flag disagrees with its outcome")
         expected_limit = {
             "operator": specification.get("operator"),
             "bound": specification.get("bound"),
@@ -500,12 +615,12 @@ def _constraint_ids(
             raise RuntimeContractError(f"{label} constraint phase differs from its declaration")
         if record.get("verifier") != specification.get("verifier_binding_id"):
             raise RuntimeContractError(f"{label} constraint verifier differs from its declaration")
-        expected_passed = _evaluate_constraint(
+        expected_outcome = _evaluate_constraint_outcome(
             operator=specification.get("operator"),
             bound=specification.get("bound"),
             measured_value=record.get("measured_value"),
         )
-        if record.get("passed") is not expected_passed:
+        if record.get("outcome") != expected_outcome:
             raise RuntimeContractError(f"{label} constraint result differs from its measured value")
         identifiers.append(identifier)
     if len(identifiers) != len(set(identifiers)):
@@ -520,22 +635,31 @@ def _finite_number(value: Any) -> float | None:
     return numeric if math.isfinite(numeric) else None
 
 
-def _evaluate_constraint(
+def _evaluate_constraint_outcome(
     *,
     operator: Any,
     bound: Any,
     measured_value: Any,
-) -> bool:
-    """Recompute one declared constraint result from its recorded measurement."""
+) -> str:
+    """Classify one declared constraint result as passed, violated, or unavailable.
 
+    A ``None`` measured value means the channel produced no value at all; every
+    other non-numeric or non-finite value is a genuine (if malformed) measurement
+    and is reported as ``violated``, not ``unavailable``.
+    """
+
+    if measured_value is None:
+        return "unavailable"
     measured = _finite_number(measured_value)
     if operator == "eq":
         numeric_bound = _finite_number(bound)
         if measured is not None or numeric_bound is not None:
-            return measured is not None and numeric_bound is not None and measured == numeric_bound
-        return measured_value is not None and measured_value == bound
+            ok = measured is not None and numeric_bound is not None and measured == numeric_bound
+        else:
+            ok = measured_value == bound
+        return "passed" if ok else "violated"
     if measured is None:
-        return False
+        return "violated"
     if operator == "between":
         if not isinstance(bound, dict) or set(bound) != {"minimum", "maximum"}:
             raise RuntimeContractError("between constraint bound is invalid")
@@ -543,18 +667,68 @@ def _evaluate_constraint(
         maximum = _finite_number(bound.get("maximum"))
         if minimum is None or maximum is None or minimum > maximum:
             raise RuntimeContractError("between constraint bound is invalid")
-        return minimum <= measured <= maximum
+        return "passed" if minimum <= measured <= maximum else "violated"
     numeric_bound = _finite_number(bound)
     if numeric_bound is None:
         raise RuntimeContractError(f"{operator!r} constraint bound is invalid")
     if operator == "gt":
-        return measured > numeric_bound
-    if operator == "ge":
-        return measured >= numeric_bound
-    if operator == "lt":
-        return measured < numeric_bound
-    if operator == "le":
-        return measured <= numeric_bound
+        ok = measured > numeric_bound
+    elif operator == "ge":
+        ok = measured >= numeric_bound
+    elif operator == "lt":
+        ok = measured < numeric_bound
+    elif operator == "le":
+        ok = measured <= numeric_bound
+    else:
+        raise RuntimeContractError(f"constraint operator is unsupported: {operator!r}")
+    return "passed" if ok else "violated"
+
+
+def _evaluate_constraint(
+    *,
+    operator: Any,
+    bound: Any,
+    measured_value: Any,
+) -> bool:
+    """Backward-compatible boolean view: only a ``passed`` outcome is True."""
+
+    return (
+        _evaluate_constraint_outcome(operator=operator, bound=bound, measured_value=measured_value)
+        == "passed"
+    )
+
+
+def _constraint_margin(operator: Any, bound: Any, measured_value: Any) -> float | None:
+    """Signed distance from a measured value to its declared bound, in the constraint's unit.
+
+    Positive means the bound is satisfied by that much; zero means exactly at the
+    bound; negative means it is violated by that much. ``None`` when the measurement
+    is missing or non-numeric -- the same case ``_evaluate_constraint_outcome`` reports
+    as ``unavailable``, not a fabricated distance. Mirrors ``campaign._constraint_margin``;
+    duplicated (not imported) because this module is copied standalone into every
+    compiled backend pack and must stay dependency-free.
+    """
+
+    measured = _finite_number(measured_value)
+    if measured is None:
+        return None
+    if operator == "between":
+        if not isinstance(bound, dict) or set(bound) != {"minimum", "maximum"}:
+            raise RuntimeContractError("between constraint bound is invalid")
+        minimum = _finite_number(bound.get("minimum"))
+        maximum = _finite_number(bound.get("maximum"))
+        if minimum is None or maximum is None or minimum > maximum:
+            raise RuntimeContractError("between constraint bound is invalid")
+        return min(measured - minimum, maximum - measured)
+    numeric_bound = _finite_number(bound)
+    if numeric_bound is None:
+        raise RuntimeContractError(f"{operator!r} constraint bound is invalid")
+    if operator in {"gt", "ge"}:
+        return measured - numeric_bound
+    if operator in {"lt", "le"}:
+        return numeric_bound - measured
+    if operator == "eq":
+        return -abs(measured - numeric_bound)
     raise RuntimeContractError(f"constraint operator is unsupported: {operator!r}")
 
 
@@ -628,11 +802,6 @@ def constraint_evidence(
         for channel in material.get("initial_channels", []):
             if isinstance(channel, dict):
                 values.setdefault(str(channel.get("channel_id")), channel.get("value"))
-    if action.get("kind") == "set_heater":
-        target = action.get("parameters", {}).get("target-temperature")
-        if target is not None:
-            values["heater.target_temperature_K"] = target
-
     evidence = []
     for identifier in sorted(constraint_ids):
         specification = declared[identifier]
@@ -640,7 +809,7 @@ def constraint_evidence(
         value = values.get(channel_id)
         bound = specification.get("bound")
         operator = specification.get("operator")
-        passed = _evaluate_constraint(
+        outcome = _evaluate_constraint_outcome(
             operator=operator,
             bound=bound,
             measured_value=value,
@@ -649,8 +818,10 @@ def constraint_evidence(
             {
                 "constraint_id": identifier,
                 "phase": str(specification.get("phase")),
-                "passed": passed,
+                "passed": outcome == "passed",
+                "outcome": outcome,
                 "measured_value": value,
+                "margin": _constraint_margin(operator, bound, value),
                 "limit": {
                     "operator": operator,
                     "bound": bound,
@@ -691,7 +862,15 @@ def _validate_evidence_record(
 
 
 def validate_trace(events: list[dict[str, Any]], pack: dict[str, Any]) -> None:
-    """Validate campaign invariants against the loaded compiled-pack schemas."""
+    """Validate campaign invariants against the loaded compiled-pack schemas.
+
+    A constraint's declared ``enforcement`` controls what a failure means, not just
+    whether it happened: ``terminate`` is the only level that requires the campaign's
+    terminal status to be ``failed`` here. ``reject`` (refuse the action but continue
+    the campaign) and ``report`` (record only) are honored by not raising on their
+    account; actually refusing a rejected action's effect on world state happens in
+    the target runtime loop that produces the trace, not in this validator.
+    """
 
     allowed_event_types = {"campaign_start", "action", "observation", "campaign_end"}
     unknown_event_types = sorted(
@@ -738,10 +917,22 @@ def validate_trace(events: list[dict[str, Any]], pack: dict[str, Any]) -> None:
     for name, expected in expected_bindings.items():
         if events[0].get(name) != expected:
             raise RuntimeContractError(f"trace {name} does not bind to the verified compiled pack")
+    # Required proof outputs come from the verified compiled pack: the trace's
+    # own declared proof block must equal the pack's, so a trace cannot remove
+    # or redefine what it is required to prove.
+    start_provenance = events[0].get("provenance") or {}
+    if start_provenance.get("proof_requirements") != pack["campaign"].get("proof_requirements", []):
+        raise RuntimeContractError(
+            "trace proof requirements do not bind to the verified compiled pack"
+        )
+    expected_step_ids = [str(action["action_id"]) for action in pack["campaign"].get("actions", [])]
+    declared_step_ids = start_provenance.get("declared_step_ids")
+    if declared_step_ids is not None and declared_step_ids != expected_step_ids:
+        raise RuntimeContractError("trace declared steps do not bind to the verified compiled pack")
     last_time = -1.0
     action_count = 0
     previous_action: dict[str, Any] | None = None
-    failed_constraint = False
+    terminating_constraint_failed = False
     constraint_declarations = {
         str(item.get("id")): item
         for item in pack["facility"].get("constraints", [])
@@ -821,7 +1012,14 @@ def validate_trace(events: list[dict[str, Any]], pack: dict[str, Any]) -> None:
                     "action constraint coverage differs from the compiled campaign: "
                     f"missing={missing}, extra={extra}"
                 )
-            failed_constraint = failed_constraint or any(
+            # Unlike a post-action (observation-phase) constraint, which can only be
+            # noticed after its action already ran, a pre-action constraint's whole
+            # point is to prevent that action from running at all -- so ANY failed
+            # pre-action constraint (not only a terminate-enforcement one) must force
+            # a failed campaign status here, matching the live runtime contract both
+            # backends now enforce (see isaac_runtime.py's main() and campaign.py's
+            # run_composed_campaign).
+            terminating_constraint_failed = terminating_constraint_failed or any(
                 not item["passed"] for item in event.get("constraints", [])
             )
             previous_action = action
@@ -848,6 +1046,7 @@ def validate_trace(events: list[dict[str, Any]], pack: dict[str, Any]) -> None:
                 raise RuntimeContractError("observation evidence_class differs from its action")
             if observation.get("evidence_class") not in EVIDENCE_CLASSES:
                 raise RuntimeContractError("observation evidence_class is invalid")
+            _validate_sample_fields(observation, label="observation")
             channels = observation.get("channels", [])
             if not channels:
                 raise RuntimeContractError("observation has no channels")
@@ -898,8 +1097,9 @@ def validate_trace(events: list[dict[str, Any]], pack: dict[str, Any]) -> None:
                     "observation constraint coverage differs from the compiled campaign: "
                     f"missing={missing}, extra={extra}"
                 )
-            failed_constraint = failed_constraint or any(
-                not item["passed"] for item in event.get("constraints", [])
+            terminating_constraint_failed = terminating_constraint_failed or any(
+                not item["passed"] and item.get("limit", {}).get("enforcement") == "terminate"
+                for item in event.get("constraints", [])
             )
             previous_action = None
     if action_count != len(campaign_actions):
@@ -908,8 +1108,10 @@ def validate_trace(events: list[dict[str, Any]], pack: dict[str, Any]) -> None:
     terminal_status = terminal_provenance.get("execution_status")
     if terminal_status not in {"passed", "failed"}:
         raise RuntimeContractError("campaign_end needs an explicit execution_status")
-    if failed_constraint and terminal_status != "failed":
-        raise RuntimeContractError("a failed constraint needs failed campaign status")
+    if terminating_constraint_failed and terminal_status != "failed":
+        raise RuntimeContractError(
+            "a failed pre-action or terminate-enforcement constraint needs failed campaign status"
+        )
 
 
 class TraceWriter:
@@ -958,6 +1160,7 @@ class TraceWriter:
                 for action in campaign.get("actions", [])
             },
         }
+        declared_step_ids = [str(action["action_id"]) for action in campaign.get("actions", [])]
         self.provenance = {
             **provenance,
             "constraint_contract": constraint_contract,
@@ -969,6 +1172,21 @@ class TraceWriter:
                 }
                 for action in campaign.get("actions", [])
             },
+            # Resolved at compile time (see _runtime_pack.py's
+            # _resolved_proof_requirements) into each requirement's own concrete
+            # action_ids -- carried here so dynamical.campaign.validate_events can
+            # check proof completeness for this backend's trace on the same terms
+            # as every other backend, rather than trusting this launcher's own
+            # execution_status claim. The per-event proof_contract_sha256 binds
+            # this block so a trace cannot drop or redefine it undetected.
+            "declared_step_ids": declared_step_ids,
+            "proof_requirements": campaign.get("proof_requirements", []),
+            "proof_contract_sha256": stable_hash(
+                {
+                    "declared_step_ids": declared_step_ids,
+                    "proof_requirements": campaign.get("proof_requirements", []),
+                }
+            ),
         }
         self.pack = pack
         self.events: list[dict[str, Any]] = []

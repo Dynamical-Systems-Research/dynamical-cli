@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import tempfile
 from dataclasses import dataclass
+from importlib.resources import files
 from pathlib import Path, PurePosixPath
 from typing import Any, Literal
 
@@ -17,9 +18,26 @@ from .schema import (
     canonical_sha256,
     load_facility_manifest,
 )
+from .source_admission import SourceAdmissionError, admit_sources
+from .sources import AssetSource, staged_asset_basename
 
-COMPILER_VERSION = "0.1.0"
-Target = Literal["matterix", "isaac", "openusd"]
+COMPILER_VERSION = "0.2.0"
+Target = Literal["isaac", "openusd"]
+
+# Asset source ids (e.g. "assets/usd/vial-rack-v3.usdc") are declared relative to the
+# repository root, not to the manifest file's directory or the process cwd -- manifests
+# live under manifests/ and vendored sources under assets/usd/ and sources/, siblings of
+# each other. This is the dev/editable-install root: a repo checkout has every source id
+# at exactly this relative path.
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+# A real (non-editable) wheel install never has _REPOSITORY_ROOT on disk at all --
+# Path(__file__).resolve().parents[2] then lands somewhere under site-packages/lib,
+# which is why compile_facility must not use it alone. pyproject.toml force-includes
+# each derived USD layer at "dynamical/data/<source id>", preserving the source id's
+# own relative path unchanged, so this is the matching packaged-install root: the same
+# pattern src/dynamical/cli.py already uses for its own packaged-data fallback
+# (PACKAGED_REGISTRY / PACKAGED_FACILITY).
+_PACKAGED_DATA_ROOT = Path(str(files("dynamical").joinpath("data")))
 
 _COMPILE_MANIFEST_FIELDS = {
     "schema_version",
@@ -47,6 +65,7 @@ _OWNERSHIP_ARTIFACTS = {
     "physics.usda",
     "root.usda",
     "semantics.usda",
+    "source_admission.json",
 }
 
 _AGENT_DECISION_FIELDS = {
@@ -118,6 +137,60 @@ def _artifact_file(root: Path, relative: PurePosixPath) -> Path:
     return candidate
 
 
+def _resolve_asset_root(source_ids: list[str]) -> Path:
+    """Return the one directory every id in ``source_ids`` resolves under.
+
+    Tries the packaged install's data directory first, then the repository
+    checkout, and commits to whichever root has *every* requested id -- the
+    two are never mixed in one call, since a real install has exactly one of
+    them available. If any id resolves under neither, raises
+    ``SourceAdmissionError`` naming that id and both full paths tried: a
+    missing asset must never be silently swallowed into "no assets
+    admitted", the exact honesty gap this release exists to close. A future
+    asset added at a new repo path that pyproject.toml's force-include list
+    forgets to mirror will fail loudly here instead of resolving to nothing.
+    """
+    if all((_PACKAGED_DATA_ROOT / source_id).is_file() for source_id in source_ids):
+        return _PACKAGED_DATA_ROOT
+    if all((_REPOSITORY_ROOT / source_id).is_file() for source_id in source_ids):
+        return _REPOSITORY_ROOT
+    for source_id in source_ids:
+        packaged_candidate = _PACKAGED_DATA_ROOT / source_id
+        repo_candidate = _REPOSITORY_ROOT / source_id
+        if not packaged_candidate.is_file() and not repo_candidate.is_file():
+            raise SourceAdmissionError(
+                f"{source_id}: artifact is absent at both {packaged_candidate} and {repo_candidate}"
+            )
+    raise SourceAdmissionError(
+        "admitted asset sources resolve inconsistently: some ids resolve only under "
+        f"{_PACKAGED_DATA_ROOT}, others only under {_REPOSITORY_ROOT}; expected every "
+        f"id to resolve under exactly one shared root. ids={source_ids!r}"
+    )
+
+
+def _staged_asset_basenames(sources: list[AssetSource]) -> dict[str, str]:
+    """Map each admitted derived layer's flattened basename back to its source id.
+
+    Flattening drops the source id's directory namespace, so two admitted
+    derived layers with the same basename (e.g. two vendors both shipping a
+    ``part.usdc``) would silently overwrite each other on disk. Fail closed
+    and name both ids instead of silently picking one.
+    """
+    basenames: dict[str, str] = {}
+    for source in sorted(sources, key=lambda item: item.id):
+        if source.derived_from_source_id is None:
+            continue  # provenance-only record (e.g. raw CAD); nothing to stage
+        basename = staged_asset_basename(source.id)
+        colliding_id = basenames.get(basename)
+        if colliding_id is not None:
+            raise ValueError(
+                "two admitted asset sources flatten to the same staged basename "
+                f"{basename!r}: {colliding_id!r} and {source.id!r}"
+            )
+        basenames[basename] = source.id
+    return basenames
+
+
 def _compile_manifest_records(manifest: Any) -> dict[str, str]:
     if not isinstance(manifest, dict) or set(manifest) != _COMPILE_MANIFEST_FIELDS:
         raise ValueError("compile manifest fields do not match dynamical.compile-manifest.v1")
@@ -125,7 +198,7 @@ def _compile_manifest_records(manifest: Any) -> dict[str, str]:
         raise ValueError("compile manifest schema version is unsupported")
     if manifest.get("compiler_version") != COMPILER_VERSION:
         raise ValueError("compile manifest compiler version is unsupported")
-    if manifest.get("target") not in {"matterix", "isaac", "openusd"}:
+    if manifest.get("target") not in {"isaac", "openusd"}:
         raise ValueError("compile manifest target is unsupported")
     for field in ("core_ir_sha256", "adapter_pack_sha256", "world_sha256"):
         if not _is_sha256(manifest.get(field)):
@@ -261,7 +334,6 @@ def action_schema(document: FacilityDocument) -> dict[str, Any]:
         "observe",
         "pick",
         "place",
-        "set_heater",
         "stop",
         "wait",
     }
@@ -287,6 +359,9 @@ def action_schema(document: FacilityDocument) -> dict[str, Any]:
             "provider_id": {"type": "string", "minLength": 1},
             "evidence_class": {"enum": ["simulator", "calibrated_twin", "shadow", "physical"]},
             "parameters": {"type": "object"},
+            "sample_id": {"anyOf": [{"type": "string", "minLength": 1}, {"type": "null"}]},
+            "sample_lineage": {"type": "array", "items": {"type": "string"}},
+            "station_id": {"anyOf": [{"type": "string", "minLength": 1}, {"type": "null"}]},
         },
         "x-dynamical-declared-capability-action-types": declared,
     }
@@ -334,6 +409,7 @@ def observation_schema(document: FacilityDocument) -> dict[str, Any]:
                         "origin",
                         "provider_id",
                         "evidence_class",
+                        "uncertainty",
                     ],
                     "properties": {
                         "name": {"type": "string", "minLength": 1},
@@ -357,10 +433,22 @@ def observation_schema(document: FacilityDocument) -> dict[str, Any]:
                                 "physical",
                             ]
                         },
+                        "uncertainty": {
+                            "type": "object",
+                            "additionalProperties": False,
+                            "required": ["value", "kind", "origin"],
+                            "properties": {
+                                "value": {"type": ["number", "null"], "minimum": 0},
+                                "kind": {"enum": ["declared", "propagated", "measured"]},
+                                "origin": {"type": "string", "minLength": 1},
+                            },
+                        },
                     },
                 },
             },
             "evidence_ids": {"type": "array", "items": {"type": "string"}},
+            "sample_id": {"anyOf": [{"type": "string", "minLength": 1}, {"type": "null"}]},
+            "sample_lineage": {"type": "array", "items": {"type": "string"}},
         },
         "x-dynamical-declared-channel-ids": channels,
     }
@@ -468,11 +556,73 @@ def _selected_capability_graph(composition: Any) -> dict[str, Any]:
     }
 
 
+def evaluate_calibration(document: FacilityDocument) -> dict[str, Any]:
+    """Evaluate declared calibration evidence into a bounded W2 decision.
+
+    W2 is admitted for a model binding's named channels and condition domain
+    only when its evidence comes from independent physical facility runs,
+    carries at least one gated metric on the independent_test split, and
+    every gated metric passes its frozen threshold (recomputed here, never
+    trusted from the record). Anything else -- no evidence, no held-out
+    gates, any failed gate, or a within-campaign validation design -- keeps
+    W2 closed. Every applicable closure reason is recorded, not just the
+    first, so an evidence record that both fails its gates and lacks
+    independent-facility validation shows both.
+    """
+
+    grants: list[dict[str, Any]] = []
+    closed: list[dict[str, Any]] = []
+    for evidence in sorted(document.calibration_evidence, key=lambda value: value.id):
+        gated = [metric for metric in evidence.metrics if metric.gate_passed() is not None]
+        held_out_gates = [metric for metric in gated if metric.split == "independent_test"]
+        failed = [metric.name for metric in gated if metric.gate_passed() is False]
+        record = {
+            "calibration_evidence_id": evidence.id,
+            "model_binding_id": evidence.applies_to_model_binding_id,
+            "channel_ids": list(evidence.supported_channel_ids),
+            "condition_domain": dict(evidence.condition_domain),
+        }
+        reasons: list[str] = []
+        if evidence.validation_design != "independent_facility_runs":
+            reasons.append(
+                "validation design is not independent_facility_runs "
+                f"(declared: {evidence.validation_design})"
+            )
+        if not held_out_gates:
+            reasons.append("no gated metric on the independent_test split")
+        if failed:
+            reasons.append(f"failed frozen gates: {failed}")
+        if reasons:
+            closed.append({**record, "reasons": reasons, "failed_metrics": failed})
+        else:
+            grants.append(record)
+    return {"w2_admitted": bool(grants), "w2_grants": grants, "w2_closed": closed}
+
+
 def _fidelity_template(document: FacilityDocument, target: str) -> dict[str, Any]:
-    calibration_statement = (
-        "No physical calibration evidence; W2 is not admitted. Independent physical facility "
-        "runs remain required."
-    )
+    calibration = evaluate_calibration(document)
+    if calibration["w2_admitted"]:
+        granted = calibration["w2_grants"]
+        calibration_statement = (
+            "Bounded W2 is admitted solely for the granted channels and condition domains: "
+            f"{granted}. Everything else remains W1."
+        )
+        w2_admission = {"status": "admitted_bounded", "reason": calibration_statement}
+    elif calibration["w2_closed"]:
+        closure_reasons = [
+            reason for item in calibration["w2_closed"] for reason in item["reasons"]
+        ]
+        calibration_statement = (
+            "W2 is not admitted. Declared calibration evidence is closed for: "
+            f"{closure_reasons}. The evidence record is preserved in calibration_bindings.json."
+        )
+        w2_admission = {"status": "not_admitted", "reason": calibration_statement}
+    else:
+        calibration_statement = (
+            "No physical calibration evidence; W2 is not admitted. Independent physical "
+            "facility runs remain required."
+        )
+        w2_admission = {"status": "not_admitted", "reason": calibration_statement}
     return {
         "schema_version": "0.1.0",
         "rubric_owner": "Dynamical Systems",
@@ -488,7 +638,7 @@ def _fidelity_template(document: FacilityDocument, target: str) -> dict[str, Any
                 "status": "not_admitted",
                 "reason": "A real rendered embodied workflow and trace are required.",
             },
-            "W2": {"status": "not_admitted", "reason": calibration_statement},
+            "W2": w2_admission,
             "W3": {"status": "not_admitted", "reason": "No live read-only facility link."},
             "W4": {"status": "not_admitted", "reason": "No approved physical submission path."},
             "W5": {"status": "not_admitted", "reason": "No physical-result update loop."},
@@ -637,7 +787,7 @@ def compile_facility(
 ) -> CompileResult:
     """Validate and compile one facility manifest into deterministic artifacts."""
 
-    if target not in {"matterix", "isaac", "openusd"}:
+    if target not in {"isaac", "openusd"}:
         raise ValueError(f"unsupported target: {target}")
     document = (
         manifest_path
@@ -681,6 +831,23 @@ def compile_facility(
                 ],
             },
         )
+        # Only the derived USD layers this compiled world actually stages need runtime
+        # re-verification. Raw upstream CAD (assets whose AssetSource has no
+        # derived_from_source_id) is provenance-only: it is never staged, never
+        # referenced by a reference arc, and pyproject.toml deliberately does not ship
+        # it in the wheel -- its digest is checked once, at vendoring time, by
+        # tests/test_asset_provenance.py against the repo tree, not on every compile.
+        derived_sources = [
+            source for source in document.asset_sources if source.derived_from_source_id is not None
+        ]
+        asset_root = _resolve_asset_root([source.id for source in derived_sources])
+        admission = admit_sources(derived_sources, asset_root)
+        _write_json(staged / "source_admission.json", admission)
+        staged_basenames = _staged_asset_basenames(derived_sources)
+        if staged_basenames:
+            (staged / "assets").mkdir(parents=True, exist_ok=True)
+        for basename, source_id in sorted(staged_basenames.items()):
+            shutil.copy2(asset_root / source_id, staged / "assets" / basename)
         write_openusd_layers(document, staged, core_hash)
         _write_json(staged / "capability_graph.json", _capability_graph(document))
         _write_json(staged / "action_schema.json", action_schema(document))
@@ -694,7 +861,7 @@ def compile_facility(
                     item.model_dump(mode="json", exclude_none=True)
                     for item in sorted(document.calibration_evidence, key=lambda value: value.id)
                 ],
-                "w2_admitted": False,
+                **evaluate_calibration(document),
             },
         )
         _write_json(staged / "fidelity_report.json", _fidelity_template(document, target))

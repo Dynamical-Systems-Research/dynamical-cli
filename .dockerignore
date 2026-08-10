@@ -1,8 +1,0 @@
-*
-!.dockerignore
-!pyproject.toml
-!README.md
-!src/
-!src/**
-!registries/
-!registries/**

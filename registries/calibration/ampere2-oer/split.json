@@ -1,0 +1,295 @@
+{
+ "protocol_id": "ampere2-oer-calibration-v1",
+ "n_conditions": 32,
+ "n_fit_conditions": 23,
+ "n_held_out_conditions": 9,
+ "conditions": [
+  {
+   "condition_key_canonical_json": "[{\"Co\":0,\"Cr\":0,\"Cu\":0,\"Fe\":0,\"Mn\":0,\"NH4OH\":0,\"NaCi\":0,\"Ni\":0,\"Zn\":0},\"0.002827\",\"60.0\",\"2.5\",\"35.0\"]",
+   "sha256_mod4": 0,
+   "split": "held_out",
+   "unique_ids": [
+    "276",
+    "278",
+    "281",
+    "285",
+    "286"
+   ]
+  },
+  {
+   "condition_key_canonical_json": "[{\"Co\":0,\"Cr\":0,\"Cu\":0,\"Fe\":0,\"Mn\":0,\"NH4OH\":0,\"NaCi\":0,\"Ni\":0,\"Zn\":1},\"0.005654\",\"60.0\",\"2.5\",\"35.0\"]",
+   "sha256_mod4": 1,
+   "split": "fit",
+   "unique_ids": [
+    "133",
+    "141"
+   ]
+  },
+  {
+   "condition_key_canonical_json": "[{\"Co\":0,\"Cr\":0,\"Cu\":0,\"Fe\":0,\"Mn\":0,\"NH4OH\":0,\"NaCi\":0,\"Ni\":1,\"Zn\":0},\"0.002827\",\"60.0\",\"2.5\",\"35.0\"]",
+   "sha256_mod4": 0,
+   "split": "held_out",
+   "unique_ids": [
+    "316",
+    "317",
+    "318"
+   ]
+  },
+  {
+   "condition_key_canonical_json": "[{\"Co\":0,\"Cr\":0,\"Cu\":0,\"Fe\":0,\"Mn\":0,\"NH4OH\":0,\"NaCi\":0,\"Ni\":1,\"Zn\":0},\"0.005654\",\"60.0\",\"2.5\",\"35.0\"]",
+   "sha256_mod4": 0,
+   "split": "held_out",
+   "unique_ids": [
+    "72",
+    "91"
+   ]
+  },
+  {
+   "condition_key_canonical_json": "[{\"Co\":0,\"Cr\":0,\"Cu\":0,\"Fe\":1,\"Mn\":0,\"NH4OH\":0,\"NaCi\":0,\"Ni\":0,\"Zn\":0},\"0.002827\",\"60\",\"2.5\",\"35\"]",
+   "sha256_mod4": 1,
+   "split": "fit",
+   "unique_ids": [
+    "325"
+   ]
+  },
+  {
+   "condition_key_canonical_json": "[{\"Co\":0,\"Cr\":0,\"Cu\":0,\"Fe\":1,\"Mn\":0,\"NH4OH\":0,\"NaCi\":0,\"Ni\":0,\"Zn\":0},\"0.002827\",\"60.0\",\"2.5\",\"35.0\"]",
+   "sha256_mod4": 0,
+   "split": "held_out",
+   "unique_ids": [
+    "323",
+    "324"
+   ]
+  },
+  {
+   "condition_key_canonical_json": "[{\"Co\":0,\"Cr\":0,\"Cu\":0,\"Fe\":1,\"Mn\":0,\"NH4OH\":0,\"NaCi\":0,\"Ni\":0,\"Zn\":0},\"0.005654\",\"60.0\",\"2.5\",\"35.0\"]",
+   "sha256_mod4": 1,
+   "split": "fit",
+   "unique_ids": [
+    "76",
+    "95"
+   ]
+  },
+  {
+   "condition_key_canonical_json": "[{\"Co\":0,\"Cr\":0,\"Cu\":1,\"Fe\":0,\"Mn\":0,\"NH4OH\":0,\"NaCi\":0,\"Ni\":0,\"Zn\":0},\"0.005654\",\"60.0\",\"2.5\",\"35.0\"]",
+   "sha256_mod4": 0,
+   "split": "held_out",
+   "unique_ids": [
+    "142"
+   ]
+  },
+  {
+   "condition_key_canonical_json": "[{\"Co\":0,\"Cr\":1,\"Cu\":0,\"Fe\":0,\"Mn\":0,\"NH4OH\":0,\"NaCi\":0,\"Ni\":0,\"Zn\":0},\"0.005654\",\"60.0\",\"2.5\",\"35.0\"]",
+   "sha256_mod4": 3,
+   "split": "fit",
+   "unique_ids": [
+    "126"
+   ]
+  },
+  {
+   "condition_key_canonical_json": "[{\"Co\":0.0,\"Cr\":0.0,\"Cu\":0.0,\"Fe\":0,\"Mn\":0.0,\"NH4OH\":0.0,\"NaCi\":0.0,\"Ni\":1,\"Zn\":0.0},\"0.002827\",\"60.0\",\"2.5\",\"35.0\"]",
+   "sha256_mod4": 2,
+   "split": "fit",
+   "unique_ids": [
+    "291",
+    "292",
+    "295"
+   ]
+  },
+  {
+   "condition_key_canonical_json": "[{\"Co\":0.0,\"Cr\":0.0,\"Cu\":0.0,\"Fe\":0.5,\"Mn\":0.0,\"NH4OH\":0.0,\"NaCi\":0.0,\"Ni\":0.5,\"Zn\":0.0},\"0.002827\",\"60.0\",\"2.5\",\"35.0\"]",
+   "sha256_mod4": 2,
+   "split": "fit",
+   "unique_ids": [
+    "288",
+    "297",
+    "298",
+    "301",
+    "308",
+    "309",
+    "320",
+    "321"
+   ]
+  },
+  {
+   "condition_key_canonical_json": "[{\"Co\":0.07,\"Cr\":0.07,\"Cu\":0.07,\"Fe\":0.07,\"Mn\":0.07,\"NH4OH\":0,\"NaCi\":0.5,\"Ni\":0.07,\"Zn\":0.07},\"0.002827\",\"60.0\",\"2.5\",\"35.0\"]",
+   "sha256_mod4": 2,
+   "split": "fit",
+   "unique_ids": [
+    "234"
+   ]
+  },
+  {
+   "condition_key_canonical_json": "[{\"Co\":0.09,\"Cr\":0.09,\"Cu\":0.09,\"Fe\":0.09,\"Mn\":0.09,\"NH4OH\":0,\"NaCi\":0.4,\"Ni\":0.09,\"Zn\":0.09},\"0.002827\",\"60.0\",\"2.5\",\"35.0\"]",
+   "sha256_mod4": 3,
+   "split": "fit",
+   "unique_ids": [
+    "232"
+   ]
+  },
+  {
+   "condition_key_canonical_json": "[{\"Co\":0.1,\"Cr\":0.1,\"Cu\":0.1,\"Fe\":0.1,\"Mn\":0.1,\"NH4OH\":0,\"NaCi\":0.3,\"Ni\":0.1,\"Zn\":0.1},\"0.002827\",\"60.0\",\"2.5\",\"35.0\"]",
+   "sha256_mod4": 2,
+   "split": "fit",
+   "unique_ids": [
+    "230"
+   ]
+  },
+  {
+   "condition_key_canonical_json": "[{\"Co\":0.1,\"Cr\":0.1,\"Cu\":0.1,\"Fe\":0.1,\"Mn\":0.1,\"NH4OH\":0.15,\"NaCi\":0.15,\"Ni\":0.1,\"Zn\":0.1},\"0.002827\",\"60.0\",\"2.5\",\"35.0\"]",
+   "sha256_mod4": 0,
+   "split": "held_out",
+   "unique_ids": [
+    "244"
+   ]
+  },
+  {
+   "condition_key_canonical_json": "[{\"Co\":0.1,\"Cr\":0.1,\"Cu\":0.1,\"Fe\":0.1,\"Mn\":0.1,\"NH4OH\":0.3,\"NaCi\":0,\"Ni\":0.1,\"Zn\":0.1},\"0.002827\",\"60.0\",\"2.5\",\"35.0\"]",
+   "sha256_mod4": 3,
+   "split": "fit",
+   "unique_ids": [
+    "186"
+   ]
+  },
+  {
+   "condition_key_canonical_json": "[{\"Co\":0.11,\"Cr\":0.11,\"Cu\":0.11,\"Fe\":0.11,\"Mn\":0.11,\"NH4OH\":0,\"NaCi\":0.2,\"Ni\":0.11,\"Zn\":0.11},\"0.002827\",\"60.0\",\"2.5\",\"35.0\"]",
+   "sha256_mod4": 3,
+   "split": "fit",
+   "unique_ids": [
+    "223",
+    "228"
+   ]
+  },
+  {
+   "condition_key_canonical_json": "[{\"Co\":0.11,\"Cr\":0.11,\"Cu\":0.11,\"Fe\":0.11,\"Mn\":0.11,\"NH4OH\":0.1,\"NaCi\":0.1,\"Ni\":0.11,\"Zn\":0.11},\"0.002827\",\"60.0\",\"2.5\",\"35.0\"]",
+   "sha256_mod4": 3,
+   "split": "fit",
+   "unique_ids": [
+    "240"
+   ]
+  },
+  {
+   "condition_key_canonical_json": "[{\"Co\":0.11,\"Cr\":0.11,\"Cu\":0.11,\"Fe\":0.11,\"Mn\":0.11,\"NH4OH\":0.11,\"NaCi\":0.11,\"Ni\":0.11,\"Zn\":0.11},\"0.002827\",\"60.0\",\"2.5\",\"35.0\"]",
+   "sha256_mod4": 1,
+   "split": "fit",
+   "unique_ids": [
+    "302",
+    "303",
+    "304",
+    "306",
+    "307"
+   ]
+  },
+  {
+   "condition_key_canonical_json": "[{\"Co\":0.13,\"Cr\":0.13,\"Cu\":0.13,\"Fe\":0.13,\"Mn\":0.13,\"NH4OH\":0,\"NaCi\":0.1,\"Ni\":0.13,\"Zn\":0.13},\"0.002827\",\"60.0\",\"2.5\",\"35.0\"]",
+   "sha256_mod4": 1,
+   "split": "fit",
+   "unique_ids": [
+    "226"
+   ]
+  },
+  {
+   "condition_key_canonical_json": "[{\"Co\":0.13,\"Cr\":0.13,\"Cu\":0.13,\"Fe\":0.13,\"Mn\":0.13,\"NH4OH\":0.05,\"NaCi\":0.05,\"Ni\":0.13,\"Zn\":0.13},\"0.002827\",\"60.0\",\"2.5\",\"35.0\"]",
+   "sha256_mod4": 3,
+   "split": "fit",
+   "unique_ids": [
+    "236"
+   ]
+  },
+  {
+   "condition_key_canonical_json": "[{\"Co\":0.13,\"Cr\":0.13,\"Cu\":0.13,\"Fe\":0.13,\"Mn\":0.13,\"NH4OH\":0.1,\"NaCi\":0,\"Ni\":0.13,\"Zn\":0.13},\"0.002827\",\"60.0\",\"2.5\",\"35.0\"]",
+   "sha256_mod4": 1,
+   "split": "fit",
+   "unique_ids": [
+    "181"
+   ]
+  },
+  {
+   "condition_key_canonical_json": "[{\"Co\":1,\"Cr\":0,\"Cu\":0,\"Fe\":0,\"Mn\":0,\"NH4OH\":0,\"NaCi\":0,\"Ni\":0,\"Zn\":0},\"0.005654\",\"60.0\",\"2.5\",\"35.0\"]",
+   "sha256_mod4": 1,
+   "split": "fit",
+   "unique_ids": [
+    "130"
+   ]
+  },
+  {
+   "condition_key_canonical_json": "[{\"Co\":1,\"Cr\":1,\"Cu\":1,\"Fe\":1,\"Mn\":1,\"NH4OH\":1,\"NaCi\":1,\"Ni\":1,\"Zn\":1},\"0.0014135\",\"10.0\",\"2.5\",\"35.0\"]",
+   "sha256_mod4": 2,
+   "split": "fit",
+   "unique_ids": [
+    "146",
+    "149"
+   ]
+  },
+  {
+   "condition_key_canonical_json": "[{\"Co\":1,\"Cr\":1,\"Cu\":1,\"Fe\":1,\"Mn\":1,\"NH4OH\":1,\"NaCi\":1,\"Ni\":1,\"Zn\":1},\"0.0014135\",\"2.0\",\"2.5\",\"35.0\"]",
+   "sha256_mod4": 1,
+   "split": "fit",
+   "unique_ids": [
+    "144"
+   ]
+  },
+  {
+   "condition_key_canonical_json": "[{\"Co\":1,\"Cr\":1,\"Cu\":1,\"Fe\":1,\"Mn\":1,\"NH4OH\":1,\"NaCi\":1,\"Ni\":1,\"Zn\":1},\"0.0014135\",\"60.0\",\"2.5\",\"35.0\"]",
+   "sha256_mod4": 0,
+   "split": "held_out",
+   "unique_ids": [
+    "151"
+   ]
+  },
+  {
+   "condition_key_canonical_json": "[{\"Co\":1,\"Cr\":1,\"Cu\":1,\"Fe\":1,\"Mn\":1,\"NH4OH\":1,\"NaCi\":1,\"Ni\":1,\"Zn\":1},\"0.0014135\",\"90.0\",\"2.5\",\"35.0\"]",
+   "sha256_mod4": 0,
+   "split": "held_out",
+   "unique_ids": [
+    "153"
+   ]
+  },
+  {
+   "condition_key_canonical_json": "[{\"Co\":1,\"Cr\":1,\"Cu\":1,\"Fe\":1,\"Mn\":1,\"NH4OH\":1,\"NaCi\":1,\"Ni\":1,\"Zn\":1},\"0.002827\",\"10.0\",\"2.5\",\"35.0\"]",
+   "sha256_mod4": 1,
+   "split": "fit",
+   "unique_ids": [
+    "154",
+    "161",
+    "177"
+   ]
+  },
+  {
+   "condition_key_canonical_json": "[{\"Co\":1,\"Cr\":1,\"Cu\":1,\"Fe\":1,\"Mn\":1,\"NH4OH\":1,\"NaCi\":1,\"Ni\":1,\"Zn\":1},\"0.002827\",\"2.0\",\"2.5\",\"35.0\"]",
+   "sha256_mod4": 0,
+   "split": "held_out",
+   "unique_ids": [
+    "159",
+    "179"
+   ]
+  },
+  {
+   "condition_key_canonical_json": "[{\"Co\":1,\"Cr\":1,\"Cu\":1,\"Fe\":1,\"Mn\":1,\"NH4OH\":1,\"NaCi\":1,\"Ni\":1,\"Zn\":1},\"0.002827\",\"30.0\",\"2.5\",\"35.0\"]",
+   "sha256_mod4": 3,
+   "split": "fit",
+   "unique_ids": [
+    "165",
+    "175"
+   ]
+  },
+  {
+   "condition_key_canonical_json": "[{\"Co\":1,\"Cr\":1,\"Cu\":1,\"Fe\":1,\"Mn\":1,\"NH4OH\":1,\"NaCi\":1,\"Ni\":1,\"Zn\":1},\"0.002827\",\"60.0\",\"2.5\",\"35.0\"]",
+   "sha256_mod4": 2,
+   "split": "fit",
+   "unique_ids": [
+    "167",
+    "169",
+    "173"
+   ]
+  },
+  {
+   "condition_key_canonical_json": "[{\"Co\":1,\"Cr\":1,\"Cu\":1,\"Fe\":1,\"Mn\":1,\"NH4OH\":1,\"NaCi\":1,\"Ni\":1,\"Zn\":1},\"0.002827\",\"90.0\",\"2.5\",\"35.0\"]",
+   "sha256_mod4": 1,
+   "split": "fit",
+   "unique_ids": [
+    "171"
+   ]
+  }
+ ]
+}

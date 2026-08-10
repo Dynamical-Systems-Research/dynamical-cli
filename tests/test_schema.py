@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 import math
 from pathlib import Path
@@ -16,12 +15,11 @@ from dynamical.schema import (
     CapabilityRegistry,
     FacilityDocument,
     canonical_json_bytes,
-    load_capability_registry,
     load_facility_manifest,
 )
 
 REPOSITORY = Path(__file__).resolve().parents[1]
-HEATER_MANIFEST = REPOSITORY / "manifests" / "matterix-heater-workstation.yaml"
+MANIFEST = REPOSITORY / "manifests" / "ac-electrodeposition-cell.yaml"
 SCHEMA_PATH = REPOSITORY / "schemas" / "facility.schema.json"
 TRACE_SCHEMA_PATH = REPOSITORY / "schemas" / "campaign-trace.schema.json"
 REGISTRY_SCHEMA_PATH = REPOSITORY / "schemas" / "capability-registry.schema.json"
@@ -29,7 +27,7 @@ REQUIREMENT_SCHEMA_PATH = REPOSITORY / "schemas" / "campaign-requirement.schema.
 COMPOSITION_SCHEMA_PATH = REPOSITORY / "schemas" / "composition-result.schema.json"
 
 
-def _raw_manifest(path: Path = HEATER_MANIFEST) -> dict[str, object]:
+def _raw_manifest(path: Path = MANIFEST) -> dict[str, object]:
     value = yaml.safe_load(path.read_text(encoding="utf-8"))
     assert isinstance(value, dict)
     return value
@@ -74,44 +72,8 @@ def test_published_capability_and_requirement_schemas_match_executable_models() 
     assert "providers" not in requirement_schema["properties"]
 
 
-def test_reference_registry_selected_evidence_paths_exist() -> None:
-    if not (REPOSITORY / "external" / "Matterix").is_dir():
-        pytest.skip("the ignored local MATTERIX source tree is absent")
-    registry = load_capability_registry(REPOSITORY / "registries" / "reference-capabilities.yaml")
-    for provider in registry.providers:
-        references = [
-            provider.availability.availability_ref,
-            *provider.admission.evidence_refs,
-        ]
-        for reference in references:
-            if reference is None or "://" in reference or reference.startswith("sha256:"):
-                continue
-            assert (REPOSITORY / reference).is_file(), reference
-
-    source_lock = json.loads(
-        (REPOSITORY / "registries" / "figure5-source-lock.json").read_text(encoding="utf-8")
-    )
-    source_archive = REPOSITORY / "docs" / "sources" / source_lock["archive_name"]
-    if source_archive.is_file():
-        assert (
-            hashlib.sha256(source_archive.read_bytes()).hexdigest() == source_lock["archive_sha256"]
-        )
-
-
-def test_figure5_lock_labels_the_reference_as_one_simulation_row() -> None:
-    source_lock = json.loads(
-        (REPOSITORY / "registries" / "figure5-source-lock.json").read_text(encoding="utf-8")
-    )
-    row = source_lock["reference_row"]
-    assert row["member"] == "fig5a_3.csv"
-    assert row["fluidA_mass_kg"] == 0.03375
-    assert row["simulation_time_s"] == 930.308
-    assert row["fluidA_temperature_K"] == 309.5473922729492
-    assert "not an exposure duration" in row["interpretation"]
-
-
-def test_heater_manifest_uses_one_z_up_meter_frame_and_named_quaternions() -> None:
-    document = load_facility_manifest(HEATER_MANIFEST)
+def test_electrodeposition_manifest_uses_one_z_up_meter_frame_and_named_quaternions() -> None:
+    document = load_facility_manifest(MANIFEST)
 
     assert document.facility.frame.up_axis == "Z"
     assert document.facility.frame.length_unit == "m"
@@ -146,17 +108,17 @@ def test_unknown_graph_reference_is_rejected() -> None:
 
 
 def test_target_adapter_changes_do_not_change_core_ir_hash() -> None:
-    original = load_facility_manifest(HEATER_MANIFEST)
+    original = load_facility_manifest(MANIFEST)
     raw = original.model_dump(mode="json")
     raw["adapter_bindings"][0]["adapter_version"] = "0.1.1-test"
     changed = FacilityDocument.model_validate(raw)
 
     assert changed.core_ir_sha256() == original.core_ir_sha256()
-    assert changed.adapter_pack_sha256("matterix") != original.adapter_pack_sha256("matterix")
+    assert changed.adapter_pack_sha256("isaac") != original.adapter_pack_sha256("isaac")
 
 
 def test_devices_and_agents_reference_asset_identity_without_pose_duplication() -> None:
-    document = load_facility_manifest(HEATER_MANIFEST)
+    document = load_facility_manifest(MANIFEST)
 
     for endpoint in [*document.devices, *document.agents]:
         dumped = endpoint.model_dump(mode="json")
@@ -191,8 +153,8 @@ def test_non_finite_physical_values_are_rejected(
 
 def test_channel_ids_are_unique_across_facility_providers() -> None:
     raw = _raw_manifest()
-    raw["devices"][1]["state_channels"][0]["id"] = "heater.temperature_K"
-    raw["devices"][1]["state_channels"][0]["unit"] = "degC"
+    raw["devices"][1]["state_channels"][0]["id"] = raw["devices"][0]["state_channels"][0]["id"]
+    raw["devices"][1]["state_channels"][0]["unit"] = raw["devices"][0]["state_channels"][0]["unit"]
 
     with pytest.raises(ValidationError, match="channel IDs must be unique"):
         FacilityDocument.model_validate(raw)
@@ -209,19 +171,24 @@ def test_model_maps_use_declared_facility_channels() -> None:
 
 def test_endpoint_capability_ids_exactly_match_provider_ownership() -> None:
     raw = _raw_manifest()
-    raw["devices"][0]["capability_ids"].remove("set-heater")
+    raw["devices"][0]["capability_ids"].remove("dispense-electrolyte-capability")
 
     with pytest.raises(ValidationError, match="must match provider ownership"):
         FacilityDocument.model_validate(raw)
 
 
-def test_heater_robot_proxy_does_not_intersect_table_proxy() -> None:
-    document = load_facility_manifest(HEATER_MANIFEST)
+def test_ot2_and_arduino_proxies_do_not_intersect() -> None:
+    document = load_facility_manifest(MANIFEST)
     assets = {asset.id: asset for asset in document.assets}
-    table = assets["heater-table"]
-    robot = assets["franka-robot"]
+    workstations = {station.id: station for station in document.workstations}
+    ot2 = assets["ot2-robot-body"]
+    arduino = assets["arduino-controller-body"]
+    ot2_station_x = workstations[ot2.workstation_id].local_frame.position_m.x
+    arduino_station_x = workstations[arduino.workstation_id].local_frame.position_m.x
 
-    table_min_x = table.pose.position_m.x - table.geometry.dimensions_m.x / 2
-    robot_max_x = robot.pose.position_m.x + robot.geometry.dimensions_m.x / 2
+    ot2_max_x = ot2_station_x + ot2.pose.position_m.x + ot2.geometry.dimensions_m.x / 2
+    arduino_min_x = (
+        arduino_station_x + arduino.pose.position_m.x - arduino.geometry.dimensions_m.x / 2
+    )
 
-    assert robot_max_x < table_min_x
+    assert ot2_max_x < arduino_min_x

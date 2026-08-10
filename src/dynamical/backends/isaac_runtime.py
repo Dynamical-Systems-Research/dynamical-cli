@@ -1,4 +1,14 @@
-"""Compiled Isaac Sim adapter runtime copied into a target pack."""
+"""Compiled Isaac Sim adapter runtime copied into a target pack.
+
+Isaac is the live execution backend: this launcher advances the compiled
+world (geometry, physics, collision) and lets the compiled pack's own
+declared channel bindings say what Isaac can honestly report. It does not
+import ``pxr`` or ``dynamical_runtime_contract`` at module scope, so it stays
+directly importable (for ``wait_steps``/``execute_action`` unit tests) both
+inside a compiled pack, where ``dynamical_runtime_contract.py`` sits next to
+this file on ``sys.path``, and from the installed ``dynamical`` package,
+where it does not exist at all.
+"""
 
 from __future__ import annotations
 
@@ -9,27 +19,45 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from dynamical_runtime_contract import (
-    TraceWriter,
-    constraint_evidence,
-    file_sha256,
-    verify_compiled_pack,
-    write_snapshot,
-)
+# Mirrors the compiled pack's own physics.physics_dt_s (1/120 s); duplicated
+# here as wait_steps()'s default so it is directly callable without first
+# loading a compiled pack.
+PHYSICS_DT_S = 1.0 / 120.0
+# The widest duration envelope any declared electrodeposition capability
+# carries today is 3600 s (deposition-duration-envelope); this leaves
+# headroom well beyond that at the compiled 120 Hz physics rate. The old
+# 2400-step (20 s) cap rejected a 120 s OCP hold immediately.
+MAX_WAIT_STEPS = 432_000
+
+
+def wait_steps(
+    duration_s: float, *, dt: float = PHYSICS_DT_S, max_steps: int = MAX_WAIT_STEPS
+) -> int:
+    """Physics steps needed to advance ``duration_s`` seconds at ``dt`` seconds/step."""
+
+    requested = int(round(float(duration_s) / dt))
+    if requested > max_steps:
+        raise RuntimeError(
+            f"a {duration_s!r} s duration needs {requested} steps, which exceeds the "
+            f"compiled runtime step limit of {max_steps}"
+        )
+    return max(requested, 1)
 
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--compiled-world", type=Path, default=Path(__file__).resolve().parent)
+    parser.add_argument("--world", type=Path, default=Path(__file__).resolve().parent)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--headless", action="store_true")
-    parser.add_argument("--max-wait-steps", type=int, default=2400)
+    parser.add_argument("--max-wait-steps", type=int, default=MAX_WAIT_STEPS)
     return parser.parse_args()
 
 
 def _preflight(args: argparse.Namespace) -> dict[str, Any]:
-    pack = verify_compiled_pack(args.compiled_world)
+    from dynamical_runtime_contract import verify_compiled_pack
+
+    pack = verify_compiled_pack(args.world)
     campaign = pack["campaign"]
     if campaign.get("execution_status") != "requires_external_runtime_gate":
         raise RuntimeError(str(campaign.get("blocker")))
@@ -41,76 +69,102 @@ def _preflight(args: argparse.Namespace) -> dict[str, Any]:
     return pack
 
 
-def _attribute(prim: Any, name: str, value_type: Any) -> Any:
-    existing = prim.GetAttribute(name)
-    return existing if existing else prim.CreateAttribute(name, value_type, custom=True)
-
-
-def _execute_action(
-    action: dict[str, Any],
+def _step_world(
+    kind: str,
+    parameters: dict[str, Any],
     *,
     stage: Any,
     world: Any,
     config: dict[str, Any],
-    asset_roles: dict[str, str],
     max_wait_steps: int,
 ) -> int:
+    """Advance the compiled world for one declared action kind.
+
+    Dispatches over the pack's declared action types instead of a fixed
+    if-chain over an invented heater vocabulary: ``pick``/``place`` get the
+    portable fixed-joint manipulation binding (the only physical interaction
+    this adapter can perform without a validated Isaac Lab articulation
+    task); every other declared action type -- ``dispense``, ``condition``,
+    ``electrodeposit``, ``measure``, ``transfer``, ``wait``, or any future
+    one a facility declares -- advances physics for its own requested
+    ``duration_s``/``duration`` parameter (one step if it declares neither),
+    touching the role prim its capability is bound to, if any. Bulk waiting
+    renders only its last step; a 600 s deposition step is tens of thousands
+    of physics-only steps, and rendering every one of them is not needed to
+    advance a rigid-body world honestly.
+    """
+
     from pxr import Gf, Sdf, UsdPhysics
 
     roles = config["role_prim_paths"]
-    kind = action["kind"]
-    parameters = action["parameters"]
-    if kind == "wait":
-        requested = int(round(float(parameters["duration"]) / config["physics"]["physics_dt_s"]))
-        steps = min(max(requested, 1), max_wait_steps)
-        if steps != requested:
-            raise RuntimeError("wait action exceeds the compiled runtime step limit")
-        for _ in range(steps):
-            world.step(render=True)
-        return steps
-    if kind == "set_heater":
-        prim = stage.GetPrimAtPath(roles["heater"])
-        if not prim.IsValid():
-            raise RuntimeError("compiled heater prim is absent")
-        _attribute(prim, "dynamical:heaterEnabled", Sdf.ValueTypeNames.Bool).Set(
-            bool(parameters["enabled"])
-        )
-        if parameters.get("target-temperature") is not None:
-            _attribute(prim, "dynamical:heaterTargetK", Sdf.ValueTypeNames.Double).Set(
-                float(parameters["target-temperature"])
-            )
-        world.step(render=True)
-        return 1
+    asset_paths = config["asset_prim_paths"]
+    dt = config["physics"]["physics_dt_s"]
+
     if kind == "pick":
-        if parameters["object"] != asset_roles["beaker"]:
-            raise RuntimeError("compiled pick object does not match the beaker role")
+        object_id = str(parameters.get("object", ""))
+        object_path = asset_paths.get(object_id)
+        actor_path = roles.get(kind)
+        if object_path is None or actor_path is None:
+            raise RuntimeError(f"compiled pick has no bound object or actor for {object_id!r}")
         joint_path = "/Facility/Runtime/PickJoint"
         stage.DefinePrim("/Facility/Runtime", "Scope")
         joint = UsdPhysics.FixedJoint.Define(stage, joint_path)
-        joint.CreateBody0Rel().SetTargets([Sdf.Path(roles["robot"])])
-        joint.CreateBody1Rel().SetTargets([Sdf.Path(roles["beaker"])])
+        joint.CreateBody0Rel().SetTargets([Sdf.Path(actor_path)])
+        joint.CreateBody1Rel().SetTargets([Sdf.Path(object_path)])
         world.step(render=True)
         return 1
     if kind == "place":
-        if parameters["object"] != asset_roles["beaker"]:
-            raise RuntimeError("compiled place object does not match the beaker role")
-        if parameters["target"] != asset_roles["heater"]:
-            raise RuntimeError("compiled place target does not match the heater role")
+        object_id = str(parameters.get("object", ""))
+        target_id = str(parameters.get("target", ""))
+        object_path = asset_paths.get(object_id)
+        target_path = asset_paths.get(target_id)
+        if object_path is None or target_path is None:
+            raise RuntimeError(
+                f"compiled place has no bound object/target for {object_id!r}/{target_id!r}"
+            )
         stage.RemovePrim("/Facility/Runtime/PickJoint")
-        beaker = stage.GetPrimAtPath(roles["beaker"])
-        heater = stage.GetPrimAtPath(roles["heater"])
-        if not beaker.IsValid() or not heater.IsValid():
+        moved = stage.GetPrimAtPath(object_path)
+        target = stage.GetPrimAtPath(target_path)
+        if not moved.IsValid() or not target.IsValid():
             raise RuntimeError("compiled place prim is absent")
-        target = heater.GetAttribute("xformOp:translate").Get()
-        beaker.GetAttribute("xformOp:translate").Set(
-            Gf.Vec3d(float(target[0]), float(target[1]), float(target[2]) + 0.25)
+        target_translation = target.GetAttribute("xformOp:translate").Get()
+        moved.GetAttribute("xformOp:translate").Set(
+            Gf.Vec3d(
+                float(target_translation[0]),
+                float(target_translation[1]),
+                float(target_translation[2]) + 0.25,
+            )
         )
         world.step(render=True)
         return 1
-    raise RuntimeError(f"Isaac action mapping is absent for {kind!r}")
+
+    role_path = roles.get(kind)
+    if role_path is not None:
+        prim = stage.GetPrimAtPath(role_path)
+        if not prim.IsValid():
+            raise RuntimeError(f"compiled {kind!r} role prim is absent: {role_path}")
+    duration = parameters.get("duration_s", parameters.get("duration"))
+    steps = (
+        wait_steps(float(duration), dt=dt, max_steps=max_wait_steps) if duration is not None else 1
+    )
+    for step_index in range(steps):
+        world.step(render=step_index == steps - 1)
+    return steps
 
 
-def _prim_snapshot(stage: Any, config: dict[str, Any]) -> dict[str, Any]:
+def _prim_snapshot(action: dict[str, Any], stage: Any, config: dict[str, Any]) -> dict[str, Any]:
+    """Isaac-observable state for one action: role prim pose plus what was commanded.
+
+    Position/validity is real, read straight from the composed stage. The
+    value channels this facility declares (dispensed volume, deposited mass,
+    overpotential, ...) have no Isaac-computable ground truth at all -- Isaac
+    models geometry and contact, not chemistry -- so the one thing this
+    snapshot can honestly add beyond prim pose is the campaign's own
+    commanded parameters for this action, which ``_channels`` below echoes
+    only for the specific channels the compiled pack declared bound to them
+    (see ``isaac_sim.py``'s ``_paired_channels``).
+    """
+
     from pxr import Usd, UsdGeom
 
     values: dict[str, Any] = {}
@@ -130,10 +184,10 @@ def _prim_snapshot(stage: Any, config: dict[str, Any]) -> dict[str, Any]:
                 float(translation[2]),
             ],
         }
-        for name in ("dynamical:heaterEnabled", "dynamical:heaterTargetK"):
-            attribute = prim.GetAttribute(name)
-            if attribute:
-                values[role][name] = attribute.Get()
+    values["commanded_parameters"] = {
+        "kind": action["kind"],
+        "parameters": dict(action.get("parameters", {})),
+    }
     return values
 
 
@@ -144,14 +198,29 @@ def _channels(
     provider_id: str,
     evidence_class: str,
 ) -> list[dict[str, Any]]:
-    heater = snapshot.get("heater", {})
-    known = {
-        "heater.on": heater.get("dynamical:heaterEnabled"),
-        "heater.target_temperature_K": heater.get("dynamical:heaterTargetK"),
-    }
+    """Every declared observation channel, echoing a commanded value only where the
+    compiled pack declared this specific action's capability actually bound to it.
+
+    A channel not bound to the action that just ran -- almost all of them, for
+    a facility whose real scientific outcomes Isaac cannot compute -- reports
+    ``value=None``/``quality="unavailable"`` rather than a stale or fabricated
+    reading.
+    """
+
+    commanded = snapshot.get("commanded_parameters")
+    commanded = commanded if isinstance(commanded, dict) else {}
+    action_kind = commanded.get("kind")
+    parameters = commanded.get("parameters")
+    parameters = parameters if isinstance(parameters, dict) else {}
     channels = []
     for binding in config["observation_bindings"]:
-        value = known.get(binding["channel_id"])
+        value = None
+        if (
+            binding.get("status") == "compiled_stage_state_binding"
+            and binding.get("action_type") == action_kind
+            and binding.get("echoes_parameter") is not None
+        ):
+            value = parameters.get(binding["echoes_parameter"])
         channels.append(
             {
                 "name": binding["channel_id"],
@@ -161,12 +230,144 @@ def _channels(
                 "origin": "backend_state",
                 "provider_id": provider_id,
                 "evidence_class": evidence_class,
+                # An echoed value is exactly the commanded parameter, not an independent
+                # measurement, so it is honestly declared with zero uncertainty rather
+                # than a fabricated instrument tolerance. A channel with no bound value
+                # has genuinely unknown uncertainty, not zero -- zero would claim an
+                # exact measurement Isaac never made, of a value it does not have.
+                "uncertainty": (
+                    {
+                        "value": 0.0,
+                        "kind": "declared",
+                        "origin": "isaac_sim launcher commanded-parameter echo",
+                    }
+                    if value is not None
+                    else {
+                        "value": None,
+                        "kind": "declared",
+                        "origin": "isaac_sim launcher has no bound value for this channel",
+                    }
+                ),
             }
         )
     return channels
 
 
+def _commanded_channels(action: dict[str, Any], config: dict[str, Any]) -> list[dict[str, Any]]:
+    """The channels an action's own commanded parameters bind, before it executes.
+
+    ``_channels`` only ever reads ``commanded_parameters`` -- never physics or
+    prim state (see its own docstring) -- so this is not a preview or an
+    approximation of what ``execute_action`` reports after the action runs, it
+    is the identical computation, run before rather than after physics
+    stepping. That is what lets pre-action constraints be evaluated, and
+    enforced, before an unsafe action is ever submitted to the world.
+    """
+
+    kind = action["kind"]
+    parameters = dict(action.get("parameters", {}))
+    snapshot = {"commanded_parameters": {"kind": kind, "parameters": parameters}}
+    return _channels(
+        snapshot,
+        config,
+        provider_id=str(action.get("provider_id", "")),
+        evidence_class=str(action.get("evidence_class", "simulator")),
+    )
+
+
+def execute_action(
+    pack: dict[str, Any],
+    action: dict[str, Any],
+    *,
+    stage: Any | None = None,
+    world: Any | None = None,
+    max_wait_steps: int = MAX_WAIT_STEPS,
+) -> dict[str, Any]:
+    """Run one compiled action and report its channels, degrading rather than raising.
+
+    ``stage``/``world`` are the live Kit objects ``main()`` holds open; they
+    are optional so this dispatch and its degrade-on-unbound-channel
+    behavior can be unit tested without booting Kit. When they are ``None``,
+    no physics step happens and every channel is evaluated exactly as it
+    would be for a live run that genuinely has no binding for it -- honest,
+    not a special case.
+    """
+
+    config = pack["backend"]
+    kind = action["kind"]
+    parameters = dict(action.get("parameters", {}))
+    steps = 0
+    if stage is not None and world is not None:
+        steps = _step_world(
+            kind, parameters, stage=stage, world=world, config=config, max_wait_steps=max_wait_steps
+        )
+        snapshot = _prim_snapshot(action, stage, config)
+    else:
+        snapshot = {"commanded_parameters": {"kind": kind, "parameters": parameters}}
+    channels = _channels(
+        snapshot,
+        config,
+        provider_id=str(action.get("provider_id", "")),
+        evidence_class=str(action.get("evidence_class", "simulator")),
+    )
+    reasons = [
+        {
+            "code": "MEASUREMENT_UNAVAILABLE",
+            "channel_id": channel["name"],
+            "detail": f"{channel['name']!r} has no bound value from this Isaac run",
+        }
+        for channel in channels
+        if channel["quality"] != "valid"
+    ]
+    return {"steps": steps, "snapshot": snapshot, "channels": channels, "reasons": reasons}
+
+
+def _handle_constraints(
+    constraints: list[dict[str, Any]], *, hard_enforcement: str = "terminate"
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Split evaluated constraints into degrade reasons and genuine hard failures.
+
+    A constraint with no measured value (``outcome == "unavailable"``, e.g. a
+    channel this run has no binding for) degrades to a recorded
+    ``MEASUREMENT_UNAVAILABLE`` reason rather than aborting the run before
+    the trace is written. A constraint with a real, measured violation still
+    aborts only at ``hard_enforcement`` ("terminate"); ``reject``/``report``
+    violations are recorded (via the returned ``constraints`` list itself)
+    but must not force campaign failure.
+
+    This applies to post-action constraints only. Pre-action constraints get
+    no such leniency in ``main()``: any failure there -- reject, terminate, or
+    an unavailable measurement -- prevents the action from executing at all,
+    matching campaign.py's ``run_composed_campaign`` exactly (see
+    ``test_isaac_rejects_the_action_for_any_failed_pre_action_constraint``). A
+    reject-enforcement violation noticed only after the action already ran
+    would be too late to mean "reject".
+    """
+
+    reasons = []
+    hard_failures = []
+    for item in constraints:
+        if item["passed"]:
+            continue
+        if item["outcome"] == "unavailable":
+            reasons.append(
+                {
+                    "code": "MEASUREMENT_UNAVAILABLE",
+                    "constraint_id": item["constraint_id"],
+                    "detail": (
+                        f"constraint {item['constraint_id']!r} has no measured value "
+                        "from this Isaac run"
+                    ),
+                }
+            )
+        elif item["limit"]["enforcement"] == hard_enforcement:
+            hard_failures.append(item)
+    return reasons, hard_failures
+
+
 def _write_receipt(output: Path, pack: dict[str, Any], status: str, trace_hash: str | None) -> None:
+    from dynamical_runtime_contract import file_sha256
+
     files = sorted(path for path in output.rglob("*") if path.is_file())
     receipt = {
         "schema_version": "dynamical.runtime-evidence.v1",
@@ -208,9 +409,13 @@ def _write_receipt(output: Path, pack: dict[str, Any], status: str, trace_hash: 
 
 
 def main() -> int:
+    # The verified pack's file set is exact: never shadow the hashed
+    # dynamical_runtime_contract.py with generated bytecode inside the pack.
+    sys.dont_write_bytecode = True
     args = _parse_args()
     pack = _preflight(args)
-    args.output.mkdir(parents=True, exist_ok=True)
+    run_dir = args.output.parent
+    run_dir.mkdir(parents=True, exist_ok=True)
 
     from isaacsim import SimulationApp
 
@@ -219,6 +424,7 @@ def main() -> int:
     trace_hash: str | None = None
     try:
         import omni.usd
+        from dynamical_runtime_contract import TraceWriter, constraint_evidence, write_snapshot
         from isaacsim.core.api import World
 
         config = pack["backend"]
@@ -228,6 +434,11 @@ def main() -> int:
         for _ in range(10):
             app.update()
         stage = omni.usd.get_context().get_stage()
+        # open_stage returning True is not evidence the stage loaded: a malformed
+        # sublayer can make Kit report success with an empty composed stage.
+        prim_count = sum(1 for _ in stage.Traverse())
+        if prim_count == 0:
+            raise RuntimeError("Isaac Sim opened the compiled stage but composed zero prims")
         world = World(
             stage_units_in_meters=1.0,
             physics_dt=config["physics"]["physics_dt_s"],
@@ -244,45 +455,63 @@ def main() -> int:
                 "compiled_adapter": True,
                 "manipulation_binding": "portable_fixed_joint",
                 "w1_admitted": False,
+                "prim_count": prim_count,
             },
+            output_path=args.output,
         )
         writer.add("campaign_start", 0.0)
         logical_time = 0.0
+        # dynamical.campaign.validate_events requires the terminal execution_status to
+        # be "failed" whenever ANY constraint anywhere in the trace was not passed --
+        # stricter than compiled_runtime.py's own (enforcement-level-scoped) copy, since
+        # this is the campaign format the wider replay/CLI pipeline consumes. A
+        # not-passed post-action constraint never aborts the run (see
+        # _handle_constraints), but it must make campaign_end honest about it. A
+        # not-passed pre-action constraint is different: it must prevent the action
+        # from running at all (see below), so it never reaches campaign_ok as a
+        # "ran anyway" outcome.
+        campaign_ok = True
         for index, action in enumerate(pack["campaign"]["actions"]):
-            constraints = constraint_evidence(action, pack, phase="pre_action")
-            if any(not item["passed"] for item in constraints):
-                raise RuntimeError(f"action {action['action_id']} failed a pre-action constraint")
-            writer.add("action", logical_time, action=action, constraints=constraints)
-            steps = _execute_action(
-                action,
-                stage=stage,
-                world=world,
-                config=config,
-                asset_roles=pack["campaign"]["asset_roles"],
-                max_wait_steps=args.max_wait_steps,
+            # Pre-action constraints are evaluated -- and enforced -- before the
+            # action ever executes, from exactly the channels it would echo (see
+            # _commanded_channels), matching campaign.py's run_composed_campaign
+            # exactly: ANY failed pre-action constraint, not only a
+            # terminate-enforcement one, prevents this action's execution. Every
+            # facility constraint today is pre_action + reject; submitting the
+            # instrument action first and only noticing the violation afterward
+            # would make "reject" meaningless.
+            preview_channels = _commanded_channels(action, config)
+            pre_constraints = constraint_evidence(
+                action, pack, phase="pre_action", channels=preview_channels
             )
-            snapshot = _prim_snapshot(stage, config)
-            observed_channels = _channels(
-                snapshot,
-                config,
-                provider_id=str(action["provider_id"]),
-                evidence_class=str(action["evidence_class"]),
+            campaign_ok = campaign_ok and all(item["passed"] for item in pre_constraints)
+            writer.add("action", logical_time, action=action, constraints=pre_constraints)
+            if any(not item["passed"] for item in pre_constraints):
+                raise RuntimeError(
+                    f"action {action['action_id']} failed a pre-action constraint; "
+                    "rejected before execution"
+                )
+            outcome = execute_action(
+                pack, action, stage=stage, world=world, max_wait_steps=args.max_wait_steps
             )
-            logical_time += steps * config["physics"]["physics_dt_s"]
+            logical_time += outcome["steps"] * config["physics"]["physics_dt_s"]
             evidence = write_snapshot(
-                args.output / "evidence" / f"observation-{index:03d}.json",
-                snapshot,
+                run_dir / "evidence" / f"observation-{index:03d}.json",
+                outcome["snapshot"],
                 provider_id=str(action["provider_id"]),
                 evidence_class=str(action["evidence_class"]),
             )
             post_constraints = constraint_evidence(
-                action,
-                pack,
-                phase="post_action",
-                channels=observed_channels,
+                action, pack, phase="post_action", channels=outcome["channels"]
             )
-            if any(not item["passed"] for item in post_constraints):
-                raise RuntimeError(f"action {action['action_id']} failed a post-action constraint")
+            post_reasons, post_hard_failures = _handle_constraints(post_constraints)
+            campaign_ok = campaign_ok and all(item["passed"] for item in post_constraints)
+            if post_hard_failures:
+                raise RuntimeError(
+                    f"action {action['action_id']} failed a terminate-enforcement "
+                    "post-action constraint"
+                )
+            all_reasons = [*outcome["reasons"], *post_reasons]
             writer.add(
                 "observation",
                 logical_time,
@@ -291,19 +520,31 @@ def main() -> int:
                     "logical_time_s": logical_time,
                     "provider_id": action["provider_id"],
                     "evidence_class": action["evidence_class"],
-                    "channels": observed_channels,
+                    "channels": outcome["channels"],
                     "evidence_ids": [evidence["evidence_id"]],
                 },
                 evidence=[evidence],
                 constraints=post_constraints,
+                provenance={"reasons": all_reasons} if all_reasons else None,
             )
-        writer.add("campaign_end", logical_time, provenance={"execution_status": "passed"})
-        trace_hash = writer.write(args.output / "campaign_trace.ndjson")
+        writer.add(
+            "campaign_end",
+            logical_time,
+            provenance={"execution_status": "passed" if campaign_ok else "failed"},
+        )
+        trace_hash = writer.write(args.output)
+        # The receipt's own status reports runtime completion (the launcher ran the
+        # whole declared campaign and wrote a schema-valid trace), independent of
+        # whether the campaign's own constraints all passed -- that is campaign_end's
+        # execution_status above, which validate_events checks on its own terms.
         status = "passed"
         return 0
     finally:
+        # Write the receipt before closing the app, not after: SimulationApp.close()
+        # can tear the process down hard enough that code after it never runs (empirically
+        # observed: a passed trace with the receipt silently never written).
+        _write_receipt(run_dir, pack, status, trace_hash)
         app.close()
-        _write_receipt(args.output, pack, status, trace_hash)
 
 
 if __name__ == "__main__":
