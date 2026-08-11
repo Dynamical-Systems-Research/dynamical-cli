@@ -1,6 +1,6 @@
 {
   "name": "dynamical",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Compile and validate objective-driven virtual laboratory campaigns with Dynamical.",
   "author": {
     "name": "Dynamical Systems Research",
