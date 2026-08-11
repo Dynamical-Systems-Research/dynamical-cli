@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dynamical Instrument"
+  short_description: "Onboard a pending scientific instrument"
+  default_prompt: "Use $dynamical-instrument to turn these instrument sources into a pending Dynamical provider contribution."
