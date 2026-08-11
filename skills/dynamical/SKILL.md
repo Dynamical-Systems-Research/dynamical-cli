@@ -40,6 +40,15 @@ Use these five commands:
 
 Inspect the relevant command with `--help` before use.
 
+Replay a simulator trace directly:
+
+```bash
+dynamical run trace.ndjson --mode replay -o replay.ndjson
+```
+
+For an embodied trace, also pass both `--compiled-world` and
+`--runtime-receipt`; one binding without the other is invalid.
+
 Run long simulations as background jobs. Poll their logs and process state, and check the final exit status before using their outputs.
 
 The agent controls research policy. Dynamical controls admission, safety, evidence, cost, and authority. Do not bypass rejected providers, constraints, budgets, or approval rules.
