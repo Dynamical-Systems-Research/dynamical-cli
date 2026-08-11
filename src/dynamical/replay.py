@@ -190,46 +190,43 @@ def _expected_snapshot_channels(
                 "embodied snapshot commanded a parameter that differs from the compiled "
                 f"campaign: {name!r} snapshot={parameters[name]!r} compiled={pinned_value!r}"
             )
+    declared = {
+        str(raw.get("channel_id")): raw for raw in raw_bindings if isinstance(raw, Mapping)
+    }
+    provider_bindings = pack.get("campaign", {}).get("provider_bindings", {})
+    provider_binding = provider_bindings.get(action.get("action_id"), {})
+    model_channels = set(provider_binding.get("output_channel_ids", {}).values())
+    snapshot_channels = snapshot.get("observation_channels")
+    if not isinstance(snapshot_channels, list) or not snapshot_channels:
+        raise CampaignValidationError("raw embodied snapshot has no observation channels")
     channels: list[dict[str, Any]] = []
-    for raw in raw_bindings:
-        if not isinstance(raw, Mapping):
-            raise CampaignValidationError("compiled observation binding is invalid")
-        bound_for_this_action = (
-            raw.get("status") == "compiled_stage_state_binding"
-            and raw.get("action_type") == action_kind
-        )
-        value = parameters.get(raw["echoes_parameter"]) if bound_for_this_action else None
-        quality = "valid" if value is not None else "unavailable"
-        if bound_for_this_action and value is None:
-            raise CampaignValidationError(
-                f"bound backend channel has no valid snapshot value: {raw.get('channel_id')}"
-            )
-        channels.append(
-            {
-                "name": raw.get("channel_id"),
-                "value": value,
-                "unit": raw.get("unit", "1"),
-                "quality": quality,
-                "origin": "backend_state",
-                "provider_id": provider_id,
-                "evidence_class": evidence_class,
-                # Must match isaac_runtime.py's own _channels() exactly -- this
-                # reconstructs what that function computed for the live run's trace.
-                "uncertainty": (
-                    {
-                        "value": 0.0,
-                        "kind": "declared",
-                        "origin": "isaac_sim launcher commanded-parameter echo",
-                    }
-                    if value is not None
-                    else {
-                        "value": None,
-                        "kind": "declared",
-                        "origin": "isaac_sim launcher has no bound value for this channel",
-                    }
-                ),
-            }
-        )
+    for raw_channel in snapshot_channels:
+        if not isinstance(raw_channel, Mapping):
+            raise CampaignValidationError("raw embodied observation channel is invalid")
+        channel = dict(raw_channel)
+        binding = declared.get(str(channel.get("name")))
+        if binding is None:
+            raise CampaignValidationError("raw embodied snapshot reports an undeclared channel")
+        if (
+            channel.get("provider_id") != provider_id
+            or channel.get("evidence_class") != evidence_class
+        ):
+            raise CampaignValidationError("raw embodied channel provider binding differs")
+        origin = channel.get("origin")
+        if origin == "backend_state":
+            parameter = binding.get("echoes_parameter")
+            if (
+                binding.get("status") != "compiled_stage_state_binding"
+                or binding.get("action_type") != action_kind
+                or parameter is None
+                or channel.get("value") != parameters.get(parameter)
+            ):
+                raise CampaignValidationError("raw backend channel differs from its command")
+        elif origin == "source_model" and channel.get("name") not in model_channels:
+            raise CampaignValidationError("raw model channel differs from its compiled binding")
+        elif origin != "source_model":
+            raise CampaignValidationError("raw embodied channel origin is not admitted")
+        channels.append(channel)
     return channels
 
 
@@ -303,7 +300,8 @@ def _verify_raw_snapshot_bindings(
 
 
 def _verify_observation_origins(events: list[Any]) -> None:
-    embodied_observation_seen = False
+    """Require observations from the compiled Isaac or instrument runtime."""
+
     observation_seen = False
     for event in events:
         if event.observation is None:
@@ -313,13 +311,13 @@ def _verify_observation_origins(events: list[Any]) -> None:
             if channel.origin in {
                 ObservationOrigin.RUNTIME_SENSOR,
                 ObservationOrigin.BACKEND_STATE,
+                ObservationOrigin.SOURCE_MODEL,
             }:
-                embodied_observation_seen = True
                 continue
             raise CampaignValidationError(
                 "source trace contains an observation origin that is not admitted for replay"
             )
-    if not observation_seen or not embodied_observation_seen:
+    if not observation_seen:
         raise CampaignValidationError("source trace has no embodied Isaac observation evidence")
 
 

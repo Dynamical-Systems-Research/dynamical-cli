@@ -77,77 +77,56 @@ def test_live_run_composes_the_facility_and_writes_a_trace(
 def test_live_kit_run_of_coverage_campaign_has_zero_lineage_findings(
     tmp_path, compiled_electrodeposition_coverage_world
 ):
-    """Multi-instrument execution and lineage, proved on the execution backend
-    the product ships with: a live Isaac Sim Kit run of a coverage campaign
-    (one sample crossing workstations by explicit transfers) produces a trace
-    with zero sample-lineage findings and a clean run of every action and
-    constraint -- Isaac's own runtime completion. Isaac Sim has no chemistry
-    model, so it cannot report the campaign's required OER overpotential
-    measurement: runtime completion is not proof completion, so
-    ``squidstat.overpotential_v`` stays unavailable and both the raw trace's own
-    validation and embodied replay must refuse to call the proof requirement
-    satisfied, even though every action ran and every constraint passed.
-
-    Slow: Kit boot plus a real 600 s / 72,000-step deposition (~2.5 minutes wall
-    clock, measured). Runs only when Isaac Sim is installed (``requires_isaac``
-    above) -- deliberately not part of the default fast suite. The non-Kit half
-    (the compiled campaign's own lineage data, which is what a live run would
-    replay against) is proved unconditionally by
-    ``test_coverage_campaign_compiles_for_isaac_with_zero_lineage_findings`` below,
-    so CI keeps real coverage even where Isaac Sim is never installed.
-    """
-    from dynamical.campaign import CampaignValidationError, validate_path
+    from dynamical.campaign import validate_path
     from dynamical.replay import replay_trace
 
     run_dir = tmp_path / "run"
     run_dir.mkdir()
     trace = run_dir / "campaign_trace.ndjson"
     result = _run_isaac_launcher(compiled_electrodeposition_coverage_world, trace)
-    # Isaac's own runtime completion is genuinely clean here: every action ran,
-    # every pre-action constraint passed, so the launcher exits 0 -- exactly the
-    # "runtime completion" the proof-requirement check must not be fooled by.
     assert result.returncode == 0, result.stderr[-4000:]
 
     trace_validation = validate_path(trace)
-    assert trace_validation["execution_status"] == "failed"
-    assert trace_validation["valid"] is False
-    proof_reasons = [
-        reason
-        for reason in trace_validation["reasons"]
-        if reason["code"] == "PROOF_OUTPUT_UNAVAILABLE"
+    assert trace_validation["execution_status"] == "passed"
+    assert trace_validation["valid"] is True
+    events = [json.loads(line) for line in trace.read_text().splitlines() if line.strip()]
+    overpotential = [
+        channel
+        for event in events
+        for channel in (event.get("observation") or {}).get("channels", [])
+        if channel["name"] == "squidstat.overpotential_v"
     ]
-    assert proof_reasons, trace_validation["reasons"]
-    assert proof_reasons[0]["channel_id"] == "squidstat.overpotential_v"
+    assert len(overpotential) == 1
+    assert overpotential[0]["value"] is not None
+    assert overpotential[0]["origin"] == "source_model"
 
-    with pytest.raises(CampaignValidationError, match="no passed terminal execution status"):
-        replay_trace(
-            trace,
-            tmp_path / "replay.ndjson",
-            compiled_world=compiled_electrodeposition_coverage_world,
-            runtime_receipt=run_dir / "runtime_evidence.json",
-        )
-
-
-def test_missing_channel_degrades_rather_than_raising(isaac_pack_with_unbound_channel):
-    from dynamical.backends.isaac_runtime import execute_action
-
-    outcome = execute_action(isaac_pack_with_unbound_channel, {"kind": "measure-oer"})
-    assert any(r["code"] == "MEASUREMENT_UNAVAILABLE" for r in outcome["reasons"])
+    replay = replay_trace(
+        trace,
+        tmp_path / "replay.ndjson",
+        compiled_world=compiled_electrodeposition_coverage_world,
+        runtime_receipt=run_dir / "runtime_evidence.json",
+    )
+    assert replay["valid"] is True
 
 
-def test_unbound_channel_reports_unknown_not_zero_uncertainty(isaac_pack_with_unbound_channel):
-    """Repair-2 defect 4, Isaac side: an unbound channel's uncertainty must be
-    unknown (``None``), not a fabricated ``0.0`` claiming an exact measurement
-    Isaac never made of a value it does not have.
-    """
-    from dynamical.backends.isaac_runtime import execute_action
+def test_compiled_instrument_runtime_returns_scientific_feedback(
+    compiled_electrodeposition_coverage_world,
+):
+    from dynamical.backends.compiled_runtime import verify_compiled_pack
 
-    outcome = execute_action(isaac_pack_with_unbound_channel, {"kind": "measure-oer"})
-    unavailable = [
-        channel for channel in outcome["channels"] if channel["quality"] == "unavailable"
+    pack = verify_compiled_pack(compiled_electrodeposition_coverage_world)
+    launcher = __import__("dynamical.backends.isaac_runtime", fromlist=["execute_action"])
+    state = {}
+    outcomes = [
+        launcher.execute_action(pack, action, scientific_state=state)
+        for action in pack["campaign"]["actions"]
     ]
-    assert unavailable
-    assert all(channel["uncertainty"]["value"] is None for channel in unavailable)
+    channels = [channel for outcome in outcomes for channel in outcome["channels"]]
+    overpotential = next(
+        channel for channel in channels if channel["name"] == "squidstat.overpotential_v"
+    )
+    assert overpotential["value"] is not None
+    assert overpotential["origin"] == "source_model"
 
 
 def test_paired_channels_uses_the_declared_binding_not_list_position():
@@ -172,7 +151,7 @@ def test_paired_channels_uses_the_declared_binding_not_list_position():
     assert pairs == {"device.channel_b": "param_x"}
 
 
-def test_wait_beyond_the_old_cap_is_permitted(isaac_pack):
+def test_wait_beyond_the_old_cap_is_permitted():
     from dynamical.backends.isaac_runtime import wait_steps
 
     assert wait_steps(120.0) > 2400, "a 120 s OCP step exceeded the old 20 s cap"

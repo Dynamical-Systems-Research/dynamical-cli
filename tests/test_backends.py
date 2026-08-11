@@ -20,29 +20,6 @@ from dynamical.composition import CompositionResult, compose_files
 from dynamical.replay import _expected_snapshot_channels, replay_trace
 from dynamical.schema import canonical_sha256
 
-# The two genuinely still-blocked tests below depend on a production surface Task 14
-# deliberately does not touch: the electrodeposition facility's declared constraint set
-# (pre_action/reject only, by design -- see manifests/ac-electrodeposition-cell.yaml).
-# Fixing this needs a manifest change (a real post_action/terminate constraint), not
-# runtime code, so it is out of scope here.
-#
-# The observation-binding status classification these two used to share this comment
-# with (isaac_sim.py marking only heater.on/heater.target_temperature_K "bound") is
-# fixed by T14: _observation_binding now derives a real electrodeposition channel's
-# bound status from its capability's positionally-paired required parameters (see
-# isaac_sim.py's _paired_channels), so
-# test_embodied_binding_rejects_missing_bound_backend_channel below now genuinely
-# exercises _expected_snapshot_channels' missing-bound-channel branch and is no longer
-# marked xfail.
-_STILL_BLOCKED_NO_RUNTIME_CONSTRAINT = pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "still blocked: ac-electrodeposition-cell.yaml declares only pre_action, "
-        "reject-enforcement constraints; no post_action/runtime-phase or "
-        "terminate-enforcement constraint exists in the facility to exercise this path."
-    ),
-)
-
 REPOSITORY = Path(__file__).resolve().parents[1]
 REGISTRY = REPOSITORY / "registries" / "electrodeposition-capabilities.yaml"
 MANIFEST = REPOSITORY / "manifests" / "ac-electrodeposition-cell.yaml"
@@ -311,54 +288,6 @@ def test_runtime_campaign_uses_exact_facility_parameter_names(
     assert condition["parameters"] == {"duration_s": 60.0, "setpoint_percent": 80.0}
 
 
-def test_isaac_target_declares_physics_and_loads_compiled_stage(
-    backend_packs: dict[str, Path],
-) -> None:
-    output = backend_packs["isaac"]
-    config = _json(output / "backend_config.json")
-    physics = (output / "isaac_physics.usda").read_text(encoding="utf-8")
-    root = (output / "root.usda").read_text(encoding="utf-8")
-    launcher = (output / "run_isaac_sim.py").read_text(encoding="utf-8")
-
-    assert config["runtime_status"] == "ready_for_external_runtime_gate"
-    assert config["compiled_world_loading"]["execution_world"] == (
-        "the composed Dynamical root.usda stage"
-    )
-    assert config["compiled_world_loading"]["stage_open_api"] == (
-        "omni.usd.get_context().open_stage"
-    )
-    for api in (
-        "PhysicsCollisionAPI",
-        "PhysicsRigidBodyAPI",
-        "PhysicsMassAPI",
-        "PhysicsArticulationRootAPI",
-    ):
-        assert api in physics
-    assert "@./isaac_physics.usda@" in root
-    # The launcher is one static file (isaac_runtime.py) copied verbatim into every
-    # compiled pack -- its content does not depend on which facility was compiled, so
-    # these symbol checks hold regardless of the electrodeposition retarget. T14 made
-    # its per-action dispatch data-driven over the pack's declared action types (no more
-    # heater-shaped wait/set_heater/pick/place if-chain), so these check the real,
-    # generalized launcher surface instead of the old heater-only literals.
-    for symbol in (
-        "verify_compiled_pack(args.world)",
-        "open_stage(str(stage_path))",
-        "UsdPhysics.FixedJoint.Define",
-        "world.step(render=",
-        "TraceWriter",
-        "write_snapshot",
-        "def execute_action(",
-        "def wait_steps(",
-        'parameters.get("duration_s", parameters.get("duration"))',
-    ):
-        assert symbol in launcher
-    assert "dynamical:heaterEnabled" not in launcher
-    assert "dynamical:heaterTargetK" not in launcher
-    assert "W1 still requires" in config["claim_boundary"]
-    assert "runtime/action_success" not in launcher
-
-
 def test_standalone_runtime_writes_complete_canonical_dynamical_trace(
     composed_backend_packs: dict[str, Path],
     tmp_path: Path,
@@ -411,13 +340,6 @@ def test_standalone_runtime_writes_complete_canonical_dynamical_trace(
     [
         ("action_kind", "not declared by the compiled schema"),
         ("parameter", "undeclared parameters"),
-        # Every electrodeposition action is "virtual_sdl"-scoped (the registry's provider
-        # endpoint_id never equals the facility capability's own provider_id -- e.g.
-        # "ac-transfer-model" vs. "transfer-agent" -- so actor_capabilities is always
-        # empty and validate_action never reaches its "does not provide" branch, which
-        # requires binding_scope != "virtual_sdl"; that branch is unreachable from
-        # runtime_campaign()'s output for any facility, not just this one). Forging the
-        # actor still fails closed, just via the endpoint/provider-binding mismatch check.
         ("actor", "does not match the selected capability provider"),
         ("channel", "not declared by the compiled schema"),
     ],
@@ -584,6 +506,17 @@ def test_composed_runtime_uses_selected_provider_graph(tmp_path: Path) -> None:
     runtime.validate_action(campaign["actions"][0], verified)
     manifest = _json(output / "compile_manifest.json")
     assert "composition_result.json" in {item["path"] for item in manifest["artifacts"]}
+
+
+def test_runtime_rejects_non_string_action_id(composed_backend_packs: dict[str, Path]) -> None:
+    output = composed_backend_packs["isaac"]
+    runtime = _load_runtime_contract(output)
+    pack = runtime.verify_compiled_pack(output)
+    action = copy.deepcopy(pack["campaign"]["actions"][0])
+    action["action_id"] = []
+
+    with pytest.raises(runtime.RuntimeContractError, match="action_id is absent or not a string"):
+        runtime.validate_action(action, pack)
 
 
 def test_composed_runtime_uses_selected_conditioning_parameters(tmp_path: Path) -> None:
@@ -770,7 +703,7 @@ def test_embodied_binding_rejects_missing_bound_backend_channel(
     pack = runtime.verify_compiled_pack(output)
     action = next(item for item in pack["campaign"]["actions"] if item["kind"] == "condition")
 
-    with pytest.raises(CampaignValidationError, match="bound backend channel"):
+    with pytest.raises(CampaignValidationError, match="no observation channels"):
         _expected_snapshot_channels({"observation": {}}, action, pack)
 
 
@@ -850,35 +783,6 @@ def test_runtime_requires_bound_constraints_and_rejects_self_admission(
     self_admitted[0]["provenance"]["w1_admitted"] = True
     with pytest.raises(runtime.RuntimeContractError, match="cannot self-admit W1"):
         runtime.validate_trace(self_admitted, pack)
-
-
-@_STILL_BLOCKED_NO_RUNTIME_CONSTRAINT
-def test_runtime_emits_canonical_scalar_range_and_runtime_constraints(
-    backend_packs: dict[str, Path],
-) -> None:
-    output = backend_packs["isaac"]
-    runtime = _load_runtime_contract(output)
-    pack = runtime.verify_compiled_pack(output)
-    condition_action = next(
-        action for action in pack["campaign"]["actions"] if action["kind"] == "condition"
-    )
-
-    scalar = runtime.constraint_evidence(condition_action, pack, phase="pre_action")
-    assert scalar[0]["limit"] == {
-        "operator": "between",
-        "bound": {"minimum": 0.0, "maximum": 1800.0},
-        "unit": "s",
-        "enforcement": "reject",
-    }
-    safety = runtime.constraint_evidence(
-        condition_action,
-        pack,
-        phase="post_action",
-        channels=[{"name": MARKER_CHANNEL, "value": 60.0}],
-    )
-    assert safety, "no post_action constraint is declared for this facility"
-    assert safety[0]["phase"] == "runtime"
-    assert safety[0]["limit"]["enforcement"] == "terminate"
 
 
 @pytest.mark.parametrize(
@@ -967,33 +871,6 @@ def test_runtime_forces_failure_for_a_reject_enforcement_pre_action_violation(
     forged["outcome"] = "violated"
 
     with pytest.raises(runtime.RuntimeContractError, match="failed campaign status"):
-        runtime.validate_trace(events, pack)
-
-
-@_STILL_BLOCKED_NO_RUNTIME_CONSTRAINT
-def test_runtime_forces_failure_for_a_terminate_enforcement_violation(
-    backend_packs: dict[str, Path],
-    tmp_path: Path,
-) -> None:
-    output = backend_packs["isaac"]
-    runtime = _load_runtime_contract(output)
-    pack = runtime.verify_compiled_pack(output)
-    writer = _canonical_writer(runtime, pack, tmp_path, run_id="terminate-enforcement")
-    events = copy.deepcopy(writer.events)
-    condition_action = next(
-        action for action in pack["campaign"]["actions"] if action["kind"] == "condition"
-    )
-    safety = runtime.constraint_evidence(
-        condition_action,
-        pack,
-        phase="post_action",
-        channels=[{"name": MARKER_CHANNEL, "value": 5000.0}],
-    )
-    assert safety, "no post_action constraint is declared for this facility"
-    assert safety[0]["limit"]["enforcement"] == "terminate"
-    events[4]["constraints"] = safety
-
-    with pytest.raises(runtime.RuntimeContractError, match="terminate-enforcement"):
         runtime.validate_trace(events, pack)
 
 

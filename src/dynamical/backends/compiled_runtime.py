@@ -398,6 +398,8 @@ def verify_compiled_pack(compiled_world: str | Path) -> dict[str, Any]:
         raise RuntimeContractError("compiled manifest is absent or is a symbolic link")
     manifest = _read_object(manifest_path)
     records = _manifest_records(manifest)
+    if manifest.get("target") == "isaac":
+        required.add("dynamical_instrument_runtime.zip")
     if not (required - {"compile_manifest.json"}).issubset(records):
         raise RuntimeContractError("required pack files are not declared by the manifest")
     actual: dict[str, str] = {}

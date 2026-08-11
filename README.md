@@ -70,10 +70,11 @@ dynamical --version
 Isaac Sim 5.1 is a separate, GPU-bound NVIDIA install. Compiling with
 `--target isaac` emits a compiled pack whose root stage is a source-backed
 OpenUSD scene. Running the pack's `run_isaac_sim.py` with Isaac Sim's own
-Python executes the identical campaign live inside Omniverse Kit, producing
-the same trace shape from real embodied execution rather than the local
-composed runtime `dynamical run` uses by default. The compiled pack, runtime
-receipt, trace, and replay are bound by verified hashes; `dynamical run
+Python executes the identical campaign inside Omniverse Kit. Each action
+advances the generated scene and the hash-bound admitted instrument model.
+Both results enter one trace, including sample state and scientific output
+channels. The compiled pack, runtime receipt, trace, and replay are bound by
+verified hashes; `dynamical run
 --mode replay` re-derives the observations from the recorded embodied
 evidence and `dynamical validate` checks the full binding.
 

@@ -7,7 +7,6 @@ from typing import Any
 import pytest
 import yaml
 
-from dynamical.backends.compiled_runtime import verify_compiled_pack
 from dynamical.campaign import (
     ActionRequest,
     ConstraintEvaluation,
@@ -477,47 +476,6 @@ def trace_with_vanished_sample() -> list[TraceEvent]:
 
 
 @pytest.fixture
-def trace_with_silent_identity_change() -> list[TraceEvent]:
-    """A station's occupant sample_id changes with no recorded parent edge."""
-
-    seed_a = _sample_action(
-        action_id="seed-a",
-        actor_id="ac-transfer-model",
-        station_id="prep-bench",
-        sample_id="sample-a",
-        transition={
-            "kind": "transfer",
-            "sample_id": "sample-a",
-            "from_station": "prep-bench",
-            "to_station": "hotplate-1",
-            "quantity_delta": 0.0,
-            "unit": "mL",
-            "timestamp_s": 1.0,
-            "arrival_confirmed": True,
-            "parent_sample_ids": [],
-        },
-    )
-    seed_b = _sample_action(
-        action_id="seed-b",
-        actor_id="ac-transfer-model",
-        station_id="prep-bench",
-        sample_id="sample-b",
-        transition={
-            "kind": "transfer",
-            "sample_id": "sample-b",
-            "from_station": "prep-bench",
-            "to_station": "hotplate-1",
-            "quantity_delta": 0.0,
-            "unit": "mL",
-            "timestamp_s": 2.0,
-            "arrival_confirmed": True,
-            "parent_sample_ids": [],
-        },
-    )
-    return _sample_trace("silent-identity-change", [seed_a, seed_b])
-
-
-@pytest.fixture
 def trace_with_forked_sample() -> list[TraceEvent]:
     """The same sample is transferred out of a station it never left."""
 
@@ -899,33 +857,3 @@ def compiled_electrodeposition_coverage_world(tmp_path: Path) -> Path:
         composition_result=composition,
     )
     return result.output_dir
-
-
-@pytest.fixture
-def isaac_pack(tmp_path: Path) -> dict[str, Any]:
-    """A verified compiled Isaac pack for the shared electrodeposition reference
-    requirement, loaded exactly as ``isaac_runtime.py``'s launcher loads one."""
-
-    requirement = write_reference_requirement(tmp_path / "requirement-pack.yaml")
-    composition = compose_files(requirement, ELECTRODEPOSITION_REGISTRY, ELECTRODEPOSITION_MANIFEST)
-    assert composition.status == "COMPILED", composition.reason_codes
-    result = compile_facility(
-        ELECTRODEPOSITION_MANIFEST,
-        "isaac",
-        tmp_path / "isaac-pack",
-        composition_result=composition,
-    )
-    return verify_compiled_pack(result.output_dir)
-
-
-@pytest.fixture
-def isaac_pack_with_unbound_channel(isaac_pack: dict[str, Any]) -> dict[str, Any]:
-    """A verified compiled Isaac pack, used to exercise a channel this run has no
-    binding for.
-
-    No fixture-specific breakage is needed: ``measure-oer`` (used by the test this
-    feeds) is not any declared ``action_type`` in this composition's compiled config,
-    so every declared channel is genuinely unbound for it already.
-    """
-
-    return isaac_pack

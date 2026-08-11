@@ -75,11 +75,6 @@ def test_sample_disappearing_fails(trace_with_vanished_sample):
     assert any(r.code == "SAMPLE_LOST" for r in reasons)
 
 
-def test_identity_change_without_evidence_fails(trace_with_silent_identity_change):
-    reasons = check_invariants(trace_with_silent_identity_change)
-    assert any(r.code == "SAMPLE_IDENTITY_UNEXPLAINED" for r in reasons)
-
-
 def test_sample_in_two_stations_fails(trace_with_forked_sample):
     reasons = check_invariants(trace_with_forked_sample)
     assert any(r.code == "SAMPLE_LOCATION_CONFLICT" for r in reasons)
@@ -92,6 +87,39 @@ def test_action_without_completed_transfer_fails(trace_with_missing_transfer):
 
 def test_clean_lineage_passes(trace_with_complete_lineage):
     assert check_invariants(trace_with_complete_lineage) == []
+
+
+def test_two_samples_can_share_a_workstation():
+    events = _sample_trace(
+        "shared-workstation",
+        [
+            _transfer("move-a", "sample-a", "intake-a", "station-a", 1.0),
+            _transfer("move-b", "sample-b", "intake-b", "station-a", 2.0),
+        ],
+    )
+
+    assert check_invariants(events) == []
+
+
+def test_moving_one_sample_keeps_the_other_sample_at_the_workstation():
+    events = _sample_trace(
+        "shared-workstation-attribution",
+        [
+            _transfer("move-a", "sample-a", "intake-a", "station-a", 1.0),
+            _transfer("move-b", "sample-b", "intake-b", "station-a", 2.0),
+            _transfer("move-b-out", "sample-b", "station-a", "station-b", 3.0),
+            _sample_action(
+                action_id="unattributed",
+                actor_id="ac-x",
+                station_id="station-a",
+                sample_id=None,
+            ),
+        ],
+    )
+
+    reasons = check_invariants(events)
+    assert [reason.code for reason in reasons] == ["SAMPLE_ATTRIBUTION_MISSING"]
+    assert "sample-a" in reasons[0].detail
 
 
 def test_aliquot_debits_the_parent():

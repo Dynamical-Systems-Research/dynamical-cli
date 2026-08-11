@@ -374,6 +374,7 @@ def emit_isaac_sim(
         "physics_layer": "isaac_physics.usda",
         "runtime_campaign": "runtime_campaign.json",
         "runtime_contract_module": "dynamical_runtime_contract.py",
+        "instrument_runtime": "dynamical_instrument_runtime.zip",
         "capability_bindings": [
             {
                 "capability_id": record_id(capability),

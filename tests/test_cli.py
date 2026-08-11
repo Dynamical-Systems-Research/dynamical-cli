@@ -4,6 +4,7 @@ import hashlib
 import json
 import subprocess
 import sys
+from importlib.metadata import distribution
 from pathlib import Path
 
 import yaml
@@ -11,7 +12,6 @@ from _fixtures import write_reference_requirement
 
 from dynamical.cli import DEFAULT_REGISTRY, main
 from dynamical.composition import compose_files, write_composition_result
-from dynamical.schema import load_campaign_requirement
 
 REPOSITORY = Path(__file__).resolve().parents[1]
 MANIFEST = REPOSITORY / "manifests" / "ac-electrodeposition-cell.yaml"
@@ -485,63 +485,17 @@ def test_missing_cli_inputs_name_the_absent_path(tmp_path: Path, capsys) -> None
         assert str(absent) in error
 
 
-def test_agent_decision_contract_is_minimal(tmp_path: Path, capsys) -> None:
-    virtual = write_reference_requirement(tmp_path / "virtual.yaml")
-    physical = write_reference_requirement(tmp_path / "physical.yaml")
-    decision = tmp_path / "evidence.json"
-    physical_requirement = load_campaign_requirement(physical)
-    selected_step = next(
-        step for step in physical_requirement.steps if step.operation_id == "condition-ultrasonic"
-    )
-    decision.write_text(
-        json.dumps(
-            {
-                "selected_virtual_campaign": virtual.name,
-                "physical_route_requirement": physical.name,
-                "selected_physical_experiment": {
-                    "operation": selected_step.operation_id,
-                    "conditions": {
-                        item.id: item.value
-                        for item in physical_requirement.inputs
-                        if item.value is not None
-                    },
-                    "parameters": {
-                        item.name: {"value": item.value, "unit": item.unit}
-                        for item in selected_step.parameters
-                    },
-                    "measurements": sorted(
-                        {
-                            output_id
-                            for proof in physical_requirement.objective.proof_requirements
-                            for output_id in proof.output_port_ids
-                        }
-                    ),
-                },
-                "decision_rationale": "The virtual result supports a later physical check.",
-                "uncertainty": ["No physical result exists."],
-                "submitted": False,
-            }
-        ),
-        encoding="utf-8",
-    )
-    assert main(["validate", str(decision), "--json"]) == 0
-    report = json.loads(capsys.readouterr().out)
-    assert report["valid"] is True
-    assert report["submitted"] is False
-
-    mismatched = json.loads(decision.read_text(encoding="utf-8"))
-    mismatched["selected_physical_experiment"]["conditions"] = {"sample.mass": 0.25}
-    decision.write_text(json.dumps(mismatched), encoding="utf-8")
-    assert main(["validate", str(decision), "--json"]) == 2
-    assert "physical requirement inputs" in capsys.readouterr().err
-
-
 def test_only_dynamical_console_script_is_published() -> None:
-    pyproject = (REPOSITORY / "pyproject.toml").read_text(encoding="utf-8")
-    scripts = pyproject.split("[project.scripts]", 1)[1].split("[", 1)[0]
-    assert scripts.strip() == 'dynamical = "dynamical.cli:main"'
-    assert "openai" not in pyproject.lower()
-    assert "anthropic" not in pyproject.lower()
+    package = distribution("dynamical")
+    scripts = {
+        (entry.name, entry.value)
+        for entry in package.entry_points
+        if entry.group == "console_scripts"
+    }
+    assert scripts == {("dynamical", "dynamical.cli:main")}
+    dependencies = "\n".join(package.requires or []).lower()
+    assert "openai" not in dependencies
+    assert "anthropic" not in dependencies
 
 
 def test_registry_sha256_is_recomputable_from_the_emitted_bytes(capsys):

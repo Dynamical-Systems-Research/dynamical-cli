@@ -1,21 +1,18 @@
 """Compiled Isaac Sim adapter runtime copied into a target pack.
 
-Isaac is the live execution backend: this launcher advances the compiled
-world (geometry, physics, collision) and lets the compiled pack's own
-declared channel bindings say what Isaac can honestly report. It does not
-import ``pxr`` or ``dynamical_runtime_contract`` at module scope, so it stays
-directly importable (for ``wait_steps``/``execute_action`` unit tests) both
-inside a compiled pack, where ``dynamical_runtime_contract.py`` sits next to
-this file on ``sys.path``, and from the installed ``dynamical`` package,
-where it does not exist at all.
+Isaac advances the compiled world. The pack's admitted instrument runtime
+produces the scientific observations from the same actions and sample ledger.
+Both results are written to one hash-bound trace.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import socket
 import sys
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -66,6 +63,11 @@ def _preflight(args: argparse.Namespace) -> dict[str, Any]:
         raise RuntimeError(str(config.get("runtime_blocker")))
     if not (pack["root"] / config["stage"]).is_file():
         raise RuntimeError("compiled root stage is absent")
+    runtime = pack["root"] / config["instrument_runtime"]
+    if not runtime.is_file():
+        raise RuntimeError("compiled instrument runtime is absent")
+    if str(runtime) not in sys.path:
+        sys.path.insert(0, str(runtime))
     return pack
 
 
@@ -191,65 +193,207 @@ def _prim_snapshot(action: dict[str, Any], stage: Any, config: dict[str, Any]) -
     return values
 
 
+def _instrument_modules(pack: dict[str, Any]) -> tuple[Any, Any]:
+    runtime = pack["root"] / pack["backend"]["instrument_runtime"]
+    if str(runtime) not in sys.path:
+        sys.path.insert(0, str(runtime))
+    from dynamical_runtime import instruments, samples
+
+    return instruments, samples
+
+
+def _model_inputs(binding: dict[str, Any], state: dict[str, Any]) -> dict[str, Any]:
+    values: dict[str, Any] = {}
+    outputs = state.setdefault("outputs", {})
+    for item in binding.get("inputs", []):
+        target = str(item["target_port_id"])
+        if item["source_kind"] == "campaign_input":
+            if "value" not in item:
+                raise RuntimeError(f"campaign input has no executable value: {target}")
+            values[target] = item["value"]
+            continue
+        source = outputs.get(str(item["source_id"]), {})
+        port = str(item["source_port_id"])
+        if port not in source:
+            raise RuntimeError(f"operation input is unavailable: {item['source_id']}.{port}")
+        values[target] = source[port]
+    return values
+
+
+def _verify_model(pack: dict[str, Any], binding: dict[str, Any], model: Any) -> None:
+    runtime = pack["root"] / pack["backend"]["instrument_runtime"]
+    source = str(binding["model_implementation_ref"])
+    entry = f"dynamical_runtime/instruments/{Path(source).name}"
+    module = sys.modules.get(getattr(model, "__module__", ""))
+    expected_file = f"{runtime}/{entry}"
+    if module is None or getattr(module, "__file__", None) != expected_file:
+        raise RuntimeError("resolved instrument model is not from the compiled runtime")
+    with zipfile.ZipFile(runtime) as archive:
+        actual = hashlib.sha256(archive.read(entry)).hexdigest()
+    if actual != binding["model_implementation_sha256"]:
+        raise RuntimeError("compiled instrument model differs from its declared implementation")
+
+
+def _execute_instrument(
+    pack: dict[str, Any], action: dict[str, Any], state: dict[str, Any]
+) -> dict[str, Any]:
+    instruments, samples_module = _instrument_modules(pack)
+    binding = pack["campaign"]["provider_bindings"][action["action_id"]]
+    operation_id = str(binding["operation_id"])
+    model = instruments.resolve(operation_id, str(action["provider_id"]))
+    if model is None:
+        raise RuntimeError(f"compiled instrument model is absent for {operation_id!r}")
+    _verify_model(pack, binding, model)
+
+    samples = state.setdefault("samples", {})
+    sample_id = action.get("sample_id")
+    current = samples.get(sample_id) if sample_id else None
+    if (
+        current is None
+        and sample_id
+        and action.get("station_id")
+        and operation_id != "transfer-sample"
+    ):
+        samples.update(
+            samples_module.establish_origin(
+                samples,
+                sample_id=str(sample_id),
+                station_id=str(action["station_id"]),
+                step_id=str(action["action_id"]),
+            )
+        )
+        current = samples[sample_id]
+
+    result = model(
+        instruments.InstrumentRequest(
+            parameters=dict(action.get("parameters", {})),
+            inputs=_model_inputs(binding, state),
+            sample=current,
+        )
+    )
+    expected_ports = set(binding["output_port_ids"])
+    if set(result.outputs) != expected_ports:
+        raise RuntimeError(
+            f"instrument output contract differs: expected={sorted(expected_ports)}, "
+            f"found={sorted(result.outputs)}"
+        )
+    state["outputs"][action["action_id"]] = dict(result.outputs)
+
+    sample_written = result.sample is not None
+    if result.sample is not None:
+        if operation_id == "transfer-sample":
+            expected = action.get("parameters", {}).get("sample_transition")
+            if not isinstance(expected, dict):
+                raise RuntimeError("compiled transfer has no sample transition")
+            actual = samples_module.build_transition(
+                result.sample,
+                current_sample=current,
+                from_station_hint=str(expected["from_station"]),
+                timestamp_s=float(expected["timestamp_s"]),
+                step_id=str(action["action_id"]),
+            ).model_dump(mode="json")
+            compared = {
+                key: value
+                for key, value in actual.items()
+                if key not in {"state_sha256"}
+            }
+            declared = {
+                key: value
+                for key, value in expected.items()
+                if key not in {"state_sha256"}
+            }
+            if compared != declared:
+                raise RuntimeError("instrument transfer differs from the compiled transition")
+        samples[result.sample.id] = result.sample
+
+    output_channels = binding["output_channel_ids"]
+    channel_values = {
+        channel_id: result.outputs[port_id]
+        for port_id, channel_id in output_channels.items()
+        if port_id in result.outputs
+    }
+    channel_uncertainty = {
+        channel_id: result.uncertainty.get(port_id)
+        for port_id, channel_id in output_channels.items()
+        if port_id in result.outputs
+    }
+    observed = samples.get(sample_id) if sample_id else None
+    return {
+        "channels": channel_values,
+        "uncertainty": channel_uncertainty,
+        "reasons": [item.model_dump(mode="json", exclude_none=True) for item in result.reasons],
+        "cost_usd": result.cost_usd,
+        "duration_s": result.duration_s,
+        "sample_id": sample_id,
+        "sample_state_sha256": (
+            samples_module.state_digest(observed.state) if observed is not None else None
+        ),
+        "sample_state_written": sample_written,
+    }
+
+
 def _channels(
     snapshot: dict[str, Any],
     config: dict[str, Any],
     *,
     provider_id: str,
     evidence_class: str,
+    instrument: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
-    """Every declared observation channel, echoing a commanded value only where the
-    compiled pack declared this specific action's capability actually bound to it.
-
-    A channel not bound to the action that just ran -- almost all of them, for
-    a facility whose real scientific outcomes Isaac cannot compute -- reports
-    ``value=None``/``quality="unavailable"`` rather than a stale or fabricated
-    reading.
-    """
+    """Return scientific outputs and declared command echoes for one action."""
 
     commanded = snapshot.get("commanded_parameters")
     commanded = commanded if isinstance(commanded, dict) else {}
     action_kind = commanded.get("kind")
     parameters = commanded.get("parameters")
     parameters = parameters if isinstance(parameters, dict) else {}
+    scientific = instrument.get("channels", {}) if instrument else {}
+    uncertainty = instrument.get("uncertainty", {}) if instrument else {}
     channels = []
     for binding in config["observation_bindings"]:
-        value = None
+        channel_id = binding["channel_id"]
+        if channel_id in scientific:
+            value = scientific[channel_id]
+            channels.append(
+                {
+                    "name": channel_id,
+                    "value": value,
+                    "unit": binding.get("unit", "1"),
+                    "quality": "estimated" if value is not None else "unavailable",
+                    "origin": "source_model",
+                    "provider_id": provider_id,
+                    "evidence_class": evidence_class,
+                    "uncertainty": {
+                        "value": uncertainty.get(channel_id),
+                        "kind": "declared",
+                        "origin": "compiled admitted instrument model",
+                    },
+                }
+            )
+            continue
         if (
             binding.get("status") == "compiled_stage_state_binding"
             and binding.get("action_type") == action_kind
             and binding.get("echoes_parameter") is not None
         ):
             value = parameters.get(binding["echoes_parameter"])
-        channels.append(
-            {
-                "name": binding["channel_id"],
-                "value": value,
-                "unit": binding.get("unit", "1"),
-                "quality": "valid" if value is not None else "unavailable",
-                "origin": "backend_state",
-                "provider_id": provider_id,
-                "evidence_class": evidence_class,
-                # An echoed value is exactly the commanded parameter, not an independent
-                # measurement, so it is honestly declared with zero uncertainty rather
-                # than a fabricated instrument tolerance. A channel with no bound value
-                # has genuinely unknown uncertainty, not zero -- zero would claim an
-                # exact measurement Isaac never made, of a value it does not have.
-                "uncertainty": (
+            if value is not None:
+                channels.append(
                     {
-                        "value": 0.0,
-                        "kind": "declared",
-                        "origin": "isaac_sim launcher commanded-parameter echo",
+                        "name": channel_id,
+                        "value": value,
+                        "unit": binding.get("unit", "1"),
+                        "quality": "valid",
+                        "origin": "backend_state",
+                        "provider_id": provider_id,
+                        "evidence_class": evidence_class,
+                        "uncertainty": {
+                            "value": 0.0,
+                            "kind": "declared",
+                            "origin": "isaac_sim launcher commanded-parameter echo",
+                        },
                     }
-                    if value is not None
-                    else {
-                        "value": None,
-                        "kind": "declared",
-                        "origin": "isaac_sim launcher has no bound value for this channel",
-                    }
-                ),
-            }
-        )
+                )
     return channels
 
 
@@ -282,16 +426,9 @@ def execute_action(
     stage: Any | None = None,
     world: Any | None = None,
     max_wait_steps: int = MAX_WAIT_STEPS,
+    scientific_state: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Run one compiled action and report its channels, degrading rather than raising.
-
-    ``stage``/``world`` are the live Kit objects ``main()`` holds open; they
-    are optional so this dispatch and its degrade-on-unbound-channel
-    behavior can be unit tested without booting Kit. When they are ``None``,
-    no physics step happens and every channel is evaluated exactly as it
-    would be for a live run that genuinely has no binding for it -- honest,
-    not a special case.
-    """
+    """Run one action through the compiled world and its admitted instrument model."""
 
     config = pack["backend"]
     kind = action["kind"]
@@ -304,12 +441,22 @@ def execute_action(
         snapshot = _prim_snapshot(action, stage, config)
     else:
         snapshot = {"commanded_parameters": {"kind": kind, "parameters": parameters}}
+    instrument = _execute_instrument(
+        pack, action, scientific_state if scientific_state is not None else {}
+    )
     channels = _channels(
         snapshot,
         config,
         provider_id=str(action.get("provider_id", "")),
         evidence_class=str(action.get("evidence_class", "simulator")),
+        instrument=instrument,
     )
+    snapshot["observation_channels"] = channels
+    snapshot["scientific_state"] = {
+        "sample_id": instrument["sample_id"],
+        "sample_state_sha256": instrument["sample_state_sha256"],
+        "sample_state_written": instrument["sample_state_written"],
+    }
     reasons = [
         {
             "code": "MEASUREMENT_UNAVAILABLE",
@@ -318,8 +465,19 @@ def execute_action(
         }
         for channel in channels
         if channel["quality"] != "valid"
+        and channel["value"] is None
     ]
-    return {"steps": steps, "snapshot": snapshot, "channels": channels, "reasons": reasons}
+    return {
+        "steps": steps,
+        "snapshot": snapshot,
+        "channels": channels,
+        "reasons": [*instrument["reasons"], *reasons],
+        "cost_usd": instrument["cost_usd"],
+        "duration_s": instrument["duration_s"],
+        "sample_id": instrument["sample_id"],
+        "sample_state_sha256": instrument["sample_state_sha256"],
+        "sample_state_written": instrument["sample_state_written"],
+    }
 
 
 def _handle_constraints(
@@ -461,6 +619,10 @@ def main() -> int:
         )
         writer.add("campaign_start", 0.0)
         logical_time = 0.0
+        scientific_state: dict[str, Any] = {}
+        consumed_cost_usd = 0.0
+        consumed_duration_s = 0.0
+        run_reasons: list[dict[str, Any]] = []
         # dynamical.campaign.validate_events requires the terminal execution_status to
         # be "failed" whenever ANY constraint anywhere in the trace was not passed --
         # stricter than compiled_runtime.py's own (enforcement-level-scoped) copy, since
@@ -492,8 +654,15 @@ def main() -> int:
                     "rejected before execution"
                 )
             outcome = execute_action(
-                pack, action, stage=stage, world=world, max_wait_steps=args.max_wait_steps
+                pack,
+                action,
+                stage=stage,
+                world=world,
+                max_wait_steps=args.max_wait_steps,
+                scientific_state=scientific_state,
             )
+            consumed_cost_usd += outcome["cost_usd"]
+            consumed_duration_s += outcome["duration_s"]
             logical_time += outcome["steps"] * config["physics"]["physics_dt_s"]
             evidence = write_snapshot(
                 run_dir / "evidence" / f"observation-{index:03d}.json",
@@ -512,6 +681,16 @@ def main() -> int:
                     "post-action constraint"
                 )
             all_reasons = [*outcome["reasons"], *post_reasons]
+            run_reasons.extend(all_reasons)
+            observation_provenance = {"reasons": all_reasons} if all_reasons else {}
+            if outcome["sample_id"] and outcome["sample_state_sha256"]:
+                observation_provenance.update(
+                    {
+                        "sample_id": outcome["sample_id"],
+                        "sample_state_sha256": outcome["sample_state_sha256"],
+                        "sample_state_written": outcome["sample_state_written"],
+                    }
+                )
             writer.add(
                 "observation",
                 logical_time,
@@ -525,12 +704,17 @@ def main() -> int:
                 },
                 evidence=[evidence],
                 constraints=post_constraints,
-                provenance={"reasons": all_reasons} if all_reasons else None,
+                provenance=observation_provenance or None,
             )
         writer.add(
             "campaign_end",
             logical_time,
-            provenance={"execution_status": "passed" if campaign_ok else "failed"},
+            provenance={
+                "execution_status": "passed" if campaign_ok else "failed",
+                "reasons": run_reasons,
+                "cost_consumed_usd": consumed_cost_usd,
+                "duration_consumed_s": consumed_duration_s,
+            },
         )
         trace_hash = writer.write(args.output)
         # The receipt's own status reports runtime completion (the launcher ran the
