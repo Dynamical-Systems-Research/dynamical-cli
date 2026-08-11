@@ -21,6 +21,15 @@ Before authoring an unfamiliar requirement, inspect its public schema:
 dynamical compose --schema
 ```
 
+For one mobile sample, declare one `sample_state` campaign input with a stable
+sample ID. Materialize it with an initial `transfer-sample` step, bind later
+`sample.state` inputs to the original campaign input, and express chronology
+with `depends_on`. Add explicit `transfer-sample` steps before workstation
+changes. Omit `facility_id` for the mobile sample. Do not thread
+`sample.state.transferred` through every later step or add implicit transport
+to a route that already contains explicit transfer steps; Dynamical carries
+the current state and location by sample identity.
+
 Use these five commands:
 
 - `dynamical capabilities` inspects capabilities, providers, and their admission states.
