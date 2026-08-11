@@ -191,9 +191,7 @@ def _expected_snapshot_channels(
                 "embodied snapshot commanded a parameter that differs from the compiled "
                 f"campaign: {name!r} snapshot={parameters[name]!r} compiled={pinned_value!r}"
             )
-    declared = {
-        str(raw.get("channel_id")): raw for raw in raw_bindings if isinstance(raw, Mapping)
-    }
+    declared = {str(raw.get("channel_id")): raw for raw in raw_bindings if isinstance(raw, Mapping)}
     provider_bindings = pack.get("campaign", {}).get("provider_bindings", {})
     provider_binding = provider_bindings.get(action.get("action_id"), {})
     model_channels = set(provider_binding.get("output_channel_ids", {}).values())

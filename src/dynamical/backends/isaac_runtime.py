@@ -292,15 +292,9 @@ def _execute_instrument(
                 timestamp_s=float(expected["timestamp_s"]),
                 step_id=str(action["action_id"]),
             ).model_dump(mode="json")
-            compared = {
-                key: value
-                for key, value in actual.items()
-                if key not in {"state_sha256"}
-            }
+            compared = {key: value for key, value in actual.items() if key not in {"state_sha256"}}
             declared = {
-                key: value
-                for key, value in expected.items()
-                if key not in {"state_sha256"}
+                key: value for key, value in expected.items() if key not in {"state_sha256"}
             }
             if compared != declared:
                 raise RuntimeError("instrument transfer differs from the compiled transition")
@@ -464,8 +458,7 @@ def execute_action(
             "detail": f"{channel['name']!r} has no bound value from this Isaac run",
         }
         for channel in channels
-        if channel["quality"] != "valid"
-        and channel["value"] is None
+        if channel["quality"] != "valid" and channel["value"] is None
     ]
     return {
         "steps": steps,

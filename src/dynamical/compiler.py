@@ -68,6 +68,7 @@ _OWNERSHIP_ARTIFACTS = {
     "source_admission.json",
 }
 
+
 @dataclass(frozen=True)
 class CompileResult:
     output_dir: Path
