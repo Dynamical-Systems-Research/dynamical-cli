@@ -66,8 +66,8 @@ def test_compile_resolves_admitted_assets_from_a_clean_wheel_install(tmp_path):
     Reproducing this requires an actual installed wheel run from a directory that is not
     this repo; nothing short of that exercises the packaged-install code path the bug
     lived in. Build the wheel hatchling would publish, install it into a throwaway venv,
-    and drive the real CLI (``compose`` then ``compile``) on the real six-step AC
-    electrodeposition campaign from an unrelated cwd.
+    and drive the real CLI (``compose`` then ``compile``) on a multi-instrument
+    coverage campaign from an unrelated cwd.
     """
     dist_dir = tmp_path / "dist"
     subprocess.run(
@@ -93,13 +93,13 @@ def test_compile_resolves_admitted_assets_from_a_clean_wheel_install(tmp_path):
     # (accidentally) land inside of.
     run_dir = tmp_path / "rundir"
     run_dir.mkdir()
-    requirement_path = run_dir / "six-step-requirement.yaml"
+    requirement_path = run_dir / "coverage-requirement.yaml"
     requirement = _coverage_requirement().model_dump(mode="json", exclude_none=True)
     requirement_path.write_text(yaml.safe_dump(requirement, sort_keys=False), encoding="utf-8")
 
     dynamical = venv_dir / "bin" / "dynamical"
     compose = subprocess.run(
-        [str(dynamical), "compose", "six-step-requirement.yaml", "-o", "composition.json"],
+        [str(dynamical), "compose", "coverage-requirement.yaml", "-o", "composition.json"],
         cwd=run_dir,
         capture_output=True,
         text=True,

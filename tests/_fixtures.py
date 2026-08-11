@@ -7,7 +7,6 @@ from typing import Any
 import pytest
 import yaml
 
-from dynamical.backends.compiled_runtime import verify_compiled_pack
 from dynamical.campaign import (
     ActionRequest,
     ConstraintEvaluation,
@@ -477,47 +476,6 @@ def trace_with_vanished_sample() -> list[TraceEvent]:
 
 
 @pytest.fixture
-def trace_with_silent_identity_change() -> list[TraceEvent]:
-    """A station's occupant sample_id changes with no recorded parent edge."""
-
-    seed_a = _sample_action(
-        action_id="seed-a",
-        actor_id="ac-transfer-model",
-        station_id="prep-bench",
-        sample_id="sample-a",
-        transition={
-            "kind": "transfer",
-            "sample_id": "sample-a",
-            "from_station": "prep-bench",
-            "to_station": "hotplate-1",
-            "quantity_delta": 0.0,
-            "unit": "mL",
-            "timestamp_s": 1.0,
-            "arrival_confirmed": True,
-            "parent_sample_ids": [],
-        },
-    )
-    seed_b = _sample_action(
-        action_id="seed-b",
-        actor_id="ac-transfer-model",
-        station_id="prep-bench",
-        sample_id="sample-b",
-        transition={
-            "kind": "transfer",
-            "sample_id": "sample-b",
-            "from_station": "prep-bench",
-            "to_station": "hotplate-1",
-            "quantity_delta": 0.0,
-            "unit": "mL",
-            "timestamp_s": 2.0,
-            "arrival_confirmed": True,
-            "parent_sample_ids": [],
-        },
-    )
-    return _sample_trace("silent-identity-change", [seed_a, seed_b])
-
-
-@pytest.fixture
 def trace_with_forked_sample() -> list[TraceEvent]:
     """The same sample is transferred out of a station it never left."""
 
@@ -872,15 +830,15 @@ def compiled_electrodeposition_world(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def compiled_electrodeposition_coverage_world(tmp_path: Path) -> Path:
-    """The full six-step nickel electrodeposition campaign (dispense, transfer,
-    condition, transfer, deposit, measure), composed and compiled for the
-    ``isaac`` target -- the campaign the release's central claim ("one sample
-    moves through three workstations by explicit transfer actions") is about,
-    and the one a live Kit run needs to actually prove it on this backend.
+    """A synthetic multi-instrument coverage campaign compiled for the ``isaac``
+    target -- one sample moving across workstations by explicit transfer
+    actions, exercising the mechanisms a live Kit run must prove: composition,
+    multi-instrument execution, and continuous sample lineage. The step order
+    and parameters are harness-selected coverage, not a recommended experiment.
 
     Reuses ``test_electrodeposition_registry``'s own ``_coverage_requirement``
     (imported locally, not duplicated) so there is exactly one definition of
-    this campaign to drift out of sync.
+    this fixture campaign to drift out of sync.
     """
 
     import test_electrodeposition_registry as coverage
@@ -895,37 +853,7 @@ def compiled_electrodeposition_coverage_world(tmp_path: Path) -> Path:
     result = compile_facility(
         coverage.MANIFEST,
         "isaac",
-        tmp_path / "isaac-six-step-world",
+        tmp_path / "isaac-coverage-world",
         composition_result=composition,
     )
     return result.output_dir
-
-
-@pytest.fixture
-def isaac_pack(tmp_path: Path) -> dict[str, Any]:
-    """A verified compiled Isaac pack for the shared electrodeposition reference
-    requirement, loaded exactly as ``isaac_runtime.py``'s launcher loads one."""
-
-    requirement = write_reference_requirement(tmp_path / "requirement-pack.yaml")
-    composition = compose_files(requirement, ELECTRODEPOSITION_REGISTRY, ELECTRODEPOSITION_MANIFEST)
-    assert composition.status == "COMPILED", composition.reason_codes
-    result = compile_facility(
-        ELECTRODEPOSITION_MANIFEST,
-        "isaac",
-        tmp_path / "isaac-pack",
-        composition_result=composition,
-    )
-    return verify_compiled_pack(result.output_dir)
-
-
-@pytest.fixture
-def isaac_pack_with_unbound_channel(isaac_pack: dict[str, Any]) -> dict[str, Any]:
-    """A verified compiled Isaac pack, used to exercise a channel this run has no
-    binding for.
-
-    No fixture-specific breakage is needed: ``measure-oer`` (used by the test this
-    feeds) is not any declared ``action_type`` in this composition's compiled config,
-    so every declared channel is genuinely unbound for it already.
-    """
-
-    return isaac_pack

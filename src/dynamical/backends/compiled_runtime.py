@@ -326,9 +326,18 @@ def validate_action(action: Any, pack: dict[str, Any]) -> None:
     provider_bindings = pack["campaign"].get("provider_bindings")
     if not isinstance(provider_bindings, dict):
         raise RuntimeContractError("runtime campaign provider bindings are absent")
-    provider_binding = provider_bindings.get(kind)
+    # Bindings are keyed by action_id: each action validates against the binding
+    # compiled for its own step, so repeated action kinds with different
+    # providers or parameter contracts are each checked correctly (and a trace
+    # action whose id is not in the compiled campaign fails closed here). Reject a
+    # malformed (non-string) action_id through the contract's normal failure path
+    # rather than letting an unhashable value raise a raw TypeError on lookup.
+    action_id = action.get("action_id")
+    if not isinstance(action_id, str) or not action_id:
+        raise RuntimeContractError("action action_id is absent or not a string")
+    provider_binding = provider_bindings.get(action_id)
     if not isinstance(provider_binding, dict):
-        raise RuntimeContractError(f"runtime provider binding is absent for {kind!r}")
+        raise RuntimeContractError(f"runtime provider binding is absent for action {action_id!r}")
     if not actor_capabilities and provider_binding.get("binding_scope") != "virtual_sdl":
         expected = sorted({str(item.get("provider_id")) for item in kind_capabilities})
         if not kind_capabilities:
@@ -389,6 +398,8 @@ def verify_compiled_pack(compiled_world: str | Path) -> dict[str, Any]:
         raise RuntimeContractError("compiled manifest is absent or is a symbolic link")
     manifest = _read_object(manifest_path)
     records = _manifest_records(manifest)
+    if manifest.get("target") == "isaac":
+        required.add("dynamical_instrument_runtime.zip")
     if not (required - {"compile_manifest.json"}).issubset(records):
         raise RuntimeContractError("required pack files are not declared by the manifest")
     actual: dict[str, str] = {}
@@ -484,9 +495,10 @@ def verify_compiled_pack(compiled_world: str | Path) -> dict[str, Any]:
 
     facility_channels = {
         str(channel.get("id"))
-        for device in facility.get("devices", [])
-        if isinstance(device, dict)
-        for channel in device.get("state_channels", [])
+        for group in ("devices", "agents")
+        for provider in facility.get(group, [])
+        if isinstance(provider, dict)
+        for channel in provider.get("state_channels", [])
         if isinstance(channel, dict)
     } | {
         str(channel.get("channel_id"))

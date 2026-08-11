@@ -68,15 +68,6 @@ _OWNERSHIP_ARTIFACTS = {
     "source_admission.json",
 }
 
-_AGENT_DECISION_FIELDS = {
-    "selected_virtual_campaign",
-    "physical_route_requirement",
-    "selected_physical_experiment",
-    "decision_rationale",
-    "uncertainty",
-    "submitted",
-}
-
 
 @dataclass(frozen=True)
 class CompileResult:
@@ -369,7 +360,11 @@ def action_schema(document: FacilityDocument) -> dict[str, Any]:
 
 def observation_schema(document: FacilityDocument) -> dict[str, Any]:
     channels = sorted(
-        {channel.id for device in document.devices for channel in device.state_channels}
+        {
+            channel.id
+            for provider in [*document.devices, *document.agents]
+            for channel in provider.state_channels
+        }
         | {
             channel.channel_id
             for material in document.material_states
@@ -989,102 +984,6 @@ def validate_path(path: str | Path) -> dict[str, Any]:
     if source.is_file() and source.suffix.lower() in {".json", ".yaml", ".yml"}:
         if source.suffix.lower() == ".json":
             raw = json.loads(source.read_text(encoding="utf-8"))
-            if isinstance(raw, dict) and set(raw) == _AGENT_DECISION_FIELDS:
-                root = source.parent.resolve()
-
-                def decision_path(field: str) -> Path:
-                    value = raw[field]
-                    if not isinstance(value, str) or not value:
-                        raise ValueError(f"decision field {field} must be a relative path")
-                    selected = (root / value).resolve()
-                    if selected == root or not selected.is_relative_to(root):
-                        raise ValueError(f"decision field {field} escapes its workspace")
-                    if not selected.is_file():
-                        raise ValueError(f"decision field {field} is absent: {value}")
-                    return selected
-
-                selected_virtual = decision_path("selected_virtual_campaign")
-                physical_route = decision_path("physical_route_requirement")
-                from .schema import load_campaign_requirement
-
-                load_campaign_requirement(selected_virtual)
-                physical_requirement = load_campaign_requirement(physical_route)
-                experiment = raw["selected_physical_experiment"]
-                if not isinstance(experiment, dict):
-                    raise ValueError("selected_physical_experiment must be an object")
-                experiment_fields = {"operation", "conditions", "parameters", "measurements"}
-                if set(experiment) != experiment_fields:
-                    raise ValueError(
-                        "selected_physical_experiment must contain exactly operation, "
-                        "conditions, parameters, and measurements"
-                    )
-                operation = experiment["operation"]
-                if not isinstance(operation, str) or not operation:
-                    raise ValueError("selected physical operation must be a non-empty string")
-                matching_steps = [
-                    step for step in physical_requirement.steps if step.operation_id == operation
-                ]
-                if not matching_steps:
-                    raise ValueError(
-                        "selected physical operation is absent from the physical requirement"
-                    )
-                expected_conditions = {
-                    item.id: item.value
-                    for item in physical_requirement.inputs
-                    if item.value is not None
-                }
-                if experiment["conditions"] != expected_conditions:
-                    raise ValueError(
-                        "selected physical conditions differ from the physical requirement inputs"
-                    )
-                if not isinstance(experiment["parameters"], dict):
-                    raise ValueError("selected physical parameters must be an object")
-                expected_parameter_sets = [
-                    {
-                        item.name: {"value": item.value, "unit": item.unit}
-                        for item in step.parameters
-                    }
-                    for step in matching_steps
-                ]
-                if experiment["parameters"] not in expected_parameter_sets:
-                    raise ValueError(
-                        "selected physical parameters differ from the physical requirement step"
-                    )
-                measurements = experiment["measurements"]
-                expected_measurements = sorted(
-                    {
-                        output_id
-                        for proof in physical_requirement.objective.proof_requirements
-                        for output_id in proof.output_port_ids
-                    }
-                )
-                if (
-                    not isinstance(measurements, list)
-                    or not all(isinstance(item, str) and item for item in measurements)
-                    or sorted(measurements) != expected_measurements
-                ):
-                    raise ValueError(
-                        "selected physical measurements differ from the physical proof outputs"
-                    )
-                if (
-                    not isinstance(raw["decision_rationale"], str)
-                    or not raw["decision_rationale"].strip()
-                ):
-                    raise ValueError("decision_rationale must be a non-empty string")
-                uncertainty = raw["uncertainty"]
-                if not isinstance(uncertainty, list) or not all(
-                    isinstance(item, str) and item.strip() for item in uncertainty
-                ):
-                    raise ValueError("uncertainty must be a string array")
-                if raw["submitted"] is not False:
-                    raise ValueError("submitted must be false")
-                return {
-                    "valid": True,
-                    "kind": "agent_decision",
-                    "path": str(source),
-                    "submitted": False,
-                    "physical_operation": operation,
-                }
             if isinstance(raw, dict) and raw.get("schema_version") == (
                 "dynamical.composition-result.v1"
             ):

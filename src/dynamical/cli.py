@@ -187,7 +187,7 @@ def build_parser() -> argparse.ArgumentParser:
         epilog=(
             "Examples:\n"
             "  dynamical validate compiled-world --json\n"
-            "  dynamical validate decision.json --json"
+            "  dynamical validate trace.ndjson --json"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )

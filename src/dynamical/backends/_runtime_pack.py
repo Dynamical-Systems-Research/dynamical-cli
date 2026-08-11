@@ -9,7 +9,9 @@ and emits one action per selected operation binding.
 
 from __future__ import annotations
 
+import hashlib
 import json
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +21,32 @@ from ._extract import record_id, records
 from .base import BackendArtifact, write_json_artifact, write_text_artifact
 
 EVIDENCE_CLASSES = {"simulator", "calibrated_twin", "shadow", "physical"}
+
+
+def _instrument_runtime_artifact(output_dir: Path) -> BackendArtifact:
+    """Package the admitted instrument runtime used inside Isaac's Python."""
+
+    instrument_root = Path(instruments.__file__).parent
+    sources = {
+        "dynamical_runtime/__init__.py": b"",
+        "dynamical_runtime/reasons.py": (instrument_root.parent / "reasons.py").read_bytes(),
+        "dynamical_runtime/samples.py": (instrument_root.parent / "samples.py").read_bytes(),
+        **{
+            f"dynamical_runtime/instruments/{source.name}": source.read_bytes()
+            for source in sorted(instrument_root.glob("*.py"))
+        },
+    }
+    path = output_dir / "dynamical_instrument_runtime.zip"
+    with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_STORED) as archive:
+        for name, content in sorted(sources.items()):
+            info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+            info.external_attr = 0o100644 << 16
+            archive.writestr(info, content)
+    return BackendArtifact(
+        role="instrument_runtime",
+        path=path,
+        sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
+    )
 
 
 def selected_operation_bindings(output_dir: Path) -> list[dict[str, Any]] | None:
@@ -490,21 +518,19 @@ def runtime_campaign(
     ordered = _ordered_bindings(bindings, edges)
 
     facility_bindings = runtime_capability_bindings(document, operation_bindings=bindings)
-    provider_bindings: dict[str, dict[str, Any]] = {
-        binding["action_type"]: {
-            "capability_id": binding["capability_id"],
-            "endpoint_id": binding["endpoint_id"],
-            "provider_id": binding["provider_id"],
-            "evidence_class": binding["evidence_class"],
-        }
-        for binding in facility_bindings
-    }
+    # Keyed by action_id, not action_type: a campaign may repeat an action kind
+    # across steps that select different providers or carry different parameter
+    # contracts, and each action must validate against its own compiled binding
+    # rather than whichever same-kind step was compiled last.
+    provider_bindings: dict[str, dict[str, Any]] = {}
     action_types_by_operation: dict[str, set[str]] = {}
     for binding in facility_bindings:
         action_types_by_operation.setdefault(binding["operation_id"], set()).add(
             binding["action_type"]
         )
     constraint_by_id = _records_by_id(document, "constraints")
+    model_bindings = _records_by_id(document, "model_bindings")
+    output_channels_by_operation = _output_channel_ids_by_operation(document, facility_bindings)
 
     actions: list[dict[str, Any]] = []
     constraint_bindings: dict[str, dict[str, list[str]]] = {}
@@ -546,6 +572,20 @@ def runtime_campaign(
         is_transport = (
             isinstance(capability_contract, dict) and capability_contract.get("kind") == "transport"
         )
+        model = None
+        model_binding = model_bindings.get(endpoint_id)
+        if target == "isaac" or is_transport:
+            model = instruments.resolve(operation_id, provider_id)
+            if model is None:
+                raise ValueError(
+                    f"no admitted instrument model for operation {operation_id!r} "
+                    f"and provider {provider_id!r}"
+                )
+            if target == "isaac" and not isinstance(model_binding, dict):
+                raise ValueError(
+                    f"instrument endpoint {endpoint_id!r} has no declared model binding"
+                )
+            _require_declared_implementation(document, endpoint_id, model, operation_id)
         if is_transport:
             # A sample-moving operation's registered model (transfer.py's
             # transfer_sample) carries no live/measured dependency Isaac would
@@ -556,14 +596,8 @@ def runtime_campaign(
             # action is faithful, not a guess. samples.build_transition is the
             # one place that construction happens; a second, isaac-only
             # reimplementation would drift from it.
-            model = instruments.resolve(operation_id, provider_id)
-            if model is None:
-                raise ValueError(
-                    "no admitted instrument model for transport operation "
-                    f"{operation_id!r} and provider {provider_id!r}"
-                )
-            _require_declared_implementation(document, endpoint_id, model, operation_id)
             current_sample = samples.get(sample_id) if sample_id else None
+            assert model is not None
             result = model(
                 instruments.InstrumentRequest(
                     parameters=dict(action["parameters"]),
@@ -609,13 +643,34 @@ def runtime_campaign(
             if isinstance(capability_contract, dict)
             else []
         )
-        provider_bindings[kind] = {
+        provider_binding = {
             "binding_scope": "virtual_sdl",
             "endpoint_id": endpoint_id,
             "provider_id": provider_id,
             "evidence_class": evidence_class,
+            "operation_id": operation_id,
             "execution_parameters": execution_parameters,
+            "inputs": binding.get("inputs", []),
+            "output_port_ids": [
+                str(port.get("id"))
+                for port in (
+                    capability_contract.get("output_ports", [])
+                    if isinstance(capability_contract, dict)
+                    else []
+                )
+                if isinstance(port, dict) and port.get("id")
+            ],
+            "output_channel_ids": output_channels_by_operation.get(operation_id, {}),
         }
+        if target == "isaac":
+            assert isinstance(model_binding, dict)
+            provider_binding.update(
+                {
+                    "model_implementation_ref": model_binding.get("implementation_ref"),
+                    "model_implementation_sha256": model_binding.get("implementation_sha256"),
+                }
+            )
+        provider_bindings[action_id] = provider_binding
 
     roles = runtime_role_assets(document, operation_bindings=bindings)
     if actions:
@@ -682,4 +737,6 @@ def emit_runtime_contract_files(
             source_path.read_text(encoding="utf-8"),
         ),
     ]
+    if target == "isaac":
+        artifacts.append(_instrument_runtime_artifact(output_dir))
     return artifacts, campaign

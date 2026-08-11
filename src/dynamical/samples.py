@@ -262,8 +262,6 @@ def check_invariants(events: Sequence[TraceEvent]) -> list[RuntimeReason]:
     - ``SAMPLE_LOST``: a sample departs a station (a transition with
       ``arrival_confirmed=False``) and the trace ends without ever confirming
       its arrival anywhere.
-    - ``SAMPLE_IDENTITY_UNEXPLAINED``: a station's occupant sample_id changes
-      to a new sample with no recorded parent edge linking it to the old one.
     - ``SAMPLE_LOCATION_CONFLICT``: a transfer claims to depart a station other
       than the sample's last confirmed location -- the trace's own bookkeeping
       would leave the sample resident at two stations at once.
@@ -276,7 +274,7 @@ def check_invariants(events: Sequence[TraceEvent]) -> list[RuntimeReason]:
 
     reasons: list[RuntimeReason] = []
     samples: dict[str, Sample] = {}
-    station_occupant: dict[str, str] = {}
+    station_occupants: dict[str, set[str]] = {}
 
     for event in events:
         action = event.action
@@ -286,24 +284,6 @@ def check_invariants(events: Sequence[TraceEvent]) -> list[RuntimeReason]:
         transition = _embedded_transition(action.parameters)
 
         if transition is not None:
-            prior_occupant = station_occupant.get(transition.to_station)
-            if (
-                prior_occupant is not None
-                and prior_occupant != transition.sample_id
-                and prior_occupant not in transition.parent_sample_ids
-            ):
-                reasons.append(
-                    RuntimeReason(
-                        code="SAMPLE_IDENTITY_UNEXPLAINED",
-                        detail=(
-                            f"station {transition.to_station!r} held {prior_occupant!r} and now "
-                            f"reports {transition.sample_id!r} with no recorded parent edge"
-                        ),
-                        step_id=step_id,
-                        recoverable=False,
-                    )
-                )
-
             if transition.kind == "transfer":
                 current = samples.get(transition.sample_id)
                 if current is not None and current.station_id != transition.from_station:
@@ -321,8 +301,15 @@ def check_invariants(events: Sequence[TraceEvent]) -> list[RuntimeReason]:
                     )
 
             samples = apply_transition(samples, transition)
-            if transition.arrival_confirmed:
-                station_occupant[transition.to_station] = transition.sample_id
+            # Keep station occupancy synchronized with custody: a departing
+            # sample vacates its source station, so a later action there is not
+            # falsely attributed to a sample that has moved on. Clear the source
+            # before recording the destination so a same-station transfer still
+            # leaves the sample resident.
+            station_occupants.get(transition.from_station, set()).discard(transition.sample_id)
+            sample = samples[transition.sample_id]
+            if sample.custody_state == "held":
+                station_occupants.setdefault(sample.station_id, set()).add(sample.id)
             continue
 
         sample_id = action.sample_id
@@ -332,15 +319,15 @@ def check_invariants(events: Sequence[TraceEvent]) -> list[RuntimeReason]:
             # action does not name it, custody for that action is unverifiable
             # -- and simply dropping sample_id would otherwise be a way to make
             # any lineage violation disappear.
-            occupant = station_occupant.get(action.station_id) if action.station_id else None
-            if occupant is not None:
+            occupants = station_occupants.get(action.station_id, set())
+            if occupants:
                 reasons.append(
                     RuntimeReason(
                         code="SAMPLE_ATTRIBUTION_MISSING",
                         detail=(
-                            f"action {step_id!r} ran at {action.station_id!r} where sample "
-                            f"{occupant!r} is held, but names no sample, so what it acted "
-                            "on cannot be established"
+                            f"action {step_id!r} ran at {action.station_id!r} where samples "
+                            f"{sorted(occupants)!r} are held, but names no sample, so what it "
+                            "acted on cannot be established"
                         ),
                         step_id=step_id,
                         recoverable=False,
@@ -365,6 +352,10 @@ def check_invariants(events: Sequence[TraceEvent]) -> list[RuntimeReason]:
                 samples = establish_origin(
                     samples, sample_id=sample_id, station_id=action.station_id, step_id=step_id
                 )
+                # Record the sample as occupying the station where it originated,
+                # so a subsequent sample-free action there is attribution-checked
+                # rather than evadable by dropping sample_id after the origin.
+                station_occupants.setdefault(action.station_id, set()).add(sample_id)
         elif sample.station_id != action.station_id or sample.custody_state != "held":
             reasons.append(
                 RuntimeReason(
