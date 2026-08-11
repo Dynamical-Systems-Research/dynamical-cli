@@ -163,7 +163,15 @@ def _coverage_requirement(
                         "minimum_evidence_class": "simulator",
                         "acceptance_rule": "overpotential_v is recorded",
                         "independent_verification_required": True,
-                    }
+                    },
+                    {
+                        "id": "custody-proof",
+                        "operation_id": "transfer-sample",
+                        "output_port_ids": ["sample.state.transferred"],
+                        "minimum_evidence_class": "simulator",
+                        "acceptance_rule": "sample identity is recorded after each transfer",
+                        "independent_verification_required": True,
+                    },
                 ],
             },
             "inputs": [

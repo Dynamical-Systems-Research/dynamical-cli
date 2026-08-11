@@ -189,10 +189,22 @@ def _select_capability_binding(
         for binding in candidates
         if capability_constraint_ids & _binding_safety_limit_ids(binding)
     ]
-    if len(matches) == 1:
-        return matches[0]
-    if len(matches) == 0:
+    if not matches:
         return None
+    identities = {
+        (
+            str(binding.get("operation_id") or ""),
+            str(binding.get("provider_id") or ""),
+            str(binding.get("endpoint_id") or ""),
+            str(binding.get("evidence_class") or ""),
+            tuple(sorted(_binding_safety_limit_ids(binding))),
+        )
+        for binding in matches
+    }
+    if len(identities) == 1:
+        # A campaign can select the same admitted operation more than once with
+        # different parameters. Those steps share one facility capability.
+        return matches[0]
     raise ValueError(
         f"capability {capability.get('id')!r} shares a device with sibling capabilities "
         "and cannot be unambiguously matched to one selected operation binding"
