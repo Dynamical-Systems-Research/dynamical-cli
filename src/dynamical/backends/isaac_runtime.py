@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib
 import json
 import socket
 import sys
@@ -195,11 +196,22 @@ def _prim_snapshot(action: dict[str, Any], stage: Any, config: dict[str, Any]) -
 
 def _instrument_modules(pack: dict[str, Any]) -> tuple[Any, Any]:
     runtime = pack["root"] / pack["backend"]["instrument_runtime"]
-    if str(runtime) not in sys.path:
-        sys.path.insert(0, str(runtime))
-    from dynamical_runtime import instruments, samples
-
-    return instruments, samples
+    runtime_path = str(runtime)
+    loaded = sys.modules.get("dynamical_runtime.instruments")
+    if loaded is not None and not str(getattr(loaded, "__file__", "")).startswith(
+        f"{runtime_path}/"
+    ):
+        for name in tuple(sys.modules):
+            if name == "dynamical_runtime" or name.startswith("dynamical_runtime."):
+                del sys.modules[name]
+    if runtime_path in sys.path:
+        sys.path.remove(runtime_path)
+    sys.path.insert(0, runtime_path)
+    importlib.invalidate_caches()
+    return (
+        importlib.import_module("dynamical_runtime.instruments"),
+        importlib.import_module("dynamical_runtime.samples"),
+    )
 
 
 def _model_inputs(binding: dict[str, Any], state: dict[str, Any]) -> dict[str, Any]:
