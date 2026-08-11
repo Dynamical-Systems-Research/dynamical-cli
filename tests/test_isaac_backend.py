@@ -3,6 +3,7 @@
 import json
 import os
 import subprocess
+from copy import deepcopy
 from pathlib import Path
 
 import pytest
@@ -113,6 +114,8 @@ def test_compiled_instrument_runtime_returns_scientific_feedback(
     compiled_electrodeposition_coverage_world,
 ):
     from dynamical.backends.compiled_runtime import verify_compiled_pack
+    from dynamical.campaign import CampaignValidationError
+    from dynamical.replay import _expected_snapshot_channels
 
     pack = verify_compiled_pack(compiled_electrodeposition_coverage_world)
     launcher = __import__("dynamical.backends.isaac_runtime", fromlist=["execute_action"])
@@ -128,6 +131,21 @@ def test_compiled_instrument_runtime_returns_scientific_feedback(
     )
     assert overpotential["value"] is not None
     assert overpotential["origin"] == "source_model"
+
+    replay_state = {}
+    for action, outcome in zip(pack["campaign"]["actions"], outcomes, strict=True):
+        snapshot = deepcopy(outcome["snapshot"])
+        if action["action_id"] == "measure":
+            target = next(
+                channel
+                for channel in snapshot["observation_channels"]
+                if channel["name"] == "squidstat.overpotential_v"
+            )
+            target["value"] += 1.0
+            with pytest.raises(CampaignValidationError, match="admitted instrument runtime"):
+                _expected_snapshot_channels(snapshot, action, pack, replay_state)
+            break
+        _expected_snapshot_channels(snapshot, action, pack, replay_state)
 
 
 def test_paired_channels_uses_the_declared_binding_not_list_position():

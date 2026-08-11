@@ -145,6 +145,7 @@ def _expected_snapshot_channels(
     snapshot: Mapping[str, Any],
     action: Mapping[str, Any],
     pack: Mapping[str, Any],
+    scientific_state: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Reconstruct one action's expected observation channels from its raw backend snapshot.
 
@@ -199,6 +200,22 @@ def _expected_snapshot_channels(
     snapshot_channels = snapshot.get("observation_channels")
     if not isinstance(snapshot_channels, list) or not snapshot_channels:
         raise CampaignValidationError("raw embodied snapshot has no observation channels")
+    if scientific_state is not None:
+        from .backends.isaac_runtime import _channels, _execute_instrument
+
+        instrument = _execute_instrument(dict(pack), dict(action), scientific_state)
+        expected = _channels(
+            dict(snapshot),
+            dict(backend),
+            provider_id=provider_id,
+            evidence_class=evidence_class,
+            instrument=instrument,
+        )
+        if snapshot_channels != expected:
+            raise CampaignValidationError(
+                "raw model channels differ from the admitted instrument runtime"
+            )
+        return expected
     channels: list[dict[str, Any]] = []
     for raw_channel in snapshot_channels:
         if not isinstance(raw_channel, Mapping):
@@ -246,6 +263,7 @@ def _verify_raw_snapshot_bindings(
         raise CampaignValidationError("runtime receipt has no raw observation artifacts")
     matched: set[str] = set()
     previous_action: Mapping[str, Any] | None = None
+    scientific_state: dict[str, Any] = {}
     for event in events:
         if event.get("event_type") == "action":
             action = event.get("action")
@@ -284,7 +302,7 @@ def _verify_raw_snapshot_bindings(
                 if not isinstance(observation, Mapping):
                     raise CampaignValidationError("runtime observation is invalid")
                 if observation.get("channels") != _expected_snapshot_channels(
-                    snapshot, previous_action, pack
+                    snapshot, previous_action, pack, scientific_state
                 ):
                     raise CampaignValidationError(
                         "runtime trace channels differ from the receipt-bound raw snapshot"
