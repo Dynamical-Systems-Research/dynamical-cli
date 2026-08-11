@@ -1516,15 +1516,14 @@ def _facility_contract(
         for raw_provider in _require_list(facility_ir.get(group), f"facility IR.{group}"):
             provider = _require_mapping(raw_provider, f"facility IR.{group} item")
             provider_ids.add(_require_string(provider.get("id"), f"facility IR.{group}.id"))
-            if group == "devices":
-                for raw_channel in _require_list(
-                    provider.get("state_channels"), "facility IR device.state_channels"
-                ):
-                    channel = _require_mapping(raw_channel, "facility IR state channel")
-                    channel_id = _require_string(channel.get("id"), "state channel.id")
-                    unit = _require_string(channel.get("unit"), "state channel.unit")
-                    channels.add(channel_id)
-                    channel_units[channel_id] = unit
+            for raw_channel in _require_list(
+                provider.get("state_channels"), f"facility IR.{group}.state_channels"
+            ):
+                channel = _require_mapping(raw_channel, "facility IR state channel")
+                channel_id = _require_string(channel.get("id"), "state channel.id")
+                unit = _require_string(channel.get("unit"), "state channel.unit")
+                channels.add(channel_id)
+                channel_units[channel_id] = unit
     for raw_material in _require_list(
         facility_ir.get("material_states"), "facility IR.material_states"
     ):

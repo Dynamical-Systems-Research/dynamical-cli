@@ -359,7 +359,11 @@ def action_schema(document: FacilityDocument) -> dict[str, Any]:
 
 def observation_schema(document: FacilityDocument) -> dict[str, Any]:
     channels = sorted(
-        {channel.id for device in document.devices for channel in device.state_channels}
+        {
+            channel.id
+            for provider in [*document.devices, *document.agents]
+            for channel in provider.state_channels
+        }
         | {
             channel.channel_id
             for material in document.material_states

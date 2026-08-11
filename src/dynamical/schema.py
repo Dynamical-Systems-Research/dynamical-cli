@@ -184,6 +184,7 @@ class Agent(StrictModel):
     asset_id: Identifier
     capability_ids: list[Identifier] = Field(min_length=1)
     action_endpoint_id: Identifier
+    state_channels: list[ChannelSpec] = Field(default_factory=list)
 
 
 class ParameterSpec(StrictModel):
@@ -799,7 +800,9 @@ class FacilityDocument(StrictModel):
         evidence_ids = ids_by_kind["calibration evidence"]
         providers = ids_by_kind["device"] | ids_by_kind["agent"]
         channel_declarations = [
-            channel.id for device in self.devices for channel in device.state_channels
+            channel.id
+            for provider in [*self.devices, *self.agents]
+            for channel in provider.state_channels
         ] + [
             value.channel_id
             for material in self.material_states

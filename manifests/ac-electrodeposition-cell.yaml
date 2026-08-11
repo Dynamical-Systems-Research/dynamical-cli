@@ -743,6 +743,13 @@ agents:
   capability_ids:
   - transfer-sample-capability
   action_endpoint_id: ac-transfer-action-endpoint
+  state_channels:
+  - id: transfer.sample_station_id
+    value_type: string
+    unit: '1'
+  - id: transfer.arrival_confirmed
+    value_type: boolean
+    unit: '1'
 capabilities:
 - id: dispense-electrolyte-capability
   provider_id: ot2-device
@@ -886,7 +893,12 @@ capabilities:
   - name: to_station
     value_type: string
     required: true
-  observation_channel_ids: []
+  observation_channel_ids:
+  - transfer.sample_station_id
+  - transfer.arrival_confirmed
+  reported_output_port_ids:
+    transfer.sample_station_id: instrument.sample_station_id
+    transfer.arrival_confirmed: instrument.arrival_confirmed
   precondition_constraint_ids: []
   postcondition_constraint_ids: []
 - id: clean-electrode-capability

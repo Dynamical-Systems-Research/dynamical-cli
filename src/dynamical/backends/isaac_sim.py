@@ -162,13 +162,14 @@ def _channel_bindings(document: Any) -> dict[str, dict[str, str | None]]:
     """
 
     bindings: dict[str, dict[str, str | None]] = {}
-    for device in records(document, "devices"):
-        asset_id = str(device.get("asset_id") or "") or None
-        for channel in device.get("state_channels", []):
-            if isinstance(channel, dict) and channel.get("id"):
-                _record_channel(
-                    bindings, str(channel["id"]), str(channel.get("unit", "1")), asset_id
-                )
+    for group in ("devices", "agents"):
+        for provider in records(document, group):
+            asset_id = str(provider.get("asset_id") or "") or None
+            for channel in provider.get("state_channels", []):
+                if isinstance(channel, dict) and channel.get("id"):
+                    _record_channel(
+                        bindings, str(channel["id"]), str(channel.get("unit", "1")), asset_id
+                    )
     for material in records(document, "material_states"):
         for channel in material.get("initial_channels", []):
             if isinstance(channel, dict) and channel.get("channel_id"):

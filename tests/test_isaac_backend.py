@@ -121,6 +121,7 @@ def test_compiled_instrument_runtime_returns_scientific_feedback(
         launcher.execute_action(pack, action, scientific_state=state)
         for action in pack["campaign"]["actions"]
     ]
+    assert all(outcome["channels"] for outcome in outcomes)
     channels = [channel for outcome in outcomes for channel in outcome["channels"]]
     overpotential = next(
         channel for channel in channels if channel["name"] == "squidstat.overpotential_v"

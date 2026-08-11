@@ -495,9 +495,10 @@ def verify_compiled_pack(compiled_world: str | Path) -> dict[str, Any]:
 
     facility_channels = {
         str(channel.get("id"))
-        for device in facility.get("devices", [])
-        if isinstance(device, dict)
-        for channel in device.get("state_channels", [])
+        for group in ("devices", "agents")
+        for provider in facility.get(group, [])
+        if isinstance(provider, dict)
+        for channel in provider.get("state_channels", [])
         if isinstance(channel, dict)
     } | {
         str(channel.get("channel_id"))
