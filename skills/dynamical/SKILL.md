@@ -21,6 +21,15 @@ Before authoring an unfamiliar requirement, inspect its public schema:
 dynamical compose --schema
 ```
 
+For one mobile sample, declare one `sample_state` campaign input with a stable
+sample ID. Materialize it with an initial `transfer-sample` step, bind later
+`sample.state` inputs to the original campaign input, and express chronology
+with `depends_on`. Add explicit `transfer-sample` steps before workstation
+changes. Omit `facility_id` for the mobile sample. Do not thread
+`sample.state.transferred` through every later step or add implicit transport
+to a route that already contains explicit transfer steps; Dynamical carries
+the current state and location by sample identity.
+
 Use these five commands:
 
 - `dynamical capabilities` inspects capabilities, providers, and their admission states.
@@ -30,6 +39,15 @@ Use these five commands:
 - `dynamical validate` validates a composition, compiled world, trace, replay, or decision.
 
 Inspect the relevant command with `--help` before use.
+
+Replay a simulator trace directly:
+
+```bash
+dynamical run trace.ndjson --mode replay -o replay.ndjson
+```
+
+For an embodied trace, also pass both `--compiled-world` and
+`--runtime-receipt`; one binding without the other is invalid.
 
 Run long simulations as background jobs. Poll their logs and process state, and check the final exit status before using their outputs.
 
