@@ -1,6 +1,6 @@
 {
   "name": "dynamical",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Build and run verified virtual labs from real facility capabilities.",
   "author": {
     "name": "Dynamical Systems Research",
