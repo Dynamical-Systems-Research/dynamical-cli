@@ -1574,9 +1574,9 @@ calibration_evidence:
   - Held-out labels are predominantly single physical runs; the certified replicate noise floor (20.8 mV median within-replicate SD) bounds achievable residuals.
   - The interval half-width (0.104969 V at 90% target coverage) reflects split-conformal calibration on 22 development compositions.
   split_rule_ref: registries/calibration/fastcat-oer/calibration_report.json
-  split_rule_sha256: 125eca4ab7720e2434ccd5e30886cf42d03fdcf679b2e30e078ab9f10884cac4
+  split_rule_sha256: 2436f7036f4e46dd19dc335a55743882dc264f3368f87eeb3a922c3ebcd8edc5
   fit_artifact_ref: registries/calibration/fastcat-oer/prediction_table.json
-  fit_artifact_sha256: 6f2d0489e67a71bf26a5ed87551792b9d370ddf242fa7d6dd3482585df0b0b3b
+  fit_artifact_sha256: 098245794ec3925a16777b3df18eb9fcaf06816588f46cd562dbd8b957fb2728
 - id: ampere2-oer-cp-2050
   source_artifact_ref: https://doi.org/10.11583/DTU.27446925 (Data.zip, MIT license, retrieved 2026-08-10)
   source_sha256: 649c5a8269e773371a6fcdc14db4d72166dbeb697fc49b66a89991fbdd44e736

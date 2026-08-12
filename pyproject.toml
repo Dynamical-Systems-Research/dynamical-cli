@@ -50,7 +50,8 @@ packages = ["src/dynamical"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "THIRD_PARTY_NOTICES.md" = "dynamical/data/THIRD_PARTY_NOTICES.md"
-"registries/calibration/ampere2-oer" = "dynamical/data/calibration/ampere2-oer"
+"registries/calibration/ampere2-oer",
+  "registries/calibration/fastcat-oer" = "dynamical/data/calibration/ampere2-oer"
 "registries/electrodeposition-capabilities.yaml" = "dynamical/data/electrodeposition-capabilities.yaml"
 "registries/electrodeposition-source-lock.json" = "dynamical/data/electrodeposition-source-lock.json"
 "manifests/ac-electrodeposition-cell.yaml" = "dynamical/data/ac-electrodeposition-cell.yaml"
