@@ -488,7 +488,7 @@ def test_missing_cli_inputs_name_the_absent_path(tmp_path: Path, capsys) -> None
 
 
 def test_only_dynamical_console_script_is_published() -> None:
-    package = distribution("dynamical")
+    package = distribution("dynamical-cli")
     scripts = {
         (entry.name, entry.value)
         for entry in package.entry_points
