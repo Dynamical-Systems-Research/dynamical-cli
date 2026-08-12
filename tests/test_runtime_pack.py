@@ -207,7 +207,8 @@ def test_model_backed_operations_reach_the_isaac_runtime_pack(tmp_path):
     whose device declares no adapter link for this operation is still bound.
     """
 
-    campaign = json.loads((_compile_model_backed_world(tmp_path) / "runtime_campaign.json").read_text())
+    world = _compile_model_backed_world(tmp_path)
+    campaign = json.loads((world / "runtime_campaign.json").read_text())
     kinds = {action["kind"] for action in campaign["actions"]}
     assert "deposit" in kinds, "deposit-chemical-bath did not reach the runtime pack"
     assert "measure" in kinds, "measure-oer did not reach the runtime pack"
@@ -216,7 +217,8 @@ def test_model_backed_operations_reach_the_isaac_runtime_pack(tmp_path):
 def test_model_backed_actions_keep_their_admitted_provider(tmp_path):
     """Resolving the capability must not reassign the admitted provider."""
 
-    campaign = json.loads((_compile_model_backed_world(tmp_path) / "runtime_campaign.json").read_text())
+    world = _compile_model_backed_world(tmp_path)
+    campaign = json.loads((world / "runtime_campaign.json").read_text())
     providers = {action["kind"]: action["provider_id"] for action in campaign["actions"]}
     assert providers["deposit"] == "ac-bath-simulator"
     assert providers["measure"] == "ac-oer-twin"
@@ -247,7 +249,8 @@ def test_model_backed_campaign_leaves_physical_authority_on_hold(tmp_path):
 
     from dynamical.schema import load_capability_registry
 
-    physical = [p for p in load_capability_registry(REGISTRY).providers if p.evidence_class == "physical"]
+    registry = load_capability_registry(REGISTRY)
+    physical = [p for p in registry.providers if p.evidence_class == "physical"]
     assert physical, "the registry must still declare physical counterparts"
     assert all(p.admission.status == "pending" for p in physical)
     assert all(not p.policy.permitted for p in physical)
