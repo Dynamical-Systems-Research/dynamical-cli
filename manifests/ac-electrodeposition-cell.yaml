@@ -1541,6 +1541,37 @@ calibration_evidence:
   condition_domain:
     squidstat.current_density_a_cm2: exactly 0.010 A/cm^2 (calibrated basis; chronopotentiometry tail medians per the frozen protocol)
     squidstat.overpotential_v: predicted only for the 72 frozen-table compositions under the frozen per-pool conditioning; one-time sealed validation passed 9/9 predeclared gates (MAE 22.2 mV)
+  validation_design: cross_condition
+  metrics:
+  - name: held-out-e10-mae
+    value: 0.022209
+    unit: V
+    split: independent_test
+    threshold: 0.045
+    comparator: le
+  - name: uncertainty-coverage-conformal90
+    value: 0.963
+    unit: '1'
+    split: independent_test
+    threshold: 0.85
+    comparator: ge
+  - name: candidate-order-spearman
+    value: 0.86
+    unit: '1'
+    split: independent_test
+    threshold: 0.35
+    comparator: ge
+  - name: top3-retrieval
+    value: 0.823
+    unit: '1'
+    split: independent_test
+    threshold: 0.45
+    comparator: ge
+  limitations:
+  - The calibrated basis is exactly 0.010 A/cm^2; no other current density is predicted.
+  - Predictions exist only for the 72 frozen-table compositions under the frozen per-pool conditioning; all other compositions are refused.
+  - Held-out labels are predominantly single physical runs; the certified replicate noise floor (20.8 mV median within-replicate SD) bounds achievable residuals.
+  - The interval half-width (0.104969 V at 90% target coverage) reflects split-conformal calibration on 22 development compositions.
   split_rule_ref: registries/calibration/fastcat-oer/calibration_report.json
   split_rule_sha256: 125eca4ab7720e2434ccd5e30886cf42d03fdcf679b2e30e078ab9f10884cac4
   fit_artifact_ref: registries/calibration/fastcat-oer/prediction_table.json
