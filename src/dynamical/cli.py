@@ -33,7 +33,7 @@ DEFAULT_FACILITY = (
 )
 
 try:
-    _VERSION = _package_version("dynamical")
+    _VERSION = _package_version("dynamical-cli")
 except PackageNotFoundError:
     _VERSION = "0+unknown"
 
