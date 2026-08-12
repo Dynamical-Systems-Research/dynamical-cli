@@ -66,7 +66,9 @@ from . import (  # noqa: E402,F401
     ac_cleaning,
     ac_echem_cell,
     ac_oer,
+    ac_oer_twin,
     ac_opentron,
     ac_potentiostat,
+    ac_bath,
     transfer,
 )
