@@ -90,9 +90,13 @@ jobs:
           import sys
           from pathlib import Path
           sys.path.insert(0, 'tests')
-          from _fixtures import write_reference_requirement
+          import yaml
+          from test_electrodeposition_registry import _coverage_requirement
           import os
-          write_reference_requirement(Path(os.environ['RUNNER_TEMP']) / 'requirement.yaml')
+          requirement = _coverage_requirement().model_dump(mode='json', exclude_none=True)
+          (Path(os.environ['RUNNER_TEMP']) / 'requirement.yaml').write_text(
+              yaml.safe_dump(requirement, sort_keys=False), encoding='utf-8'
+          )
           "
           cd "$RUNNER_TEMP"
           "$smoke_venv/bin/dynamical" --version
