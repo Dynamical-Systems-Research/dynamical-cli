@@ -13,8 +13,6 @@ autoresearch.
 The current release runs virtual labs and calibrated digital twins. Physical
 execution requires a facility integration and approval.
 
-![Dynamical system architecture, from instrument onboarding to virtual and physical SDL execution](https://raw.githubusercontent.com/Dynamical-Systems-Research/dynamical-cli/main/docs/images/dynamical-system-architecture.png)
-
 ## Quickstart
 
 Install the CLI with Python 3.11 or later:
