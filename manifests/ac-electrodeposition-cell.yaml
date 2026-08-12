@@ -1033,7 +1033,7 @@ model_bindings:
   calibration_evidence_ids: []
 - id: ac-oer-twin-model
   implementation_ref: src/dynamical/instruments/ac_oer_twin.py
-  implementation_sha256: 5be21e2b21865aaaf771da4babb030c48857355009fdec00183fd54e7637fe01
+  implementation_sha256: 9a9bc1a55305fcc602bbff547cb68fc6ac4ca023e6783dc21944d8960dbd3309
   input_channel_map: {}
   output_channel_map: {}
   parameter_map:

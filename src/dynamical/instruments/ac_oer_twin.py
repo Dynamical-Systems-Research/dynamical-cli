@@ -149,7 +149,7 @@ def measure_oer_twin(request: InstrumentRequest) -> InstrumentResult:
     )
     match = None
     for key, value in PREDICTED_E10_V.items():
-        if all(abs(a - b) <= MATCH_TOLERANCE for a, b in zip(key, composition)):
+        if all(abs(a - b) <= MATCH_TOLERANCE for a, b in zip(key, composition, strict=True)):
             match = value
             break
     if match is None:

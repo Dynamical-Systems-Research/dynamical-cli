@@ -221,6 +221,7 @@ def test_backend_runtime_pack_verifies_all_compiler_artifacts(
         "aliquot",
         "clean",
         "condition",
+        "deposit",
         "dispense",
         "electrodeposit",
         "load",

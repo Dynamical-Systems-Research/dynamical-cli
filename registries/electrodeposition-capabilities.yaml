@@ -1,6 +1,6 @@
 document_type: dynamical.capability-registry
 schema_version: 0.1.0
-registry_id: dynamical-ac-electrodeposition-capabilities-20260812
+registry_id: dynamical-ac-electrodeposition-capabilities-20260811
 capabilities:
   - operation_id: dispense-electrolyte
     kind: scientific

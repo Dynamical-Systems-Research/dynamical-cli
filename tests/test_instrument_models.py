@@ -250,3 +250,64 @@ def test_transfer_refuses_a_missing_destination():
     result = model(_request(sample_id="sample-1"))
     assert any(r.code == "PARAMETER_OUT_OF_ENVELOPE" for r in result.reasons)
     assert result.sample is None
+
+
+def _bath_sample() -> Sample:
+    return Sample(id="film-under-test", station_id="ac-bath-station",
+                  custody_state="held", quantity=1.0, unit="1",
+                  created_by_step_id="prepare", state={})
+
+
+def _twin_table_entry() -> tuple[dict[str, float], float]:
+    import json
+    from importlib import resources
+    from pathlib import Path
+    packaged = resources.files("dynamical").joinpath(
+        "data/calibration/fastcat-oer/prediction_table.json")
+    repo = (Path(__file__).resolve().parents[1]
+            / "registries/calibration/fastcat-oer/prediction_table.json")
+    text = packaged.read_text() if packaged.is_file() else repo.read_text()
+    entry = json.loads(text)["entries"][0]
+    return entry["composition"], entry["predicted_e10_v"]
+
+
+def test_bath_deposits_requested_fractions_onto_the_sample():
+    model = instruments.resolve("deposit-chemical-bath", "ac-bath-simulator")
+    result = model(_request(sample=_bath_sample(), fraction_ni=0.5, fraction_fe=0.5))
+    assert result.outputs["deposited_fraction_Ni"] == 0.5
+    assert result.outputs["bath_synthesis_time_s"] is not None
+    assert result.sample.state["deposited_fraction_Fe"] == 0.5
+
+
+def test_bath_admits_recorded_boundary_sums_and_refuses_violations():
+    model = instruments.resolve("deposit-chemical-bath", "ac-bath-simulator")
+    for ni, fe in ((0.499, 0.499), (0.5, 0.501)):  # sums 0.998 / 1.001 as recorded
+        ok = model(_request(sample=_bath_sample(), fraction_ni=ni, fraction_fe=fe))
+        assert ok.outputs["deposited_fraction_Ni"] == ni
+    for bad in ({"fraction_ni": 0.95}, {"fraction_ni": 1.2, "fraction_fe": -0.2}):
+        refused = model(_request(sample=_bath_sample(), **bad))
+        assert refused.outputs["deposited_fraction_Ni"] is None
+        assert any(r.code == "PARAMETER_OUT_OF_ENVELOPE" for r in refused.reasons)
+
+
+def test_twin_reports_table_prediction_with_declared_uncertainty():
+    composition, e10 = _twin_table_entry()
+    bath = instruments.resolve("deposit-chemical-bath", "ac-bath-simulator")
+    fractions = {f"fraction_{el.lower()}": v for el, v in composition.items()}
+    film = bath(_request(sample=_bath_sample(), **fractions)).sample
+    twin = instruments.resolve("measure-oer", "ac-oer-twin")
+    result = twin(_request(sample=film, current_density_a_cm2=0.010))
+    assert result.outputs["overpotential_v"] == pytest.approx(e10 - 1.229)
+    assert result.uncertainty["overpotential_v"] == pytest.approx(0.104969)
+
+
+def test_twin_fails_closed_off_basis_and_out_of_domain():
+    twin = instruments.resolve("measure-oer", "ac-oer-twin")
+    bath = instruments.resolve("deposit-chemical-bath", "ac-bath-simulator")
+    film = bath(_request(sample=_bath_sample(), fraction_ni=1.0)).sample
+    off_basis = twin(_request(sample=film, current_density_a_cm2=0.020))
+    assert off_basis.outputs["overpotential_v"] is None
+    unknown = bath(_request(sample=_bath_sample(), fraction_cu=0.5, fraction_zn=0.5)).sample
+    out_of_domain = twin(_request(sample=unknown, current_density_a_cm2=0.010))
+    assert out_of_domain.outputs["overpotential_v"] is None
+    assert any(r.code == "PARAMETER_OUT_OF_ENVELOPE" for r in out_of_domain.reasons)
