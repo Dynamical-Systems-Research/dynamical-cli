@@ -1,7 +1,7 @@
 {
   "name": "dynamical",
-  "version": "0.1.2",
-  "description": "Compile and validate objective-driven virtual laboratory campaigns with Dynamical.",
+  "version": "0.1.4",
+  "description": "Build and run verified virtual labs from real facility capabilities.",
   "author": {
     "name": "Dynamical Systems Research",
     "url": "https://github.com/Dynamical-Systems-Research"
@@ -11,15 +11,15 @@
   "license": "Apache-2.0",
   "keywords": [
     "dynamical",
-    "scientific-agents",
+    "materials-research",
     "virtual-laboratories",
     "research"
   ],
   "skills": "./skills/",
   "interface": {
     "displayName": "Dynamical",
-    "shortDescription": "Compile and validate virtual laboratory campaigns",
-    "longDescription": "Use Dynamical to inspect admitted scientific capabilities, compose objective-driven campaigns, compile provider artifacts, run simulation or replay, and validate evidence.",
+    "shortDescription": "Build and run verified virtual labs",
+    "longDescription": "Use Dynamical to inspect facility capabilities, compose research campaigns, run virtual labs, and validate the resulting evidence.",
     "developerName": "Dynamical Systems Research",
     "category": "Research",
     "capabilities": [

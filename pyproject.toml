@@ -5,11 +5,28 @@ build-backend = "hatchling.build"
 [project]
 name = "dynamical-cli"
 version = "0.1.4"
-description = "Compile declarative laboratory facilities into backend-independent execution artifacts."
+description = "Build verified virtual labs from real facility capabilities for materials R&D."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
 authors = [{ name = "Dynamical Systems Research" }]
+keywords = [
+  "materials research",
+  "physical autoresearch",
+  "self-driving laboratories",
+  "digital twins",
+  "OpenUSD",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering",
+]
 dependencies = [
   "pydantic>=2.11,<3",
   "PyYAML>=6.0,<7",
@@ -19,6 +36,7 @@ dependencies = [
 Homepage = "https://github.com/Dynamical-Systems-Research/dynamical-cli"
 Repository = "https://github.com/Dynamical-Systems-Research/dynamical-cli"
 Issues = "https://github.com/Dynamical-Systems-Research/dynamical-cli/issues"
+Documentation = "https://github.com/Dynamical-Systems-Research/dynamical-cli#readme"
 
 [project.optional-dependencies]
 dev = [
