@@ -47,7 +47,14 @@ capabilities:
     input_ports:
       - {id: sample.state, state_type: sample_state, unit: "1", required: true, description: "The Ni-foam sample this bath deposition acts on. Deposition writes the recorded nominal composition onto this state; no new sample.state identity is produced."}
     output_ports:
+      - {id: deposited_fraction_Cr, state_type: number, unit: "1", required: true, description: Recorded Cr dopant fraction of the deposited film.}
+      - {id: deposited_fraction_Al, state_type: number, unit: "1", required: true, description: Recorded Al dopant fraction of the deposited film.}
+      - {id: deposited_fraction_Fe, state_type: number, unit: "1", required: true, description: Recorded Fe dopant fraction of the deposited film.}
+      - {id: deposited_fraction_Co, state_type: number, unit: "1", required: true, description: Recorded Co dopant fraction of the deposited film.}
+      - {id: deposited_fraction_Mn, state_type: number, unit: "1", required: true, description: Recorded Mn dopant fraction of the deposited film.}
       - {id: deposited_fraction_Ni, state_type: number, unit: "1", required: true, description: Recorded Ni dopant fraction of the deposited film.}
+      - {id: deposited_fraction_Cu, state_type: number, unit: "1", required: true, description: Recorded Cu dopant fraction of the deposited film.}
+      - {id: deposited_fraction_Zn, state_type: number, unit: "1", required: true, description: Recorded Zn dopant fraction of the deposited film.}
       - {id: bath_synthesis_time_s, state_type: number, unit: s, required: true, description: Delivered bath synthesis time.}
     parameters:
       - {name: fraction_cr, value_type: number, unit: "1", required: false, minimum: 0.0, maximum: 1.0}
