@@ -659,6 +659,7 @@ devices:
   capability_ids:
   - dispense-electrolyte-capability
   - aliquot-to-well-capability
+  - deposit-chemical-bath-capability
 - id: arduino-device
   asset_id: arduino-controller-body
   state_channels:
