@@ -495,6 +495,9 @@ def test_only_dynamical_console_script_is_published() -> None:
         if entry.group == "console_scripts"
     }
     assert scripts == {("dynamical", "dynamical.cli:main")}
+    from dynamical.cli import _VERSION
+
+    assert package.version == _VERSION
     dependencies = "\n".join(package.requires or []).lower()
     assert "openai" not in dependencies
     assert "anthropic" not in dependencies
