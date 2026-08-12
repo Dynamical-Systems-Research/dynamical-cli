@@ -935,7 +935,7 @@ capabilities:
     value_type: number
     unit: A/cm^2
     required: true
-    minimum: 0.02
+    minimum: 0.01
     maximum: 0.05
   observation_channel_ids:
   - squidstat.current_density_a_cm2

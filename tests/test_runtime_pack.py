@@ -224,17 +224,52 @@ def test_model_backed_actions_keep_their_admitted_provider(tmp_path):
     assert providers["measure"] == "ac-oer-twin"
 
 
-def test_capability_without_a_declared_contract_fails_closed():
-    """An unresolvable capability mapping fails closed rather than guessing."""
+def test_contract_resolution_declines_when_missing_or_ambiguous():
+    """The contract resolver returns nothing rather than guessing a pairing.
 
-    import pytest
+    Declining leaves the operation unbound, which fails closed upstream. Two
+    real capabilities declare the same contract -- dispense-electrolyte and
+    aliquot-to-well both take (chemical, volume_ml) and report the same two
+    volumes -- so a match must be unique in both directions to be used.
+    """
 
-    from dynamical.backends._runtime_pack import _resolve_action_kind
+    from dynamical.backends._runtime_pack import _select_by_declared_contract
 
-    with pytest.raises(ValueError, match="no facility-declared action type binding"):
-        _resolve_action_kind("unmapped-operation", {})
-    with pytest.raises(ValueError, match="multiple facility action types"):
-        _resolve_action_kind("ambiguous-operation", {"ambiguous-operation": {"deposit", "measure"}})
+    binding = {
+        "operation_id": "aliquot-to-well",
+        "capability_contract": {
+            "parameters": [{"name": "chemical"}, {"name": "volume_ml"}],
+            "output_ports": [{"id": "volume_applied_ml"}, {"id": "volume_requested_ml"}],
+        },
+    }
+    aliquot = {
+        "id": "aliquot-to-well-capability",
+        "parameters": [{"name": "chemical"}, {"name": "volume_ml"}],
+        "reported_output_port_ids": {"device.volume_applied_ml": "volume_applied_ml"},
+    }
+    dispense = dict(aliquot, id="dispense-electrolyte-capability")
+    contractless = {
+        "id": "contractless-capability",
+        "parameters": [],
+        "reported_output_port_ids": {},
+    }
+
+    # Nothing declared to match on.
+    assert (
+        _select_by_declared_contract(contractless, [binding], sibling_capabilities=[contractless])
+        is None
+    )
+    # A rival capability declares the same contract, so the pairing is not unique.
+    assert (
+        _select_by_declared_contract(aliquot, [binding], sibling_capabilities=[aliquot, dispense])
+        is None
+    )
+    # No binding carries a contract this capability projects into.
+    assert _select_by_declared_contract(aliquot, [], sibling_capabilities=[aliquot]) is None
+    # Unique in both directions, so the selected binding is returned.
+    assert (
+        _select_by_declared_contract(aliquot, [binding], sibling_capabilities=[aliquot]) is binding
+    )
 
 
 def test_model_backed_campaign_leaves_physical_authority_on_hold(tmp_path):
