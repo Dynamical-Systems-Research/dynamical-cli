@@ -1,27 +1,64 @@
-# Dynamical
+# Dynamical CLI
 
 [![Release](https://img.shields.io/pypi/v/dynamical-cli.svg?label=release)](https://pypi.org/project/dynamical-cli/)
 [![CI](https://github.com/Dynamical-Systems-Research/dynamical-cli/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Dynamical-Systems-Research/dynamical-cli/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://pypi.org/project/dynamical-cli/)
 [![License](https://img.shields.io/pypi/l/dynamical-cli.svg)](https://github.com/Dynamical-Systems-Research/dynamical-cli/blob/main/LICENSE)
 
-Dynamical helps materials R&D teams assemble verified virtual labs from real
-facility capabilities, explore research campaigns, and run approved physical
-experiments through one interface. It is infrastructure for physical
-autoresearch.
+Dynamical CLI is an open-source execution interface for scientific agents and
+facilities. It lets agents compose executable virtual laboratories from admitted
+capabilities, run campaigns, and route physical requests through a fail-closed
+authority gate.
 
-The current release runs virtual labs and calibrated digital twins. Physical
-execution requires a facility integration and approval.
+Virtual laboratories let agents explore counterfactual campaigns, learn how
+instruments and workflows behave, and generate model-derived observations and
+verified execution trajectories. Connected facilities can then supply the
+physical evidence that virtual environments cannot establish.
 
-## Quickstart
+Dynamical is designed for agent use. The Codex plugin and portable Agent Skill
+supply the operating interface. The Python package supplies the runtime.
 
-Install the CLI with Python 3.11 or later:
+## See the virtual laboratory run
+
+https://github.com/user-attachments/assets/01cbd9b8-33b9-40d7-935b-9b90ab5c8df2
+
+The video pairs a recorded agent campaign with a synchronized Isaac Sim replay.
+The agent composes a multi-instrument campaign, receives a model-generated
+scientific observation, revises its request for a physical experiment, and gets
+`HOLD` because the campaign has no approved physical route.
+
+The replay visualizes the recorded composition in Isaac Sim. It is not a live
+physical execution or a calibrated twin of the full workstation.
+
+## Install for an agent
+
+Install the runtime with Python 3.11 or later:
 
 ```bash
 python -m pip install dynamical-cli
 ```
 
-Download the example campaign and run the full virtual workflow:
+Add the Codex plugin:
+
+```bash
+codex plugin marketplace add Dynamical-Systems-Research/dynamical-cli --json
+codex plugin add dynamical@dynamical-systems-research --json
+```
+
+The plugin gives Codex the `dynamical` skill. The same portable skill can run in
+Claude Code and other compatible agent environments:
+
+```bash
+git clone https://github.com/Dynamical-Systems-Research/dynamical-cli.git
+cd dynamical-cli
+npx skills add . --skill dynamical --global --copy --yes
+```
+
+The repository does not include an MCP server.
+
+## Run a virtual campaign
+
+Download the example requirement and run the complete virtual workflow:
 
 ```bash
 curl -fsSLO https://raw.githubusercontent.com/Dynamical-Systems-Research/dynamical-cli/main/examples/quickstart/requirement.yaml
@@ -37,93 +74,74 @@ The example transfers one sample into an ultrasonic conditioning station and
 runs a bounded virtual process. The trace records each action, observation,
 constraint, sample-state change, cost, and duration.
 
-Use `dynamical compose --schema` before you write a new requirement. Use
+Use `dynamical compose --schema` to inspect the requirement schema. Use
 `dynamical capabilities --operation <operation-id> --json` to inspect the typed
 contract for one operation.
 
-## What Dynamical does
+## How Dynamical works
 
-Dynamical gives a research system five commands:
+Dynamical exposes five commands:
 
-- `capabilities` lists available operations, instrument models, and facility routes.
-- `compose` maps a research requirement to compatible capabilities.
-- `compile` creates a portable virtual lab and its execution contract.
-- `run` executes a virtual campaign or replays a recorded campaign.
-- `validate` checks the result, its provenance, and its execution record.
+- `capabilities` lists operations, providers, and admission states.
+- `compose` binds a research requirement to compatible admitted providers.
+- `compile` creates a target-specific virtual laboratory and execution contract.
+- `run` executes a simulation or replays a recorded campaign.
+- `validate` checks structure, provenance, evidence, and authority.
 
-Each campaign uses the same action, observation, sample-lineage, and evidence
-contracts across virtual and physical routes. A virtual result is simulation or
-digital-twin output. A physical result can only come from an approved facility
-execution.
+The reusable unit is a scientific capability. Each capability declares typed
+inputs, outputs, units, limits, uncertainty, failure states, provenance, and
+execution authority. A provider can bind that contract to a simulator, a
+calibrated instrument model, a read-only facility connection, or an approved
+physical instrument.
+
+The agent controls the scientific objective, experiment parameters, operation
+order, analysis, and stopping decision. Dynamical controls provider admission,
+evidence types, trace integrity, facility policy, and physical authority.
+
+## Portable worlds and trace-bound execution
+
+[OpenUSD](https://openusd.org/release/index.html) carries the portable compiled
+world, including the scene, instrument assets, and campaign composition.
+[NVIDIA Isaac Sim](https://developer.nvidia.com/isaac/sim) supplies the embodied
+visualization layer. Dynamical can compile the same campaign composition for
+each target while preserving the bindings needed to compare and replay it.
+
+Instrument models produce scientific observations. Each model declares its
+inputs, outputs, units, operating range, uncertainty, and evidence class. One
+hash-bound trace connects campaign actions, scene state, observations, sample
+lineage, validation, and replay.
+
+Virtual output remains separate from physical evidence. A physical observation
+can only come from a facility-authorized execution.
 
 ## Instrument onboarding
 
-Dynamical starts with evidence from the instrument and facility:
+The included
+[`dynamical-instrument`](https://github.com/Dynamical-Systems-Research/dynamical-cli/blob/main/skills/dynamical-instrument/SKILL.md)
+skill turns source evidence into a candidate integration. It works from manuals,
+interfaces, calibration records, operating limits, safety controls, facility
+authority, and licensed assets.
 
-- Manuals and operating procedures.
-- APIs, drivers, and simulator interfaces.
-- Operating limits, failure modes, and safety controls.
-- Calibration records and covered operating ranges.
-- CAD, asset provenance, and license rights.
-
-That evidence becomes three reviewable parts:
+An integration contains 3 reviewable parts:
 
 1. An instrument skill that describes capabilities, procedures, limits, and recovery.
-2. An adapter that connects the contract to a simulator or physical instrument.
+2. An adapter that binds the contract to a simulator or physical instrument.
 3. A typed contract for actions, observations, units, state, errors, and provenance.
 
-Conformance tests check the integration. The facility then reviews the proposed
-capabilities, evidence, and execution limits before approval. Approved parts enter
-the verified instrument registry. An integration cannot approve itself.
+Conformance tests check the candidate. The facility decides which capabilities
+and physical routes to approve. An integration cannot admit itself. Missing
+calibration, licensing, safety, or authority remains an explicit review item.
 
-Use the included
-[`dynamical-instrument`](https://github.com/Dynamical-Systems-Research/dynamical-cli/blob/main/skills/dynamical-instrument/SKILL.md)
-skill to prepare a candidate integration from source material. The skill preserves
-missing calibration, licensing, safety, and facility evidence as explicit review
-items.
+## Evidence and authority
 
-## Architecture
+Simulation, calibrated-model output, replay, and physical measurements are
+different evidence classes. Dynamical preserves that distinction in the
+capability registry and campaign trace.
 
-Dynamical is the control plane. It composes capabilities, applies facility policy,
-routes execution, and records evidence.
-
-[OpenUSD](https://openusd.org/release/index.html) is the portable compiled world.
-It carries the facility scene, instrument assets, and composition needed by each
-campaign.
-
-[NVIDIA Isaac Sim](https://developer.nvidia.com/isaac/sim) is the embodied
-execution layer. It runs the compiled scene and connects physical state to the
-campaign contract.
-
-Instrument models produce scientific observations. These models can be simulators,
-calibrated digital twins, or approved facility adapters. Each model declares its
-inputs, outputs, units, limits, uncertainty, and evidence.
-
-One hash-bound trace connects campaign actions, scene state, scientific
-observations, sample lineage, and replay. The trace makes each result inspectable
-without treating virtual output as a physical measurement.
-
-## Agent use
-
-The portable `dynamical` skill lets a research agent inspect capabilities, compose
-a campaign, run it, and validate the returned evidence. Install the CLI and skill
-from the same commit:
-
-```bash
-git clone https://github.com/Dynamical-Systems-Research/dynamical-cli.git
-cd dynamical-cli
-npx skills add . --skill dynamical --global --copy --yes
-dynamical --help
-```
-
-The Codex plugin exposes the same skill:
-
-```bash
-codex plugin marketplace add Dynamical-Systems-Research/dynamical-cli --json
-codex plugin add dynamical@dynamical-systems-research --json
-```
-
-The repository does not include an MCP server.
+Validation confirms that an artifact follows its declared contract. It does not
+establish scientific truth or optimality. Physical execution requires an
+admitted provider, facility policy, and independent approval. A missing route or
+authority record returns a structured `HOLD` receipt.
 
 ## Source and licensing
 
@@ -134,9 +152,9 @@ attribution. See
 [THIRD_PARTY_NOTICES.md](https://github.com/Dynamical-Systems-Research/dynamical-cli/blob/main/THIRD_PARTY_NOTICES.md)
 for details.
 
-Machine-readable source records include artifact hashes, provenance, license
-evidence, and known limits. A packaged derived asset does not replace its original
-source or grant new rights.
+Machine-readable source records bind derived artifacts to source hashes,
+provenance, license evidence, and known limits. A derived asset does not replace
+its source or grant new rights.
 
 ## Development
 
