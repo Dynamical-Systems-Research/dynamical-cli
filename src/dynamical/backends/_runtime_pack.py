@@ -211,6 +211,100 @@ def _select_capability_binding(
     )
 
 
+def _declared_contract(capability: dict[str, Any]) -> tuple[set[str], set[str]] | None:
+    """The parameter names and reported output ports a capability declares."""
+
+    parameters = {
+        str(item.get("name"))
+        for item in capability.get("parameters", [])
+        if isinstance(item, dict) and item.get("name")
+    }
+    outputs = {str(value) for value in (capability.get("reported_output_port_ids") or {}).values()}
+    if not parameters and not outputs:
+        return None
+    return parameters, outputs
+
+
+def _contract_projects_into(contract: tuple[set[str], set[str]], binding: dict[str, Any]) -> bool:
+    """Whether a capability's declared contract projects into a binding's operation contract."""
+
+    operation = binding.get("capability_contract")
+    if not isinstance(operation, dict):
+        return False
+    parameters = {
+        str(item.get("name"))
+        for item in operation.get("parameters", [])
+        if isinstance(item, dict) and item.get("name")
+    }
+    outputs = {
+        str(item.get("id"))
+        for item in operation.get("output_ports", [])
+        if isinstance(item, dict) and item.get("id")
+    }
+    return contract[0] <= parameters and contract[1] <= outputs
+
+
+def _select_by_declared_contract(
+    capability: dict[str, Any],
+    operation_bindings: list[dict[str, Any]] | None,
+    *,
+    sibling_capabilities: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    """Resolve a capability to its selected binding through the declared contracts.
+
+    Endpoint refs alone cannot resolve a model-backed provider. A provider whose
+    work is done by a model -- ``ac-bath-simulator``, ``ac-oer-twin`` -- declares
+    no device-control adapter link, because no device drives it, so no selected
+    binding names its capability's device endpoint. Such a capability resolved
+    only by accident before: when a sibling capability on the same shared device
+    happened to be selected too, and contributed the device endpoint key.
+
+    The action's own selected capability is the authority. A facility capability
+    declares the parameters it accepts and the output ports it reports; the
+    binding carries the operation contract it was selected against. The
+    capability selected for an operation is the one whose declared parameters and
+    reported outputs both project into that operation's contract. This reads only
+    declared contracts -- never physical device endpoints, safety-limit
+    intersections, or workstation placement.
+
+    A capability that declares neither parameters nor reported outputs carries no
+    contract to match on, and a match that is not unique across operations is
+    ambiguous. Both return ``None`` so the caller fails closed rather than
+    guessing, exactly as a missing endpoint resolution does.
+    """
+
+    contract = _declared_contract(capability)
+    if contract is None:
+        return None
+
+    matches = [
+        binding
+        for binding in operation_bindings or []
+        if isinstance(binding, dict) and _contract_projects_into(contract, binding)
+    ]
+    if not matches:
+        return None
+    if len({str(binding.get("operation_id") or "") for binding in matches}) != 1:
+        return None
+
+    # The pairing must be unique in both directions. Two capabilities can declare
+    # the same contract -- dispense-electrolyte and aliquot-to-well both take
+    # (chemical, volume_ml) and report the same volumes -- and nothing in the
+    # declared data separates them. Binding either one would attach an action
+    # type the composition never selected, so an operation that more than one
+    # capability could serve stays unresolved and fails closed upstream.
+    rivals = [
+        sibling
+        for sibling in sibling_capabilities
+        if record_id(sibling) != record_id(capability)
+        and (sibling_contract := _declared_contract(sibling)) is not None
+        and _contract_projects_into(sibling_contract, matches[0])
+    ]
+    if rivals:
+        return None
+    return matches[0]
+
+
 def runtime_capability_bindings(
     document: Any,
     *,
@@ -238,7 +332,8 @@ def runtime_capability_bindings(
         )
     result: list[dict[str, Any]] = []
     seen: set[tuple[str, str]] = set()
-    for capability in sorted(records(document, "capabilities"), key=record_id):
+    all_capabilities = sorted(records(document, "capabilities"), key=record_id)
+    for capability in all_capabilities:
         action_type = str(capability.get("action_type", ""))
         if not action_type:
             continue
@@ -249,6 +344,10 @@ def runtime_capability_bindings(
             endpoint_candidates,
             device_capability_count=capability_count_by_endpoint.get(endpoint_id, 0),
         )
+        if selection is None:
+            selection = _select_by_declared_contract(
+                capability, operation_bindings, sibling_capabilities=all_capabilities
+            )
         if selection is None:
             if candidates_by_endpoint:
                 # A real (filtered) composition was given and this capability's
