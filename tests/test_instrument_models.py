@@ -253,19 +253,29 @@ def test_transfer_refuses_a_missing_destination():
 
 
 def _bath_sample() -> Sample:
-    return Sample(id="film-under-test", station_id="ac-bath-station",
-                  custody_state="held", quantity=1.0, unit="1",
-                  created_by_step_id="prepare", state={})
+    return Sample(
+        id="film-under-test",
+        station_id="ac-bath-station",
+        custody_state="held",
+        quantity=1.0,
+        unit="1",
+        created_by_step_id="prepare",
+        state={},
+    )
 
 
 def _twin_table_entry() -> tuple[dict[str, float], float]:
     import json
     from importlib import resources
     from pathlib import Path
+
     packaged = resources.files("dynamical").joinpath(
-        "data/calibration/fastcat-oer/prediction_table.json")
-    repo = (Path(__file__).resolve().parents[1]
-            / "registries/calibration/fastcat-oer/prediction_table.json")
+        "data/calibration/fastcat-oer/prediction_table.json"
+    )
+    repo = (
+        Path(__file__).resolve().parents[1]
+        / "registries/calibration/fastcat-oer/prediction_table.json"
+    )
     text = packaged.read_text() if packaged.is_file() else repo.read_text()
     entry = json.loads(text)["entries"][0]
     return entry["composition"], entry["predicted_e10_v"]

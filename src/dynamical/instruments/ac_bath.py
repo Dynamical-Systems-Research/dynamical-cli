@@ -25,9 +25,7 @@ def deposit_chemical_bath(request: InstrumentRequest) -> InstrumentResult:
     for el in DOPANTS:
         fractions[el] = float(request.parameters.get(f"fraction_{el.lower()}", 0.0))
     total = sum(fractions.values())
-    outputs: dict[str, float | None] = {
-        f"deposited_fraction_{el}": None for el in DOPANTS
-    }
+    outputs: dict[str, float | None] = {f"deposited_fraction_{el}": None for el in DOPANTS}
     outputs["bath_synthesis_time_s"] = None
     valid = abs(total - 1.0) <= SIMPLEX_TOLERANCE and all(
         0.0 <= v <= 1.0 for v in fractions.values()
@@ -44,9 +42,14 @@ def deposit_chemical_bath(request: InstrumentRequest) -> InstrumentResult:
                 recoverable=True,
             )
         )
-        return InstrumentResult(outputs=outputs, uncertainty={}, cost_usd=0.0,
-                                duration_s=0.0, reasons=reasons,
-                                sample=request.sample)
+        return InstrumentResult(
+            outputs=outputs,
+            uncertainty={},
+            cost_usd=0.0,
+            duration_s=0.0,
+            reasons=reasons,
+            sample=request.sample,
+        )
     synthesis_time = float(request.parameters.get("synthesis_time_s", TYPICAL_DURATION_S))
     for el in DOPANTS:
         outputs[f"deposited_fraction_{el}"] = fractions[el]
@@ -67,6 +70,11 @@ def deposit_chemical_bath(request: InstrumentRequest) -> InstrumentResult:
                 recoverable=True,
             )
         )
-    return InstrumentResult(outputs=outputs, uncertainty={}, cost_usd=0.0,
-                            duration_s=synthesis_time, reasons=reasons,
-                            sample=deposited)
+    return InstrumentResult(
+        outputs=outputs,
+        uncertainty={},
+        cost_usd=0.0,
+        duration_s=synthesis_time,
+        reasons=reasons,
+        sample=deposited,
+    )

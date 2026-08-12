@@ -127,8 +127,9 @@ def measure_oer_twin(request: InstrumentRequest) -> InstrumentResult:
                 recoverable=True,
             )
         )
-        return InstrumentResult(outputs=outputs, uncertainty=uncertainty,
-                                cost_usd=0.0, duration_s=60.0, reasons=reasons)
+        return InstrumentResult(
+            outputs=outputs, uncertainty=uncertainty, cost_usd=0.0, duration_s=60.0, reasons=reasons
+        )
     state = request.sample.state if request.sample is not None else {}
     if request.sample is None or state.get("bath_synthesis") is None:
         reasons.append(
@@ -142,8 +143,9 @@ def measure_oer_twin(request: InstrumentRequest) -> InstrumentResult:
                 recoverable=True,
             )
         )
-        return InstrumentResult(outputs=outputs, uncertainty=uncertainty,
-                                cost_usd=0.0, duration_s=60.0, reasons=reasons)
+        return InstrumentResult(
+            outputs=outputs, uncertainty=uncertainty, cost_usd=0.0, duration_s=60.0, reasons=reasons
+        )
     composition = tuple(
         round(float(state.get(f"deposited_fraction_{el}", 0.0)), 6) for el in DOPANTS
     )
@@ -167,5 +169,6 @@ def measure_oer_twin(request: InstrumentRequest) -> InstrumentResult:
     else:
         outputs["overpotential_v"] = float(match) - EQUILIBRIUM_POTENTIAL_V
         uncertainty["overpotential_v"] = INTERVAL_HALFWIDTH_V
-    return InstrumentResult(outputs=outputs, uncertainty=uncertainty,
-                            cost_usd=0.0, duration_s=60.0, reasons=reasons)
+    return InstrumentResult(
+        outputs=outputs, uncertainty=uncertainty, cost_usd=0.0, duration_s=60.0, reasons=reasons
+    )
