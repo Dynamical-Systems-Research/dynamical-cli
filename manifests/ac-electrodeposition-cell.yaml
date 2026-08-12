@@ -1503,7 +1503,7 @@ constraints:
   channel_id: squidstat.current_density_a_cm2
   operator: between
   bound:
-    minimum: 0.02
+    minimum: 0.01
     maximum: 0.05
   unit: A/cm^2
   enforcement: reject
