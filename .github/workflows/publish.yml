@@ -1,0 +1,30 @@
+name: Publish to PyPI
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write  # trusted publishing (preferred); remove the token step if configured
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - name: Build wheel and sdist
+        run: uv build
+      - name: Test the built wheel
+        run: |
+          uv venv check-env
+          . check-env/bin/activate
+          uv pip install dist/*.whl pytest pyyaml jsonschema
+          python -m pytest tests/ -q
+      - name: Publish
+        # Uses PyPI Trusted Publishing (OIDC) when configured for this repo;
+        # falls back to the PYPI_API_TOKEN secret if present.
+        run: uv publish ${PYPI_API_TOKEN:+--token "$PYPI_API_TOKEN"}
+        env:
+          PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}

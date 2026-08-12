@@ -659,6 +659,7 @@ devices:
   capability_ids:
   - dispense-electrolyte-capability
   - aliquot-to-well-capability
+  - deposit-chemical-bath-capability
 - id: arduino-device
   asset_id: arduino-controller-body
   state_channels:
@@ -754,6 +755,64 @@ agents:
     value_type: string
     unit: '1'
 capabilities:
+- id: deposit-chemical-bath-capability
+  provider_id: ot2-device
+  action_type: deposit
+  parameters:
+  - name: fraction_cr
+    value_type: number
+    unit: "1"
+    required: false
+    minimum: 0.0
+    maximum: 1.0
+  - name: fraction_al
+    value_type: number
+    unit: "1"
+    required: false
+    minimum: 0.0
+    maximum: 1.0
+  - name: fraction_fe
+    value_type: number
+    unit: "1"
+    required: false
+    minimum: 0.0
+    maximum: 1.0
+  - name: fraction_co
+    value_type: number
+    unit: "1"
+    required: false
+    minimum: 0.0
+    maximum: 1.0
+  - name: fraction_mn
+    value_type: number
+    unit: "1"
+    required: false
+    minimum: 0.0
+    maximum: 1.0
+  - name: fraction_ni
+    value_type: number
+    unit: "1"
+    required: false
+    minimum: 0.0
+    maximum: 1.0
+  - name: fraction_cu
+    value_type: number
+    unit: "1"
+    required: false
+    minimum: 0.0
+    maximum: 1.0
+  - name: fraction_zn
+    value_type: number
+    unit: "1"
+    required: false
+    minimum: 0.0
+    maximum: 1.0
+  - name: synthesis_time_s
+    value_type: number
+    unit: s
+    required: false
+    minimum: 0.0
+    maximum: 3600.0
 - id: dispense-electrolyte-capability
   provider_id: ot2-device
   action_type: dispense
@@ -962,6 +1021,26 @@ capabilities:
   postcondition_constraint_ids: []
 material_states: []
 model_bindings:
+- id: ac-bath-model
+  implementation_ref: src/dynamical/instruments/ac_bath.py
+  implementation_sha256: 3e122423083dc2cbe106ae293e43d0205f57bc96f7a1bb5ca0745b21cac5b012
+  input_channel_map: {}
+  output_channel_map: {}
+  parameter_map:
+    evidence-class: simulator
+    physical-calibration: false
+  update_interval_s: 1.0
+  calibration_evidence_ids: []
+- id: ac-oer-twin-model
+  implementation_ref: src/dynamical/instruments/ac_oer_twin.py
+  implementation_sha256: d9d65f5378003f1941474ca209993e0cfb8b5f48dc6fab3a583658ac64db3a1e
+  input_channel_map: {}
+  output_channel_map: {}
+  parameter_map:
+    evidence-class: calibrated_twin
+    physical-calibration: true
+  update_interval_s: 1.0
+  calibration_evidence_ids: [fastcat-oer-e10]
 - id: ac-opentron-model
   implementation_ref: src/dynamical/instruments/ac_opentron.py
   implementation_sha256: 6104fe14d30cfa5a67be5d367338caa39f9397930bff75ac634f966ff99e403a
@@ -1073,6 +1152,55 @@ adapter_bindings:
     trace_contract_version: 0.1.0
     preserve_observation_origin: true
 provider_admission_bindings:
+- id: admitted-ac-bath-deposit-chemical-bath
+  provider_id: ac-bath-simulator
+  operation_id: deposit-chemical-bath
+  evidence_classes:
+  - simulator
+  facility_ids:
+  - ot2-liquid-handling
+  endpoint_id: ac-bath-model
+  adapter_links:
+  - adapter_id: dynamical-ac-bath-python
+    adapter_version: 0.1.0
+    endpoint_ref: ac-bath-model
+  validity_envelope:
+  - subject_kind: parameter
+    subject_id: synthesis_time_s
+    value_type: number
+    unit: s
+    minimum: 0.0
+    maximum: 3600.0
+  safety_limit_ids: []
+  policy_tags:
+  - simulation-only
+  - process-state-only
+  required_approval_ids: []
+- id: admitted-ac-oer-twin-measure-oer
+  provider_id: ac-oer-twin
+  operation_id: measure-oer
+  evidence_classes:
+  - calibrated_twin
+  facility_ids:
+  - squidstat-echem
+  endpoint_id: ac-oer-twin-model
+  adapter_links:
+  - adapter_id: dynamical-ac-oer-twin-python
+    adapter_version: 0.1.0
+    endpoint_ref: ac-oer-twin-model
+  validity_envelope:
+  - subject_kind: parameter
+    subject_id: current_density_a_cm2
+    value_type: number
+    unit: A/cm^2
+    minimum: 0.010
+    maximum: 0.010
+  safety_limit_ids:
+  - oer-current-density-envelope
+  policy_tags:
+  - calibrated-twin
+  - frozen-prediction-table
+  required_approval_ids: []
 - id: admitted-ac-ot2-dispense-electrolyte
   provider_id: ac-ot2-simulator
   operation_id: dispense-electrolyte
@@ -1375,7 +1503,7 @@ constraints:
   channel_id: squidstat.current_density_a_cm2
   operator: between
   bound:
-    minimum: 0.02
+    minimum: 0.01
     maximum: 0.05
   unit: A/cm^2
   enforcement: reject
@@ -1404,6 +1532,51 @@ constraints:
   verifier_binding_id: bounded-constraint-verifier
   constrained_parameter_name: ultrasound_s
 calibration_evidence:
+- id: fastcat-oer-e10
+  source_artifact_ref: https://doi.org/10.11583/DTU.28494185 (data.zip, MIT license, retrieved 2026-08-11)
+  source_sha256: 4238fe558e72c201403972a523e839dec3150bd1052f97ff25632d83ecab46db
+  applies_to_model_binding_id: ac-oer-twin-model
+  supported_channel_ids:
+  - squidstat.overpotential_v
+  - squidstat.current_density_a_cm2
+  condition_domain:
+    squidstat.current_density_a_cm2: exactly 0.010 A/cm^2 (calibrated basis; chronopotentiometry tail medians per the frozen protocol)
+    squidstat.overpotential_v: predicted only for the 72 frozen-table compositions under the frozen per-pool conditioning; one-time sealed validation passed 9/9 predeclared gates (MAE 22.2 mV)
+  validation_design: cross_condition
+  metrics:
+  - name: held-out-e10-mae
+    value: 0.022209
+    unit: V
+    split: independent_test
+    threshold: 0.045
+    comparator: le
+  - name: uncertainty-coverage-conformal90
+    value: 0.963
+    unit: '1'
+    split: independent_test
+    threshold: 0.85
+    comparator: ge
+  - name: candidate-order-spearman
+    value: 0.86
+    unit: '1'
+    split: independent_test
+    threshold: 0.35
+    comparator: ge
+  - name: top3-retrieval
+    value: 0.823
+    unit: '1'
+    split: independent_test
+    threshold: 0.45
+    comparator: ge
+  limitations:
+  - The calibrated basis is exactly 0.010 A/cm^2; no other current density is predicted.
+  - Predictions exist only for the 72 frozen-table compositions under the frozen per-pool conditioning; all other compositions are refused.
+  - Held-out labels are predominantly single physical runs; the certified replicate noise floor (20.8 mV median within-replicate SD) bounds achievable residuals.
+  - The interval half-width (0.104969 V at 90% target coverage) reflects split-conformal calibration on 22 development compositions.
+  split_rule_ref: registries/calibration/fastcat-oer/calibration_report.json
+  split_rule_sha256: 2436f7036f4e46dd19dc335a55743882dc264f3368f87eeb3a922c3ebcd8edc5
+  fit_artifact_ref: registries/calibration/fastcat-oer/prediction_table.json
+  fit_artifact_sha256: 098245794ec3925a16777b3df18eb9fcaf06816588f46cd562dbd8b957fb2728
 - id: ampere2-oer-cp-2050
   source_artifact_ref: https://doi.org/10.11583/DTU.27446925 (Data.zip, MIT license, retrieved 2026-08-10)
   source_sha256: 649c5a8269e773371a6fcdc14db4d72166dbeb697fc49b66a89991fbdd44e736

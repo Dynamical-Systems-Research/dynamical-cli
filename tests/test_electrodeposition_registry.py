@@ -84,7 +84,7 @@ def test_facility_binding_cannot_widen_a_registry_providers_envelope():
     assert facility_bindings, "the manifest must declare at least one provider admission binding"
     for key, binding in facility_bindings.items():
         provider = providers[key]
-        assert provider.evidence_class == "simulator"
+        assert provider.evidence_class in {"simulator", "calibrated_twin"}
         assert provider.admission.status == "admitted"
         assert binding.endpoint_id == provider.endpoint_id
         assert binding.validity_envelope == provider.validity_envelope

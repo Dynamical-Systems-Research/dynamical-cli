@@ -1,0 +1,953 @@
+{
+  "entries": [
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 0.0,
+        "Cr": 0.0,
+        "Cu": 0.65,
+        "Fe": 0.0,
+        "Mn": 0.0,
+        "Ni": 0.35,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.640153
+    },
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 0.0,
+        "Cr": 0.0,
+        "Cu": 0.5,
+        "Fe": 0.0,
+        "Mn": 0.0,
+        "Ni": 0.5,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.62762
+    },
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 0.0,
+        "Cr": 0.0,
+        "Cu": 0.75,
+        "Fe": 0.0,
+        "Mn": 0.2,
+        "Ni": 0.05,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.666101
+    },
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 0.0,
+        "Cr": 0.0,
+        "Cu": 0.0,
+        "Fe": 0.0,
+        "Mn": 0.5,
+        "Ni": 0.0,
+        "Zn": 0.5
+      },
+      "predicted_e10_v": 1.652072
+    },
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 0.0,
+        "Cr": 0.0,
+        "Cu": 0.5,
+        "Fe": 0.0,
+        "Mn": 0.5,
+        "Ni": 0.0,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.672059
+    },
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 0.0,
+        "Cr": 0.0,
+        "Cu": 0.0,
+        "Fe": 0.0,
+        "Mn": 0.5,
+        "Ni": 0.5,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.608763
+    },
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 0.3,
+        "Cr": 0.0,
+        "Cu": 0.65,
+        "Fe": 0.0,
+        "Mn": 0.05,
+        "Ni": 0.0,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.625363
+    },
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 0.5,
+        "Cr": 0.0,
+        "Cu": 0.0,
+        "Fe": 0.0,
+        "Mn": 0.0,
+        "Ni": 0.0,
+        "Zn": 0.5
+      },
+      "predicted_e10_v": 1.592016
+    },
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 1.0,
+        "Cr": 0.0,
+        "Cu": 0.0,
+        "Fe": 0.0,
+        "Mn": 0.0,
+        "Ni": 0.0,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.553105
+    },
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 0.0,
+        "Cr": 0.0,
+        "Cu": 0.2,
+        "Fe": 0.1,
+        "Mn": 0.65,
+        "Ni": 0.05,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.599701
+    },
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 0.15,
+        "Cr": 0.0,
+        "Cu": 0.45,
+        "Fe": 0.1,
+        "Mn": 0.0,
+        "Ni": 0.3,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.556517
+    },
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 0.5,
+        "Cr": 0.0,
+        "Cu": 0.25,
+        "Fe": 0.2,
+        "Mn": 0.0,
+        "Ni": 0.0,
+        "Zn": 0.05
+      },
+      "predicted_e10_v": 1.558102
+    },
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 0.4,
+        "Cr": 0.0,
+        "Cu": 0.0,
+        "Fe": 0.25,
+        "Mn": 0.3,
+        "Ni": 0.05,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.525439
+    },
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 0.5,
+        "Cr": 0.0,
+        "Cu": 0.0,
+        "Fe": 0.5,
+        "Mn": 0.0,
+        "Ni": 0.0,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.495283
+    },
+    {
+      "composition": {
+        "Al": 0.05,
+        "Co": 0.3,
+        "Cr": 0.0,
+        "Cu": 0.0,
+        "Fe": 0.4,
+        "Mn": 0.05,
+        "Ni": 0.2,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.497947
+    },
+    {
+      "composition": {
+        "Al": 0.05,
+        "Co": 0.3,
+        "Cr": 0.0,
+        "Cu": 0.0,
+        "Fe": 0.4,
+        "Mn": 0.2,
+        "Ni": 0.05,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.506073
+    },
+    {
+      "composition": {
+        "Al": 0.1,
+        "Co": 0.1,
+        "Cr": 0.0,
+        "Cu": 0.2,
+        "Fe": 0.25,
+        "Mn": 0.0,
+        "Ni": 0.3,
+        "Zn": 0.05
+      },
+      "predicted_e10_v": 1.556249
+    },
+    {
+      "composition": {
+        "Al": 0.2,
+        "Co": 0.15,
+        "Cr": 0.0,
+        "Cu": 0.25,
+        "Fe": 0.05,
+        "Mn": 0.2,
+        "Ni": 0.0,
+        "Zn": 0.15
+      },
+      "predicted_e10_v": 1.623082
+    },
+    {
+      "composition": {
+        "Al": 0.25,
+        "Co": 0.05,
+        "Cr": 0.0,
+        "Cu": 0.0,
+        "Fe": 0.45,
+        "Mn": 0.0,
+        "Ni": 0.2,
+        "Zn": 0.05
+      },
+      "predicted_e10_v": 1.528388
+    },
+    {
+      "composition": {
+        "Al": 0.5,
+        "Co": 0.0,
+        "Cr": 0.0,
+        "Cu": 0.0,
+        "Fe": 0.0,
+        "Mn": 0.05,
+        "Ni": 0.2,
+        "Zn": 0.25
+      },
+      "predicted_e10_v": 1.625266
+    },
+    {
+      "composition": {
+        "Al": 0.5,
+        "Co": 0.0,
+        "Cr": 0.0,
+        "Cu": 0.0,
+        "Fe": 0.0,
+        "Mn": 0.5,
+        "Ni": 0.0,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.635967
+    },
+    {
+      "composition": {
+        "Al": 0.5,
+        "Co": 0.5,
+        "Cr": 0.0,
+        "Cu": 0.0,
+        "Fe": 0.0,
+        "Mn": 0.0,
+        "Ni": 0.0,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.577068
+    },
+    {
+      "composition": {
+        "Al": 0.029,
+        "Co": 0.912,
+        "Cr": 0.029,
+        "Cu": 0.0,
+        "Fe": 0.029,
+        "Mn": 0.0,
+        "Ni": 0.0,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.518033
+    },
+    {
+      "composition": {
+        "Al": 0.283,
+        "Co": 0.623,
+        "Cr": 0.032,
+        "Cu": 0.0,
+        "Fe": 0.062,
+        "Mn": 0.0,
+        "Ni": 0.0,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.54909
+    },
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 0.0,
+        "Cr": 0.05,
+        "Cu": 0.55,
+        "Fe": 0.0,
+        "Mn": 0.35,
+        "Ni": 0.0,
+        "Zn": 0.05
+      },
+      "predicted_e10_v": 1.685171
+    },
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 0.1,
+        "Cr": 0.05,
+        "Cu": 0.0,
+        "Fe": 0.0,
+        "Mn": 0.0,
+        "Ni": 0.6,
+        "Zn": 0.25
+      },
+      "predicted_e10_v": 1.600141
+    },
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 0.95,
+        "Cr": 0.05,
+        "Cu": 0.0,
+        "Fe": 0.0,
+        "Mn": 0.0,
+        "Ni": 0.0,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.562554
+    },
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 0.0,
+        "Cr": 0.05,
+        "Cu": 0.0,
+        "Fe": 0.05,
+        "Mn": 0.8,
+        "Ni": 0.0,
+        "Zn": 0.1
+      },
+      "predicted_e10_v": 1.622584
+    },
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 0.35,
+        "Cr": 0.05,
+        "Cu": 0.0,
+        "Fe": 0.15,
+        "Mn": 0.0,
+        "Ni": 0.45,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.506204
+    },
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 0.1,
+        "Cr": 0.05,
+        "Cu": 0.0,
+        "Fe": 0.25,
+        "Mn": 0.0,
+        "Ni": 0.3,
+        "Zn": 0.3
+      },
+      "predicted_e10_v": 1.537003
+    },
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 0.5,
+        "Cr": 0.05,
+        "Cu": 0.1,
+        "Fe": 0.3,
+        "Mn": 0.0,
+        "Ni": 0.0,
+        "Zn": 0.05
+      },
+      "predicted_e10_v": 1.547469
+    },
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 0.05,
+        "Cr": 0.05,
+        "Cu": 0.0,
+        "Fe": 0.35,
+        "Mn": 0.0,
+        "Ni": 0.5,
+        "Zn": 0.05
+      },
+      "predicted_e10_v": 1.518318
+    },
+    {
+      "composition": {
+        "Al": 0.1,
+        "Co": 0.4,
+        "Cr": 0.05,
+        "Cu": 0.45,
+        "Fe": 0.0,
+        "Mn": 0.0,
+        "Ni": 0.0,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.61624
+    },
+    {
+      "composition": {
+        "Al": 0.1,
+        "Co": 0.15,
+        "Cr": 0.05,
+        "Cu": 0.3,
+        "Fe": 0.25,
+        "Mn": 0.0,
+        "Ni": 0.1,
+        "Zn": 0.05
+      },
+      "predicted_e10_v": 1.576224
+    },
+    {
+      "composition": {
+        "Al": 0.1,
+        "Co": 0.15,
+        "Cr": 0.05,
+        "Cu": 0.15,
+        "Fe": 0.25,
+        "Mn": 0.05,
+        "Ni": 0.25,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.543586
+    },
+    {
+      "composition": {
+        "Al": 0.35,
+        "Co": 0.0,
+        "Cr": 0.05,
+        "Cu": 0.0,
+        "Fe": 0.2,
+        "Mn": 0.0,
+        "Ni": 0.4,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.539424
+    },
+    {
+      "composition": {
+        "Al": 0.059,
+        "Co": 0.176,
+        "Cr": 0.059,
+        "Cu": 0.118,
+        "Fe": 0.176,
+        "Mn": 0.118,
+        "Ni": 0.118,
+        "Zn": 0.176
+      },
+      "predicted_e10_v": 1.575839
+    },
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 0.05,
+        "Cr": 0.1,
+        "Cu": 0.15,
+        "Fe": 0.4,
+        "Mn": 0.0,
+        "Ni": 0.2,
+        "Zn": 0.1
+      },
+      "predicted_e10_v": 1.54812
+    },
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 0.1,
+        "Cr": 0.1,
+        "Cu": 0.0,
+        "Fe": 0.4,
+        "Mn": 0.0,
+        "Ni": 0.4,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.50318
+    },
+    {
+      "composition": {
+        "Al": 0.05,
+        "Co": 0.5,
+        "Cr": 0.1,
+        "Cu": 0.35,
+        "Fe": 0.0,
+        "Mn": 0.0,
+        "Ni": 0.0,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.596026
+    },
+    {
+      "composition": {
+        "Al": 0.1,
+        "Co": 0.1,
+        "Cr": 0.1,
+        "Cu": 0.55,
+        "Fe": 0.15,
+        "Mn": 0.0,
+        "Ni": 0.0,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.581473
+    },
+    {
+      "composition": {
+        "Al": 0.252,
+        "Co": 0.313,
+        "Cr": 0.101,
+        "Cu": 0.0,
+        "Fe": 0.334,
+        "Mn": 0.0,
+        "Ni": 0.0,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.527131
+    },
+    {
+      "composition": {
+        "Al": 0.136,
+        "Co": 0.136,
+        "Cr": 0.136,
+        "Cu": 0.091,
+        "Fe": 0.136,
+        "Mn": 0.136,
+        "Ni": 0.091,
+        "Zn": 0.136
+      },
+      "predicted_e10_v": 1.589169
+    },
+    {
+      "composition": {
+        "Al": 0.308,
+        "Co": 0.292,
+        "Cr": 0.149,
+        "Cu": 0.0,
+        "Fe": 0.251,
+        "Mn": 0.0,
+        "Ni": 0.0,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.534605
+    },
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 0.35,
+        "Cr": 0.15,
+        "Cu": 0.3,
+        "Fe": 0.0,
+        "Mn": 0.1,
+        "Ni": 0.05,
+        "Zn": 0.05
+      },
+      "predicted_e10_v": 1.618984
+    },
+    {
+      "composition": {
+        "Al": 0.15,
+        "Co": 0.15,
+        "Cr": 0.15,
+        "Cu": 0.1,
+        "Fe": 0.15,
+        "Mn": 0.15,
+        "Ni": 0.1,
+        "Zn": 0.05
+      },
+      "predicted_e10_v": 1.586594
+    },
+    {
+      "composition": {
+        "Al": 0.499,
+        "Co": 0.167,
+        "Cr": 0.167,
+        "Cu": 0.0,
+        "Fe": 0.167,
+        "Mn": 0.0,
+        "Ni": 0.0,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.555345
+    },
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 0.15,
+        "Cr": 0.2,
+        "Cu": 0.0,
+        "Fe": 0.05,
+        "Mn": 0.0,
+        "Ni": 0.6,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.525675
+    },
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 0.1,
+        "Cr": 0.2,
+        "Cu": 0.0,
+        "Fe": 0.1,
+        "Mn": 0.0,
+        "Ni": 0.55,
+        "Zn": 0.05
+      },
+      "predicted_e10_v": 1.527394
+    },
+    {
+      "composition": {
+        "Al": 0.05,
+        "Co": 0.1,
+        "Cr": 0.2,
+        "Cu": 0.0,
+        "Fe": 0.15,
+        "Mn": 0.0,
+        "Ni": 0.5,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.497546
+    },
+    {
+      "composition": {
+        "Al": 0.05,
+        "Co": 0.35,
+        "Cr": 0.2,
+        "Cu": 0.0,
+        "Fe": 0.4,
+        "Mn": 0.0,
+        "Ni": 0.0,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.50347
+    },
+    {
+      "composition": {
+        "Al": 0.1,
+        "Co": 0.2,
+        "Cr": 0.2,
+        "Cu": 0.0,
+        "Fe": 0.25,
+        "Mn": 0.0,
+        "Ni": 0.25,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.5182
+    },
+    {
+      "composition": {
+        "Al": 0.441,
+        "Co": 0.177,
+        "Cr": 0.206,
+        "Cu": 0.0,
+        "Fe": 0.177,
+        "Mn": 0.0,
+        "Ni": 0.0,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.553537
+    },
+    {
+      "composition": {
+        "Al": 0.28,
+        "Co": 0.053,
+        "Cr": 0.223,
+        "Cu": 0.0,
+        "Fe": 0.444,
+        "Mn": 0.0,
+        "Ni": 0.0,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.531349
+    },
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 0.05,
+        "Cr": 0.25,
+        "Cu": 0.0,
+        "Fe": 0.25,
+        "Mn": 0.0,
+        "Ni": 0.45,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.492047
+    },
+    {
+      "composition": {
+        "Al": 0.1,
+        "Co": 0.05,
+        "Cr": 0.25,
+        "Cu": 0.0,
+        "Fe": 0.25,
+        "Mn": 0.0,
+        "Ni": 0.1,
+        "Zn": 0.25
+      },
+      "predicted_e10_v": 1.544423
+    },
+    {
+      "composition": {
+        "Al": 0.25,
+        "Co": 0.25,
+        "Cr": 0.25,
+        "Cu": 0.0,
+        "Fe": 0.25,
+        "Mn": 0.0,
+        "Ni": 0.0,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.528593
+    },
+    {
+      "composition": {
+        "Al": 0.35,
+        "Co": 0.4,
+        "Cr": 0.25,
+        "Cu": 0.0,
+        "Fe": 0.0,
+        "Mn": 0.0,
+        "Ni": 0.0,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.577476
+    },
+    {
+      "composition": {
+        "Al": 0.437,
+        "Co": 0.287,
+        "Cr": 0.269,
+        "Cu": 0.0,
+        "Fe": 0.006,
+        "Mn": 0.0,
+        "Ni": 0.0,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.580763
+    },
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 0.0,
+        "Cr": 0.3,
+        "Cu": 0.05,
+        "Fe": 0.2,
+        "Mn": 0.0,
+        "Ni": 0.45,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.521581
+    },
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 0.45,
+        "Cr": 0.3,
+        "Cu": 0.0,
+        "Fe": 0.25,
+        "Mn": 0.0,
+        "Ni": 0.0,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.502543
+    },
+    {
+      "composition": {
+        "Al": 0.02,
+        "Co": 0.1,
+        "Cr": 0.3,
+        "Cu": 0.0,
+        "Fe": 0.32,
+        "Mn": 0.2,
+        "Ni": 0.06,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.521602
+    },
+    {
+      "composition": {
+        "Al": 0.1,
+        "Co": 0.3,
+        "Cr": 0.3,
+        "Cu": 0.0,
+        "Fe": 0.3,
+        "Mn": 0.0,
+        "Ni": 0.0,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.50995
+    },
+    {
+      "composition": {
+        "Al": 0.3,
+        "Co": 0.1,
+        "Cr": 0.3,
+        "Cu": 0.0,
+        "Fe": 0.1,
+        "Mn": 0.1,
+        "Ni": 0.1,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.553175
+    },
+    {
+      "composition": {
+        "Al": 0.022,
+        "Co": 0.326,
+        "Cr": 0.326,
+        "Cu": 0.0,
+        "Fe": 0.326,
+        "Mn": 0.0,
+        "Ni": 0.0,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.500998
+    },
+    {
+      "composition": {
+        "Al": 0.05,
+        "Co": 0.1,
+        "Cr": 0.35,
+        "Cu": 0.0,
+        "Fe": 0.05,
+        "Mn": 0.2,
+        "Ni": 0.05,
+        "Zn": 0.2
+      },
+      "predicted_e10_v": 1.567876
+    },
+    {
+      "composition": {
+        "Al": 0.18,
+        "Co": 0.179,
+        "Cr": 0.35,
+        "Cu": 0.0,
+        "Fe": 0.291,
+        "Mn": 0.0,
+        "Ni": 0.0,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.533506
+    },
+    {
+      "composition": {
+        "Al": 0.294,
+        "Co": 0.244,
+        "Cr": 0.36,
+        "Cu": 0.0,
+        "Fe": 0.102,
+        "Mn": 0.0,
+        "Ni": 0.0,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.537291
+    },
+    {
+      "composition": {
+        "Al": 0.167,
+        "Co": 0.167,
+        "Cr": 0.499,
+        "Cu": 0.0,
+        "Fe": 0.167,
+        "Mn": 0.0,
+        "Ni": 0.0,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.540894
+    },
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 0.0,
+        "Cr": 0.5,
+        "Cu": 0.5,
+        "Fe": 0.0,
+        "Mn": 0.0,
+        "Ni": 0.0,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.629263
+    },
+    {
+      "composition": {
+        "Al": 0.5,
+        "Co": 0.0,
+        "Cr": 0.5,
+        "Cu": 0.0,
+        "Fe": 0.0,
+        "Mn": 0.0,
+        "Ni": 0.0,
+        "Zn": 0.0
+      },
+      "predicted_e10_v": 1.605275
+    },
+    {
+      "composition": {
+        "Al": 0.0,
+        "Co": 0.0,
+        "Cr": 0.55,
+        "Cu": 0.05,
+        "Fe": 0.1,
+        "Mn": 0.0,
+        "Ni": 0.0,
+        "Zn": 0.3
+      },
+      "predicted_e10_v": 1.563907
+    }
+  ],
+  "interval_coverage_target": 0.9,
+  "interval_halfwidth_v": 0.104969,
+  "n_entries": 72,
+  "provider_id": "ac-oer-twin",
+  "schema_version": "ac-oer-twin.prediction-table.v1",
+  "study_provenance_sha256": {
+    "artifact_sha256": "746aeda39b43667a085ef3785336ec885f4b000f9070ff776e00e687ed4b9b17",
+    "gate_u1_frozen_sha256": "2261e85b9af41ff5fbcc0be2cf8a19ced9242331acd916658f168feb6f875017",
+    "provider_protocol_sha256": "e3276e7acdb938be0a19a2426103865a5ccb9a7e43b18f21379e259c63a24e36",
+    "study_prediction_table_sha256": "6f2d0489e67a71bf26a5ed87551792b9d370ddf242fa7d6dd3482585df0b0b3b",
+    "task_reveal_receipt_sha256": "bedf80f00108c7712d97ffc376c2831e0798c25c18dd64b2199f4d7f4766c9a4",
+    "validation_receipt_sha256": "f576c0a37d2bcc8786b574eba22fdcfe461688bc43717b7b7f675f9abffc8f68"
+  }
+}

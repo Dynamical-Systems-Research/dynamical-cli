@@ -1,6 +1,6 @@
 document_type: dynamical.capability-registry
 schema_version: 0.1.0
-registry_id: dynamical-ac-electrodeposition-capabilities-20260809
+registry_id: dynamical-ac-electrodeposition-capabilities-20260811
 capabilities:
   - operation_id: dispense-electrolyte
     kind: scientific
@@ -41,6 +41,33 @@ capabilities:
       - {name: setpoint_percent, value_type: number, unit: "%", required: false, minimum: 0.0, maximum: 100.0}
     required_conditions: []
     possible_failures: [the requested duration exceeds the 1800 s conditioning envelope, the requested setpoint is outside 0-100%]
+  - operation_id: deposit-chemical-bath
+    kind: scientific
+    description: Deposit a mixed-dopant LDH film on the in-custody Ni-foam sample from a chemical bath, writing the requested dopant fractions onto the sample as its recorded nominal composition.
+    input_ports:
+      - {id: sample.state, state_type: sample_state, unit: "1", required: true, description: "The Ni-foam sample this bath deposition acts on. Deposition writes the recorded nominal composition onto this state; no new sample.state identity is produced."}
+    output_ports:
+      - {id: deposited_fraction_Cr, state_type: number, unit: "1", required: true, description: Recorded Cr dopant fraction of the deposited film.}
+      - {id: deposited_fraction_Al, state_type: number, unit: "1", required: true, description: Recorded Al dopant fraction of the deposited film.}
+      - {id: deposited_fraction_Fe, state_type: number, unit: "1", required: true, description: Recorded Fe dopant fraction of the deposited film.}
+      - {id: deposited_fraction_Co, state_type: number, unit: "1", required: true, description: Recorded Co dopant fraction of the deposited film.}
+      - {id: deposited_fraction_Mn, state_type: number, unit: "1", required: true, description: Recorded Mn dopant fraction of the deposited film.}
+      - {id: deposited_fraction_Ni, state_type: number, unit: "1", required: true, description: Recorded Ni dopant fraction of the deposited film.}
+      - {id: deposited_fraction_Cu, state_type: number, unit: "1", required: true, description: Recorded Cu dopant fraction of the deposited film.}
+      - {id: deposited_fraction_Zn, state_type: number, unit: "1", required: true, description: Recorded Zn dopant fraction of the deposited film.}
+      - {id: bath_synthesis_time_s, state_type: number, unit: s, required: true, description: Delivered bath synthesis time.}
+    parameters:
+      - {name: fraction_cr, value_type: number, unit: "1", required: false, minimum: 0.0, maximum: 1.0}
+      - {name: fraction_al, value_type: number, unit: "1", required: false, minimum: 0.0, maximum: 1.0}
+      - {name: fraction_fe, value_type: number, unit: "1", required: false, minimum: 0.0, maximum: 1.0}
+      - {name: fraction_co, value_type: number, unit: "1", required: false, minimum: 0.0, maximum: 1.0}
+      - {name: fraction_mn, value_type: number, unit: "1", required: false, minimum: 0.0, maximum: 1.0}
+      - {name: fraction_ni, value_type: number, unit: "1", required: false, minimum: 0.0, maximum: 1.0}
+      - {name: fraction_cu, value_type: number, unit: "1", required: false, minimum: 0.0, maximum: 1.0}
+      - {name: fraction_zn, value_type: number, unit: "1", required: false, minimum: 0.0, maximum: 1.0}
+      - {name: synthesis_time_s, value_type: number, unit: s, required: false, minimum: 0.0, maximum: 3600.0}
+    required_conditions: []
+    possible_failures: [the requested dopant fractions do not form a unit simplex, no sample is in custody to deposit onto]
   - operation_id: electrodeposit-constant-current
     kind: scientific
     description: Apply a constant current between the working and counter electrode and estimate charge passed, deposited nickel mass and thickness via Faraday's law.
@@ -65,7 +92,7 @@ capabilities:
       - {id: overpotential_v, state_type: number, unit: V, required: true, description: "Estimated OER overpotential, with the fit-residual declared uncertainty."}
       - {id: current_density_a_cm2, state_type: number, unit: A/cm^2, required: true, description: Echoed current density the estimate was computed at.}
     parameters:
-      - {name: current_density_a_cm2, value_type: number, unit: A/cm^2, required: true, minimum: 0.020, maximum: 0.050}
+      - {name: current_density_a_cm2, value_type: number, unit: A/cm^2, required: true, minimum: 0.010, maximum: 0.050}
     required_conditions: []
     possible_failures: [the requested current density is outside the fitted basis envelope, the measured sample carries no recorded deposit or precursor composition]
   - operation_id: clean-electrode
@@ -116,6 +143,44 @@ capabilities:
 providers:
   # --- Simulator providers: the six (operation_id, provider_id) pairs actually
   # --- registered in src/dynamical/instruments/ (instruments.registered_operations()).
+  - provider_id: ac-bath-simulator
+    operation_id: deposit-chemical-bath
+    evidence_class: simulator
+    endpoint_id: ac-bath-model
+    facility_ids: [ot2-liquid-handling]
+    availability: {available: true, observed_at: "2026-08-11T00:00:00Z", availability_ref: src/dynamical/instruments/ac_bath.py}
+    admission:
+      status: admitted
+      authority_id: dynamical-independent-verifier-fastcat-oer-20260811
+      authority_kind: independent_verifier
+      evidence_refs: [src/dynamical/instruments/ac_bath.py, registries/calibration/fastcat-oer/calibration_report.json]
+    validity_envelope:
+      - {subject_kind: parameter, subject_id: synthesis_time_s, value_type: number, unit: s, minimum: 0.0, maximum: 3600.0}
+    cost: {currency: USD, fixed: 0.0}
+    duration: {minimum_s: 0.0, typical_s: 600.0, maximum_s: 3600.0}
+    failures: [{code: simplex-violation, description: "Dopant fractions must lie in [0, 1] and sum to one; violations are refused rather than normalized.", recoverable: true}]
+    policy: {permitted: true, policy_tags: [simulation-only, process-state-only], safety_limit_ids: [], required_approval_ids: []}
+    adapter_links:
+      - {adapter_id: dynamical-ac-bath-python, adapter_version: 0.1.0, endpoint_ref: ac-bath-model}
+  - provider_id: ac-oer-twin
+    operation_id: measure-oer
+    evidence_class: calibrated_twin
+    endpoint_id: ac-oer-twin-model
+    facility_ids: [squidstat-echem]
+    availability: {available: true, observed_at: "2026-08-11T00:00:00Z", availability_ref: src/dynamical/instruments/ac_oer_twin.py}
+    admission:
+      status: admitted
+      authority_id: dynamical-independent-verifier-fastcat-oer-20260811
+      authority_kind: independent_verifier
+      evidence_refs: [registries/calibration/fastcat-oer/calibration_report.json, registries/calibration/fastcat-oer/prediction_table.json, src/dynamical/instruments/ac_oer_twin.py]
+    validity_envelope:
+      - {subject_kind: parameter, subject_id: current_density_a_cm2, value_type: number, unit: A/cm^2, minimum: 0.010, maximum: 0.010}
+    cost: {currency: USD, fixed: 0.0}
+    duration: {minimum_s: 0.0, typical_s: 60.0, maximum_s: 60.0}
+    failures: [{code: outside-calibrated-domain, description: "A deposited composition outside the frozen calibrated table is refused; the calibration does not extend to it.", recoverable: true}]
+    policy: {permitted: true, policy_tags: [calibrated-twin, frozen-prediction-table], safety_limit_ids: [oer-current-density-envelope], required_approval_ids: []}
+    adapter_links:
+      - {adapter_id: dynamical-ac-oer-twin-python, adapter_version: 0.1.0, endpoint_ref: ac-oer-twin-model}
   - provider_id: ac-ot2-simulator
     operation_id: dispense-electrolyte
     evidence_class: simulator

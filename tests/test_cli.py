@@ -255,7 +255,7 @@ def test_coordinated_authority_rehash_fails_closed(tmp_path: Path, capsys) -> No
 
 
 def test_self_admitted_physical_provider_is_demoted_not_trusted(tmp_path: Path, capsys) -> None:
-    """Attack repro: an agent flips ``ac-oer-simulator`` to ``evidence_class:
+    """Attack repro: an agent flips every measure-oer provider to ``evidence_class:
     physical`` in its own registry and passes that forged registry to both
     ``compose`` and ``compile``.
 
@@ -271,7 +271,7 @@ def test_self_admitted_physical_provider_is_demoted_not_trusted(tmp_path: Path, 
         (REPOSITORY / "registries/electrodeposition-capabilities.yaml").read_text(encoding="utf-8")
     )
     for provider in registry["providers"]:
-        if provider["provider_id"] == "ac-oer-simulator":
+        if provider["provider_id"] in {"ac-oer-simulator", "ac-oer-twin"}:
             provider["evidence_class"] = "physical"
             provider["validity_envelope"].append(
                 {
@@ -302,10 +302,11 @@ def test_self_admitted_physical_provider_is_demoted_not_trusted(tmp_path: Path, 
     assert receipt["status"] == "HOLD"
     assert "PROVIDER_NOT_ADMITTED" in receipt["reason_codes"]
     untrusted = receipt["untrusted_admissions"]
-    assert any(
-        item["code"] == "PROVIDER_SELF_ADMITTED" and item["provider_id"] == "ac-oer-simulator"
-        for item in untrusted
-    )
+    for forged_id in ("ac-oer-simulator", "ac-oer-twin"):
+        assert any(
+            item["code"] == "PROVIDER_SELF_ADMITTED" and item["provider_id"] == forged_id
+            for item in untrusted
+        )
 
     compiled_dir = tmp_path / "compiled"
     compile_rc = main(["compile", str(composition_path), "-o", str(compiled_dir)])
@@ -324,7 +325,7 @@ def test_known_provider_with_modified_safety_fields_is_not_trusted(tmp_path: Pat
         (REPOSITORY / "registries/electrodeposition-capabilities.yaml").read_text(encoding="utf-8")
     )
     for provider in registry["providers"]:
-        if provider["provider_id"] == "ac-oer-simulator":
+        if provider["provider_id"] in {"ac-oer-simulator", "ac-oer-twin"}:
             provider["policy"]["safety_limit_ids"] = []
     forged_registry = tmp_path / "registry.yaml"
     forged_registry.write_text(yaml.safe_dump(registry, sort_keys=False), encoding="utf-8")
@@ -345,10 +346,11 @@ def test_known_provider_with_modified_safety_fields_is_not_trusted(tmp_path: Pat
     assert compose_rc == 1
     assert receipt["status"] == "HOLD"
     assert "PROVIDER_NOT_ADMITTED" in receipt["reason_codes"]
-    assert any(
-        item["code"] == "PROVIDER_AUTHORITY_MODIFIED" and item["provider_id"] == "ac-oer-simulator"
-        for item in receipt["untrusted_admissions"]
-    )
+    for forged_id in ("ac-oer-simulator", "ac-oer-twin"):
+        assert any(
+            item["code"] == "PROVIDER_AUTHORITY_MODIFIED" and item["provider_id"] == forged_id
+            for item in receipt["untrusted_admissions"]
+        )
 
     compiled_dir = tmp_path / "compiled"
     compile_rc = main(["compile", str(composition_path), "-o", str(compiled_dir)])
@@ -486,7 +488,7 @@ def test_missing_cli_inputs_name_the_absent_path(tmp_path: Path, capsys) -> None
 
 
 def test_only_dynamical_console_script_is_published() -> None:
-    package = distribution("dynamical")
+    package = distribution("dynamical-cli")
     scripts = {
         (entry.name, entry.value)
         for entry in package.entry_points

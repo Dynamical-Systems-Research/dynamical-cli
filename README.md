@@ -36,6 +36,10 @@ dynamical run compiled-world -o trace.ndjson
 dynamical validate trace.ndjson --json
 ```
 
+The registry spans eight operations, including chemical-bath film synthesis
+(`deposit-chemical-bath`, W1 simulator) and OER measurement (`measure-oer`,
+with both a W1 simulator and the calibrated `ac-oer-twin`).
+
 The five commands are `capabilities`, `compose`, `compile`, `run`, and
 `validate`. A `COMPILED` composition can continue to compilation. Saved
 compositions carry the source metadata needed by later commands. Scientific
@@ -43,6 +47,8 @@ values are returned in `observation` events under `observation.channels` in
 the NDJSON trace.
 
 ## Installation
+
+From PyPI: `pip install dynamical-cli` (imports as `dynamical`).
 
 The CLI and agent skill are separate installs. A skill or plugin install does
 not install the `dynamical` executable.
@@ -84,6 +90,14 @@ Passing composition, compilation, the live run, replay, and validation proves
 source-backed, embodied, replayable **virtual** execution of the AC SDL1
 electrodeposition facility. It does not prove physical fidelity, and none of
 it should be read as a physical result.
+
+One provider carries a stronger, narrowly bounded class: `ac-oer-twin` is
+**calibrated_twin** for exactly one output (OER overpotential at
+10 mA/cm^2 on Ni-foam chemical-bath films) on exactly the 72 compositions in
+its packaged domain table, admitted against held-out physical measurements
+(evidence in `registries/calibration/fastcat-oer/`). Outside that table it
+refuses; the class does not extend to any other output, provider, or the
+facility as a whole.
 
 **Generating evidence is what this system is for.** Every run produces
 observations with declared uncertainty, constraint margins, consumed cost and
