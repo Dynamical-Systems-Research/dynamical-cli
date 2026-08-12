@@ -656,6 +656,51 @@ devices:
     unit: mL
     minimum: 0.0
     maximum: 3.895
+  - id: ot2.deposited_fraction_Cr
+    value_type: number
+    unit: '1'
+    minimum: 0.0
+    maximum: 1.0
+  - id: ot2.deposited_fraction_Al
+    value_type: number
+    unit: '1'
+    minimum: 0.0
+    maximum: 1.0
+  - id: ot2.deposited_fraction_Fe
+    value_type: number
+    unit: '1'
+    minimum: 0.0
+    maximum: 1.0
+  - id: ot2.deposited_fraction_Co
+    value_type: number
+    unit: '1'
+    minimum: 0.0
+    maximum: 1.0
+  - id: ot2.deposited_fraction_Mn
+    value_type: number
+    unit: '1'
+    minimum: 0.0
+    maximum: 1.0
+  - id: ot2.deposited_fraction_Ni
+    value_type: number
+    unit: '1'
+    minimum: 0.0
+    maximum: 1.0
+  - id: ot2.deposited_fraction_Cu
+    value_type: number
+    unit: '1'
+    minimum: 0.0
+    maximum: 1.0
+  - id: ot2.deposited_fraction_Zn
+    value_type: number
+    unit: '1'
+    minimum: 0.0
+    maximum: 1.0
+  - id: ot2.bath_synthesis_time_s
+    value_type: number
+    unit: s
+    minimum: 0.0
+    maximum: 3600.0
   capability_ids:
   - dispense-electrolyte-capability
   - aliquot-to-well-capability
@@ -813,6 +858,26 @@ capabilities:
     required: false
     minimum: 0.0
     maximum: 3600.0
+  observation_channel_ids:
+  - ot2.deposited_fraction_Cr
+  - ot2.deposited_fraction_Al
+  - ot2.deposited_fraction_Fe
+  - ot2.deposited_fraction_Co
+  - ot2.deposited_fraction_Mn
+  - ot2.deposited_fraction_Ni
+  - ot2.deposited_fraction_Cu
+  - ot2.deposited_fraction_Zn
+  - ot2.bath_synthesis_time_s
+  reported_output_port_ids:
+    ot2.deposited_fraction_Cr: deposited_fraction_Cr
+    ot2.deposited_fraction_Al: deposited_fraction_Al
+    ot2.deposited_fraction_Fe: deposited_fraction_Fe
+    ot2.deposited_fraction_Co: deposited_fraction_Co
+    ot2.deposited_fraction_Mn: deposited_fraction_Mn
+    ot2.deposited_fraction_Ni: deposited_fraction_Ni
+    ot2.deposited_fraction_Cu: deposited_fraction_Cu
+    ot2.deposited_fraction_Zn: deposited_fraction_Zn
+    ot2.bath_synthesis_time_s: bath_synthesis_time_s
 - id: dispense-electrolyte-capability
   provider_id: ot2-device
   action_type: dispense

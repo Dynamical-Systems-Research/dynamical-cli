@@ -389,3 +389,112 @@ def test_coverage_campaign_retargeted_transfer_still_fails_lineage_on_isaac(tmp_
     events = _action_events_from_isaac_campaign(pack)
     reasons = check_invariants(events)
     assert any(reason.code == "SAMPLE_TRANSFER_MISSING" for reason in reasons)
+
+
+def _compile_model_backed_isaac_world(destination: Path) -> Path:
+    """Compile a campaign whose scientific work is done only by model-backed providers."""
+
+    import test_runtime_pack
+
+    from dynamical.compiler import compile_facility
+    from dynamical.composition import compose_virtual_sdl
+    from dynamical.schema import load_capability_registry
+
+    composition = compose_virtual_sdl(
+        test_runtime_pack._model_backed_requirement(),
+        load_capability_registry("registries/electrodeposition-capabilities.yaml"),
+    )
+    assert composition.status == "COMPILED", composition.reason_codes
+    return compile_facility(
+        "manifests/ac-electrodeposition-cell.yaml",
+        "isaac",
+        destination,
+        composition_result=composition,
+    ).output_dir
+
+
+@requires_isaac
+def test_live_kit_run_records_the_deposition_provider_outputs(tmp_path):
+    """The bath provider's nine scientific outputs must appear in the embodied trace.
+
+    Deposition changes the sample's scientific state, so an Isaac trace that
+    omits the provider's outputs cannot support the campaign's evidence chain.
+    ``deposit-chemical-bath-capability`` declared no observation channels, and
+    the Isaac runtime emits only declared facility channels, so the step ran
+    and updated sample state while recording none of its results.
+    """
+
+    import json as json_module
+
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    trace = run_dir / "campaign_trace.ndjson"
+    compiled_world = _compile_model_backed_isaac_world(tmp_path / "world")
+    result = _run_isaac_launcher(compiled_world, trace)
+    assert result.returncode == 0, result.stderr[-4000:]
+
+    events = [json_module.loads(line) for line in trace.read_text().splitlines() if line.strip()]
+    bath = [
+        event
+        for event in events
+        if event["event_type"] == "observation"
+        and event["observation"]["provider_id"] == "ac-bath-simulator"
+    ]
+    assert bath, "the bath provider returned no observation"
+    values = {channel["name"]: channel["value"] for channel in bath[0]["observation"]["channels"]}
+    expected = {
+        f"ot2.deposited_fraction_{symbol}"
+        for symbol in ("Cr", "Al", "Fe", "Co", "Mn", "Ni", "Cu", "Zn")
+    }
+    expected.add("ot2.bath_synthesis_time_s")
+    assert set(values) == expected, f"deposition outputs not recorded: {expected - set(values)}"
+    assert values["ot2.deposited_fraction_Cr"] == 0.25
+    assert values["ot2.deposited_fraction_Fe"] == 0.25
+    assert values["ot2.deposited_fraction_Co"] == 0.05
+    assert values["ot2.deposited_fraction_Ni"] == 0.45
+    assert values["ot2.bath_synthesis_time_s"] == 600.0
+
+    # Runtime lineage is the executed digest the runtime records, not the
+    # compiled transition's declared placeholder.
+    digests = [
+        event["provenance"]["sample_state_sha256"]
+        for event in events
+        if event["event_type"] == "observation"
+        and event.get("provenance", {}).get("sample_state_sha256")
+    ]
+    assert len(set(digests)) > 1, "sample state never advanced across the campaign"
+    assert digests[0] != digests[1], "deposition did not advance the recorded sample state"
+
+    twin = [
+        event
+        for event in events
+        if event["event_type"] == "observation"
+        and event["observation"]["provider_id"] == "ac-oer-twin"
+    ]
+    assert twin, "the twin returned no observation"
+    twin_values = {
+        channel["name"]: channel["value"] for channel in twin[0]["observation"]["channels"]
+    }
+    assert abs(twin_values["squidstat.overpotential_v"] - 0.263047) < 1e-9, (
+        "the twin did not read the deposited state this campaign produced"
+    )
+    assert twin[0]["provenance"]["sample_state_sha256"] == digests[-1]
+
+
+@requires_isaac
+def test_live_kit_deposition_trace_validates_and_replays(tmp_path):
+    """The embodied deposition trace and its replay both validate."""
+
+    from dynamical.campaign import validate_path as campaign_validate_path
+    from dynamical.replay import replay_trace
+
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    trace = run_dir / "campaign_trace.ndjson"
+    compiled_world = _compile_model_backed_isaac_world(tmp_path / "world")
+    assert _run_isaac_launcher(compiled_world, trace).returncode == 0
+
+    assert campaign_validate_path(trace)["valid"], "the embodied trace did not validate"
+    replay = tmp_path / "replay.ndjson"
+    replay_trace(trace, replay)
+    assert campaign_validate_path(replay)["valid"], "the replayed trace did not validate"
