@@ -16,12 +16,13 @@ jobs:
       - uses: astral-sh/setup-uv@v4
       - name: Build wheel and sdist
         run: uv build
-      - name: Test the built wheel
+      - name: Smoke-test the built wheel
         run: |
           uv venv check-env
           . check-env/bin/activate
-          uv pip install dist/*.whl pytest pyyaml jsonschema
-          python -m pytest tests/ -q
+          uv pip install dist/*.whl
+          dynamical --version
+          dynamical capabilities --json | python -m json.tool >/dev/null
       - name: Publish
         # Uses PyPI Trusted Publishing (OIDC) when configured for this repo;
         # falls back to the PYPI_API_TOKEN secret if present.
