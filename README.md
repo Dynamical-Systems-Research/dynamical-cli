@@ -48,6 +48,8 @@ the NDJSON trace.
 
 ## Installation
 
+From PyPI: `pip install dynamical-cli` (imports as `dynamical`).
+
 The CLI and agent skill are separate installs. A skill or plugin install does
 not install the `dynamical` executable.
 

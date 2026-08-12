@@ -3,7 +3,7 @@ requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
-name = "dynamical"
+name = "dynamical-cli"
 version = "0.1.3"
 description = "Compile declarative laboratory facilities into backend-independent execution artifacts."
 readme = "README.md"
