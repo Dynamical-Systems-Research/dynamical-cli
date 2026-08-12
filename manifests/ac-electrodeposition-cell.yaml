@@ -1023,7 +1023,7 @@ material_states: []
 model_bindings:
 - id: ac-bath-model
   implementation_ref: src/dynamical/instruments/ac_bath.py
-  implementation_sha256: dad014d3834244db0368936277990476d99a71b097fef4f79a868d8992ce3168
+  implementation_sha256: 667c9b884095d8569267280ff75669b04f6459b8d42a52e8be117c126c7f27a1
   input_channel_map: {}
   output_channel_map: {}
   parameter_map:

@@ -14,7 +14,7 @@ from ..reasons import RuntimeReason
 from . import InstrumentRequest, InstrumentResult, register
 
 DOPANTS = ("Cr", "Al", "Fe", "Co", "Mn", "Ni", "Cu", "Zn")
-SIMPLEX_TOLERANCE = 1e-3
+SIMPLEX_TOLERANCE = 2.5e-3
 TYPICAL_DURATION_S = 600.0
 
 

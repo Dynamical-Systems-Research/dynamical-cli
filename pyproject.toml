@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dynamical"
-version = "0.1.2+fastcat1"
+version = "0.1.2+fastcat2"
 description = "Compile declarative laboratory facilities into backend-independent execution artifacts."
 readme = "README.md"
 requires-python = ">=3.11"
