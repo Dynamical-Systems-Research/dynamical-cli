@@ -85,7 +85,7 @@ capabilities:
     possible_failures: [the requested current exceeds the 0.010 A source-verified envelope, the requested duration exceeds 3600 s]
   - operation_id: measure-oer
     kind: scientific
-    description: Estimate OER overpotential from the deposited film's recorded precursor composition and the requested current density, via a response fitted to AMPERE-2 physical chronopotentiometry (frozen held-out gates FAILED; W1 evidence only, W2 closed).
+    description: Estimate OER overpotential from the deposited film's recorded precursor composition and the requested current density, via a response fitted to AMPERE-2 physical chronopotentiometry (frozen held-out calibration gates failed; simulator evidence only).
     input_ports:
       - {id: sample.state, state_type: sample_state, unit: "1", required: true, description: "The sample this measurement reads from. A pure measurement: it does not transform, relocate, or consume the sample, so no new sample.state is produced. The fitted response requires the deposited film's recorded precursor composition on this state."}
     output_ports:
@@ -279,7 +279,7 @@ providers:
     cost: {currency: USD, fixed: 0.0}
     duration: {minimum_s: 0.0, typical_s: 120.0, maximum_s: 120.0}
     failures: [{code: fitted-basis-extrapolation, description: "Current density outside the fitted basis {0.020, 0.050} A/cm^2 is flagged out-of-envelope, not silently extrapolated.", recoverable: true}]
-    policy: {permitted: true, policy_tags: [simulation-only, fitted-w1-gates-failed], safety_limit_ids: [oer-current-density-envelope], required_approval_ids: []}
+    policy: {permitted: true, policy_tags: [simulation-only, fitted-model-calibration-gates-failed], safety_limit_ids: [oer-current-density-envelope], required_approval_ids: []}
     adapter_links:
       - {adapter_id: dynamical-ac-oer-python, adapter_version: 0.1.0, endpoint_ref: ac-oer-model}
       - {adapter_id: dynamical-ac-squidstat-control, adapter_version: 0.1.0, endpoint_ref: squidstat-device}

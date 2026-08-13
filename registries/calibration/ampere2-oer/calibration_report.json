@@ -158,7 +158,7 @@
    "pass": true
   }
  },
- "w2_pass": false,
+ "calibrated_twin_pass": false,
  "sigma_v": 1.8073715433658781,
  "notes": [
   "held_out_rows / fit_rows counts are condition-replicate rows (sample x current density) entering the model after exclusions",

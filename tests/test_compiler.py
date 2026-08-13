@@ -22,7 +22,7 @@ REQUIRED_ARTIFACTS = {
     "compile_manifest.json",
     "core_ir.json",
     "facility_ir.json",
-    "fidelity_report.json",
+    "evidence_report.json",
     "layout.usda",
     "observation_schema.json",
     "physics.usda",
@@ -60,14 +60,16 @@ def test_core_hash_is_equal_across_all_targets(compiled_targets: dict[str, Path]
     assert len({manifest["adapter_pack_sha256"] for manifest in manifests}) == 2
 
 
-def test_fidelity_report_does_not_claim_physical_calibration(
+def test_evidence_report_uses_public_evidence_contract(
     compiled_targets: dict[str, Path],
 ) -> None:
     for output in compiled_targets.values():
-        report = _json(output / "fidelity_report.json")
-        assert report["admission"]["W2"]["status"] == "not_admitted"
-        assert report["calibration_statement"].startswith("W2 is not admitted")
-        assert "frozen" in report["calibration_statement"]
+        report = _json(output / "evidence_report.json")
+        assert report["evidence_classes"] == []
+        assert report["execution_status"] == "not_executed"
+        assert report["embodied_evidence_bound"] is False
+        assert report["authority_anchor"] == "installed_bundle"
+        assert report["validation_reasons"] == []
 
 
 def test_compiled_artifact_hashes_and_openusd_stage_validate(

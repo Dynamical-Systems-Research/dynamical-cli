@@ -104,7 +104,7 @@ def _canonical_writer(
         run_id=run_id,
         seed=7,
         backend_revision="static-test:not-embodied",
-        provenance={"embodied_backend": False, "w1_admitted": False},
+        provenance={"embodied_backend": False, "embodied_evidence_bound": False},
         output_path=output_path,
     )
     writer.add("campaign_start", 0.0)
@@ -323,8 +323,8 @@ def test_standalone_runtime_writes_complete_canonical_dynamical_trace(
     # action.station_id (binding["selected_facility_id"]), mirroring campaign.py's
     # in-process run_composed_campaign, so samples.check_invariants' lineage check on
     # replay has what it needs for a standalone/embodied compiled pack too.
-    assert replay_result["valid"] is True, replay_result["reasons"]
-    assert replay_result["reasons"] == []
+    assert replay_result["valid"] is True, replay_result["validation_reasons"]
+    assert replay_result["validation_reasons"] == []
     assert [event["event_type"] for event in events] == [
         "campaign_start",
         *[item for _ in pack["campaign"]["actions"] for item in ("action", "observation")],
@@ -563,7 +563,7 @@ def test_isaac_emits_the_runtime_receipt_contract(
         "intended_exit_code",
         "simulation_app_shutdown_requested",
         "runtime_error",
-        "w1_admitted",
+        "embodied_evidence_bound",
         "manual_gates",
         "artifacts",
     }
@@ -616,7 +616,7 @@ def test_direct_embodied_replay_rejects_path_escape_and_forged_campaign(
                     "intended_exit_code": 0,
                     "simulation_app_shutdown_requested": True,
                     "runtime_error": None,
-                    "w1_admitted": False,
+                    "embodied_evidence_bound": False,
                     "manual_gates": ["independent review required"],
                     "artifacts": artifacts,
                 },
@@ -781,8 +781,8 @@ def test_runtime_requires_bound_constraints_and_rejects_self_admission(
         runtime.validate_trace(extra, pack)
 
     self_admitted = copy.deepcopy(writer.events)
-    self_admitted[0]["provenance"]["w1_admitted"] = True
-    with pytest.raises(runtime.RuntimeContractError, match="cannot self-admit W1"):
+    self_admitted[0]["provenance"]["embodied_evidence_bound"] = True
+    with pytest.raises(runtime.RuntimeContractError, match="cannot self-bind embodied evidence"):
         runtime.validate_trace(self_admitted, pack)
 
 

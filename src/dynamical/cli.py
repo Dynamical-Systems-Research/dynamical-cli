@@ -277,6 +277,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                         print(f"- {operation_id}: {', '.join(providers) or 'no provider'}")
             return 0
         if args.command == "compile":
+            from .schema import load_facility_manifest
+
             if not args.input.exists():
                 raise ValueError(f"compile input does not exist: {args.input}")
             composition = None
@@ -289,7 +291,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     demote_untrusted_admissions,
                     validate_composition_sources,
                 )
-                from .schema import load_capability_registry, load_facility_manifest
+                from .schema import load_capability_registry
 
                 # The authority anchor is always the packaged/installed bundle --
                 # never a CLI-suppliable path. The saved composition's protected
@@ -313,8 +315,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                     _print_json(
                         {
                             "status": "HOLD",
+                            "execution_status": "blocked",
+                            "evidence_classes": [],
+                            "embodied_evidence_bound": False,
+                            "claim_boundary": saved.sources.facility.facility.claim_boundary,
+                            "authority_anchor": "installed_bundle",
                             "reason_codes": sorted({item.code for item in hold_reasons}),
-                            "reasons": [
+                            "validation_reasons": [
                                 item.model_dump(mode="json", exclude_none=True)
                                 for item in hold_reasons
                             ],
@@ -333,8 +340,15 @@ def main(argv: Sequence[str] | None = None) -> int:
                         f"composition differs from installed authority: {exc}"
                     ) from exc
                 if composition.status == "HOLD":
+                    payload = composition.model_dump(mode="json", exclude_none=True)
+                    payload["execution_status"] = "blocked"
+                    payload["evidence_classes"] = []
+                    payload["embodied_evidence_bound"] = False
+                    payload["claim_boundary"] = saved.sources.facility.facility.claim_boundary
+                    payload["authority_anchor"] = "installed_bundle"
+                    payload["validation_reasons"] = payload.pop("reasons", [])
                     _print_json(
-                        composition.model_dump(mode="json", exclude_none=True),
+                        payload,
                         compact=args.output is not None,
                     )
                     return 1
@@ -351,8 +365,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.output,
                 composition_result=composition,
             )
+            compiled_claim_boundary = (
+                facility_manifest.facility.claim_boundary
+                if not isinstance(facility_manifest, Path)
+                else load_facility_manifest(facility_manifest).facility.claim_boundary
+            )
             receipt = {
                 "status": "passed",
+                "execution_status": "passed",
                 "target": result.target,
                 "output_dir": str(result.output_dir),
                 "root_stage": str(result.stage_path),
@@ -374,6 +394,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                     if composition and composition.virtual_sdl
                     else []
                 ),
+                "embodied_evidence_bound": False,
+                "claim_boundary": compiled_claim_boundary,
+                "authority_anchor": "installed_bundle",
+                "validation_reasons": [],
                 "next_command": f"dynamical run {result.output_dir} -o trace.ndjson",
             }
             _print_json(
@@ -421,6 +445,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             # *why* a provider was demoted -- so this CLI-only receipt field is the
             # one place PROVIDER_SELF_ADMITTED is legible to the agent.
             installed_registry = load_capability_registry(DEFAULT_REGISTRY)
+            installed_facility = load_facility_manifest(DEFAULT_FACILITY)
             supplied_registry = load_capability_registry(args.registry)
             # Modified or unknown authority-bearing records are proposals, not
             # authorities: they hold here with typed reasons before anything is
@@ -431,14 +456,19 @@ def main(argv: Sequence[str] | None = None) -> int:
                 supplied_registry,
                 load_facility_manifest(args.facility),
                 installed_registry,
-                load_facility_manifest(DEFAULT_FACILITY),
+                installed_facility,
             )
             if authority_reasons:
                 _print_json(
                     {
                         "status": "HOLD",
+                        "execution_status": "blocked",
+                        "evidence_classes": [],
+                        "embodied_evidence_bound": False,
+                        "claim_boundary": installed_facility.facility.claim_boundary,
+                        "authority_anchor": "installed_bundle",
                         "reason_codes": sorted({item.code for item in authority_reasons}),
-                        "reasons": [
+                        "validation_reasons": [
                             item.model_dump(mode="json", exclude_none=True)
                             for item in authority_reasons
                         ],
@@ -462,11 +492,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                 write_composition_result(args.output, result)
                 receipt = {
                     "status": result.status,
+                    "execution_status": ("passed" if result.status == "COMPILED" else "blocked"),
                     "output": str(args.output),
                     "composition_sha256": result.composition_sha256,
                     "resolution_sha256": result.resolution_sha256,
                     "reason_codes": result.reason_codes,
-                    "reasons": [
+                    "validation_reasons": [
                         item.model_dump(mode="json", exclude_none=True) for item in result.reasons
                     ],
                     "provider_ids": (
@@ -481,6 +512,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                         if result.virtual_sdl
                         else []
                     ),
+                    "embodied_evidence_bound": False,
+                    "claim_boundary": installed_facility.facility.claim_boundary,
+                    "authority_anchor": "installed_bundle",
                 }
                 if untrusted_admissions:
                     receipt["untrusted_admissions"] = untrusted_admissions
@@ -489,6 +523,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                 _print_json(receipt, compact=True)
             else:
                 payload = result.model_dump(mode="json", exclude_none=True)
+                payload["execution_status"] = "passed" if result.status == "COMPILED" else "blocked"
+                payload["evidence_classes"] = (
+                    sorted({item.evidence_class for item in result.virtual_sdl.operation_bindings})
+                    if result.virtual_sdl
+                    else []
+                )
+                payload["embodied_evidence_bound"] = False
+                payload["claim_boundary"] = installed_facility.facility.claim_boundary
+                payload["authority_anchor"] = "installed_bundle"
+                payload["validation_reasons"] = payload.pop("reasons", [])
                 if untrusted_admissions:
                     payload["untrusted_admissions"] = untrusted_admissions
                 _print_json(payload)
@@ -503,6 +547,15 @@ def main(argv: Sequence[str] | None = None) -> int:
             if not args.path.exists():
                 raise ValueError(f"validation input does not exist: {args.path}")
             report = validate_path(args.path)
+            report.setdefault("execution_status", "passed" if report.get("valid") else "failed")
+            report.setdefault("evidence_classes", [])
+            report.setdefault("embodied_evidence_bound", False)
+            report.setdefault(
+                "claim_boundary",
+                "Artifact contract validation only; no new scientific or physical evidence.",
+            )
+            report.setdefault("authority_anchor", "installed_bundle")
+            report.setdefault("validation_reasons", report.get("failures", []))
             if args.as_json:
                 print(json.dumps(report, indent=2, sort_keys=True))
             elif report.get("valid"):

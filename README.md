@@ -98,6 +98,27 @@ The agent controls the scientific objective, experiment parameters, operation
 order, analysis, and stopping decision. Dynamical controls provider admission,
 evidence types, trace integrity, facility policy, and physical authority.
 
+## Automation contract
+
+Dynamical uses these process exit codes:
+
+- Exit `0`: the command produced an executable or valid result.
+- Exit `1`: the command produced a structured domain-negative result, such as
+  `HOLD` or failed validation.
+- Exit `2`: the invocation is invalid or the input is malformed.
+
+Automation must inspect a structured result that returns exit `1`. It must not
+treat the result as an ordinary crash.
+
+Default receipts use public evidence and authority facts: `evidence_classes`,
+`execution_status`, `embodied_evidence_bound`, `claim_boundary`,
+`authority_anchor`, and `validation_reasons`. Internal maturity rubrics are not
+part of the CLI protocol.
+
+Custom `--registry` and `--facility` inputs are proposals. They cannot grant
+themselves authority. In v0.1, the installed bundle is the local authority
+anchor.
+
 ## Portable worlds and trace-bound execution
 
 [OpenUSD](https://openusd.org/release/index.html) carries the portable compiled

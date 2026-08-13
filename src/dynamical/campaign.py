@@ -1194,7 +1194,7 @@ def validate_events(events: Sequence[TraceEvent]) -> dict[str, Any]:
     return {
         "valid": execution_status != "failed",
         "execution_status": execution_status,
-        "reasons": reasons,
+        "validation_reasons": reasons,
         "schema_version": SCHEMA_VERSION,
         "mode": events[0].mode.value,
         "event_count": len(events),
@@ -1218,6 +1218,12 @@ def validate_events(events: Sequence[TraceEvent]) -> dict[str, Any]:
             }
             | {evidence.evidence_class.value for event in events for evidence in event.evidence}
         ),
+        "embodied_evidence_bound": False,
+        "claim_boundary": events[0].provenance.get(
+            "claim_boundary",
+            "Trace validation only; no embodied or physical evidence binding is established.",
+        ),
+        "authority_anchor": events[0].provenance.get("authority_anchor", "installed_bundle"),
     }
 
 
@@ -2228,7 +2234,11 @@ def _composed_identity(
         provenance={
             "runner": "dynamical.campaign.run_composed_campaign",
             "embodied_backend": False,
-            "w1_evidence": False,
+            "embodied_evidence_bound": False,
+            "claim_boundary": (
+                "Bounded virtual provider execution only; no physical backend was called."
+            ),
+            "authority_anchor": "installed_bundle",
             "compiled_contract_bound": True,
             "compiled_pack": contract.provenance_binding(),
             "constraint_contract": constraint_contract,
@@ -2648,11 +2658,12 @@ def validate_path(path: str | Path) -> dict[str, Any]:
         events = read_trace(candidate)
         result = validate_events(events)
         result["trace_sha256"] = file_sha256(candidate)
-        result["w1_evidence"] = False
-        result["w1_blocker"] = (
-            "Trace syntax cannot admit W1 without a verified compiled pack, runtime receipt, "
-            "source trace hash, and replay binding."
+        result["embodied_evidence_bound"] = False
+        result["claim_boundary"] = (
+            "Trace validation only; embodied evidence requires a verified compiled pack, "
+            "runtime receipt, source trace hash, and replay binding."
         )
+        result["authority_anchor"] = "installed_bundle"
         return result
     raise CampaignValidationError(f"not a campaign trace: {candidate}")
 
@@ -2694,10 +2705,11 @@ def run_cli(args: argparse.Namespace) -> int:
                 "use the exact external provider runtime artifacts"
             )
         result = {"trace_sha256": trace_hash, **validate_events(events)}
-        result["w1_evidence"] = False
+        result["embodied_evidence_bound"] = False
         result["claim_boundary"] = (
             "bounded virtual provider execution only; no physical backend was called"
         )
+        result["authority_anchor"] = "installed_bundle"
     receipt = {"output": str(output_path), **result}
     if output_value:
         compact_receipt = {
@@ -2710,10 +2722,12 @@ def run_cli(args: argparse.Namespace) -> int:
                 "event_count",
                 "valid",
                 "execution_status",
-                "reasons",
-                "w1_evidence",
+                "validation_reasons",
                 "provider_ids",
                 "evidence_classes",
+                "embodied_evidence_bound",
+                "claim_boundary",
+                "authority_anchor",
             )
             if key in receipt
         }

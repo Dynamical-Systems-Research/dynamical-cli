@@ -78,7 +78,7 @@ Identity is orthogonal to lineage. Name so that recalibration never renames.
 
 - Operation: device-independent `verb-noun` (`measure-oer`, `deposit-chemical-bath`).
 - Adapter module: `{family}_{device_or_process}.py` (`ac_oer_twin.py`). Never a dataset name.
-- Provider: `{family}-{device_or_process}-{evidence_role}`; evidence-role suffixes: `-simulator` (W1), `-twin` (calibrated), physical providers end `-pending` until admitted.
+- Provider: `{family}-{device_or_process}-{evidence_role}`; evidence-role suffixes: `-simulator` (simulator evidence), `-twin` (calibrated-twin evidence), physical providers end `-pending` until admitted.
 - Model binding: `{provider}-model`.
 - Calibration evidence: `{dataset}-{output}` (`fastcat-oer`); the ONLY place dataset names appear.
 - Authority: `{org}-{authority_kind}-{evidence_scope}-{date}`.

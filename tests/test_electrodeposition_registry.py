@@ -414,7 +414,7 @@ def test_coverage_campaign_compiles_and_runs_with_zero_lineage_findings(tmp_path
     assert result["execution_status"] == "passed"
     assert result["valid"] is True
     assert result["event_count"] == 22
-    assert result["reasons"] == []
+    assert result["validation_reasons"] == []
 
 
 def test_coverage_campaign_retargeted_transfer_still_fails_lineage(tmp_path: Path):
@@ -431,7 +431,9 @@ def test_coverage_campaign_retargeted_transfer_still_fails_lineage(tmp_path: Pat
 
     assert result["execution_status"] == "failed"
     assert result["valid"] is False
-    assert any(reason["code"] == "SAMPLE_TRANSFER_MISSING" for reason in result["reasons"])
+    assert any(
+        reason["code"] == "SAMPLE_TRANSFER_MISSING" for reason in result["validation_reasons"]
+    )
 
 
 def test_tampered_instrument_module_fails_closed_on_declared_hash(
@@ -459,7 +461,9 @@ def test_tampered_instrument_module_fails_closed_on_declared_hash(
 
     assert result["execution_status"] == "failed"
     assert result["valid"] is False
-    assert any(reason["code"] == "MODEL_IMPLEMENTATION_MISMATCH" for reason in result["reasons"])
+    assert any(
+        reason["code"] == "MODEL_IMPLEMENTATION_MISMATCH" for reason in result["validation_reasons"]
+    )
 
 
 def test_repeated_action_kinds_each_get_their_own_provider_binding(tmp_path: Path):
@@ -548,7 +552,7 @@ def test_cross_surface_identity_binds_one_composition_everywhere(tmp_path: Path)
 
     for surface in (trace_path, replay_path):
         report = campaign_validate_path(surface)
-        assert report["valid"] is True, report["reasons"]
+        assert report["valid"] is True, report["validation_reasons"]
 
 
 def test_tampered_sample_state_digest_fails_validation(tmp_path: Path):
@@ -589,7 +593,9 @@ def test_tampered_sample_state_digest_fails_validation(tmp_path: Path):
 
     result = campaign_validate_path(tampered_path)
     assert result["valid"] is False
-    assert any(reason["code"] == "SAMPLE_STATE_DISCONTINUOUS" for reason in result["reasons"])
+    assert any(
+        reason["code"] == "SAMPLE_STATE_DISCONTINUOUS" for reason in result["validation_reasons"]
+    )
 
 
 def test_deposition_condition_changes_the_measured_activity(tmp_path: Path):

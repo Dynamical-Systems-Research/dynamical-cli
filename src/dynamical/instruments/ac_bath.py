@@ -1,4 +1,4 @@
-"""Chemical-bath LDH deposition on Ni foam, simulated at W1.
+"""Chemical-bath LDH deposition on Ni foam with simulator evidence.
 
 Instrument process only. No objective, no experiment order, no stopping
 rule. Simulates the FastCat robotic bath-synthesis step (DOI

@@ -426,8 +426,8 @@ def emit_isaac_sim(
         ),
         "claim_boundary": (
             "The launcher executes the portable physics bindings and writes a Dynamical trace. "
-            "W1 still requires a validated Isaac Lab articulation task, render, replay, "
-            "and visual inspection."
+            "Embodied evidence remains unbound until a validated Isaac Lab articulation task, "
+            "render, replay, and visual inspection pass."
         ),
     }
     physics_artifact = write_text_artifact(

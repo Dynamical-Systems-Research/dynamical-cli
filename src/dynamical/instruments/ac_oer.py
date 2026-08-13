@@ -12,10 +12,9 @@ electrodeposition from accumulated electrolyte volumes) and the requested
 OER current density.
 
 The frozen held-out calibration gates FAILED (held-out MAE and candidate-order
-preservation; see ``calibration_report.json``), so this model is W1 evidence
-only: the declared uncertainty is the fit-split residual standard deviation
-the data actually earned, W2 stays closed, and no calibrated-twin claim is
-made or implied.
+preservation; see ``calibration_report.json``), so this model supplies simulator
+evidence only. The declared uncertainty is the fit-split residual standard
+deviation the data earned, and no calibrated-twin claim is made or implied.
 """
 
 from __future__ import annotations

@@ -24,7 +24,7 @@ facility:
     Admiral Squidstat). It is modelled as one facility with three workstations, not three separate facilities,
     so no inter-facility transport gate is exercised by this manifest. Movement between workstations is
     carried explicitly by the transfer-sample capability, and must appear in the trace.
-  - A compiled stage is W0 evidence. W1 needs a preserved real execution trace, render, replay, and inspection.
+  - A compiled stage proves scene composition only. Embodied evidence needs a preserved real execution trace, render, replay, and inspection.
   - The OT-2 body, the Arduino controller enclosure, the Squidstat instrument body, and the OT-2 tiprack
     have no admitted source geometry and are represented as execution_visualization_primitive proxies,
     not exact source geometry.
@@ -1088,7 +1088,7 @@ material_states: []
 model_bindings:
 - id: ac-bath-model
   implementation_ref: src/dynamical/instruments/ac_bath.py
-  implementation_sha256: 3e122423083dc2cbe106ae293e43d0205f57bc96f7a1bb5ca0745b21cac5b012
+  implementation_sha256: 90d8f58cde7a3630680a7356572466093e27fd22b880abc75a22dc112f658787
   input_channel_map: {}
   output_channel_map: {}
   parameter_map:
@@ -1098,7 +1098,7 @@ model_bindings:
   calibration_evidence_ids: []
 - id: ac-oer-twin-model
   implementation_ref: src/dynamical/instruments/ac_oer_twin.py
-  implementation_sha256: d9d65f5378003f1941474ca209993e0cfb8b5f48dc6fab3a583658ac64db3a1e
+  implementation_sha256: 13fe1d4dc87c95c8b5fac68e2268d5680d29c39376e428698ae282469db7dba0
   input_channel_map: {}
   output_channel_map: {}
   parameter_map:
@@ -1138,7 +1138,7 @@ model_bindings:
   calibration_evidence_ids: []
 - id: ac-oer-model
   implementation_ref: src/dynamical/instruments/ac_oer.py
-  implementation_sha256: ddf8b2a10fb38e94e89df90716a4dd2bc8550d027873487b31d2f6d351af9c3a
+  implementation_sha256: 1441093252492828d86482b87a5525d764551d5203e6c5a5b77a02d1196fc61c
   input_channel_map: {}
   output_channel_map: {}
   parameter_map:
@@ -1417,7 +1417,7 @@ provider_admission_bindings:
   - oer-current-density-envelope
   policy_tags:
   - simulation-only
-  - fitted-w1-gates-failed
+  - fitted-model-calibration-gates-failed
   required_approval_ids: []
 - id: admitted-ac-transfer-sample
   provider_id: ac-transfer-simulator
@@ -1653,7 +1653,7 @@ calibration_evidence:
     squidstat.current_density_a_cm2: 0.020 to 0.050 A/cm^2 (fitted basis; physical chronopotentiometry per the frozen protocol)
     squidstat.overpotential_v: predicted only for deposited films whose nominal precursor fractions over Ni, Fe, Cr, Mn, Co, Zn, Cu and NH4OH/NaCi levels are represented in the fit split
   split_rule_ref: registries/calibration/ampere2-oer/frozen_protocol.json
-  split_rule_sha256: 7098893d2f556084135c3c93b73b1ef8827b1292e6d258f6ad0b2f5573f5e3de
+  split_rule_sha256: bcc2e272d3ee519804cfbb36918782931153f46d49dabb30073b974fe8b98032
   fit_artifact_ref: registries/calibration/ampere2-oer/fit.json
   fit_artifact_sha256: e5a9c611cfc78a7ecddf32479eb5974225ed8ce8125bc8ff6d6ae4de476aece6
   validation_design: cross_condition
@@ -1681,8 +1681,8 @@ calibration_evidence:
     unit: V
     split: fit
   limitations:
-  - The frozen held-out gates FAILED (overpotential MAE and candidate-order preservation), so W2 is closed and this model is W1 evidence only; the failed report is preserved at registries/calibration/ampere2-oer/calibration_report.json.
-  - Validation is a cross-condition holdout within a single AMPERE-2 campaign (one lab, one instrument), not independent physical facility runs; bounded W2 requires the latter, so W2 is closed on this ground independent of the failed gates.
+  - The frozen held-out gates FAILED (overpotential MAE and candidate-order preservation), so calibrated-twin admission is denied and this model supplies simulator evidence only; the failed report is preserved at registries/calibration/ampere2-oer/calibration_report.json.
+  - Validation is a cross-condition holdout within a single AMPERE-2 campaign (one lab, one instrument), not independent physical facility runs; calibrated-twin admission requires the latter and is denied on this ground independent of the failed gates.
   - Fit and held-out data include runs recorded at the instrument compliance rail (~10.63 V) that the upstream dataset marks success; the frozen protocol does not permit post-hoc exclusion, and they dominate the declared sigma. The uncertainty-coverage-2sigma metric passes only because that sigma is large; it is not evidence of calibrated uncertainty.
   - The condition split hashes raw metadata strings and leaks two physically identical conditions across the fit/held-out boundary; split leakage biases held-out performance optimistically, so a clean split can only worsen the already-failed gates. See registries/calibration/ampere2-oer/ERRATA.md.
   - The fit design matrix is rank 9 of 11 (no condition separates Mn from Cu), so those coefficients are not separately identified. See ERRATA.md.

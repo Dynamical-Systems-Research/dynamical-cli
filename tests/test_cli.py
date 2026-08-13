@@ -171,7 +171,7 @@ def test_hold_receipt_has_reasons_and_no_compile_instruction(tmp_path: Path, cap
     receipt = json.loads(capsys.readouterr().out)
     assert receipt["status"] == "HOLD"
     assert receipt["reason_codes"]
-    assert receipt["reasons"]
+    assert receipt["validation_reasons"]
     assert "next_command" not in receipt
 
 
@@ -199,7 +199,9 @@ def test_saved_composition_compiles_runs_and_validates_without_extra_flags(
     assert main(["run", str(compiled), "-o", str(simulated)]) == 0
     simulation_receipt = json.loads(capsys.readouterr().out)
     assert simulation_receipt["mode"] == "simulate"
-    assert simulation_receipt["w1_evidence"] is False
+    assert simulation_receipt["embodied_evidence_bound"] is False
+    assert simulation_receipt["authority_anchor"] == "installed_bundle"
+    assert simulation_receipt["validation_reasons"] == []
 
     assert main(["run", str(simulated), "--mode", "replay", "-o", str(replayed)]) == 0
     replay_receipt = json.loads(capsys.readouterr().out)
@@ -379,7 +381,7 @@ def test_modified_model_hash_in_agent_facility_is_refused(tmp_path: Path, capsys
     assert compose_rc == 1
     assert receipt["status"] == "HOLD"
     assert receipt["reason_codes"] == ["AUTHORITY_MODIFIED"]
-    assert any("ac-oer-model" in item["detail"] for item in receipt["reasons"])
+    assert any("ac-oer-model" in item["detail"] for item in receipt["validation_reasons"])
 
     composition_path = tmp_path / "composition.json"
     write_composition_result(
@@ -422,7 +424,8 @@ def test_stripped_proof_requirements_fail_validation_and_replay(tmp_path: Path, 
     report = json.loads(capsys.readouterr().out)
     assert report["valid"] is False
     assert any(
-        reason.get("code") == "PROOF_CONTRACT_MISMATCH" for reason in report.get("reasons", [])
+        reason.get("code") == "PROOF_CONTRACT_MISMATCH"
+        for reason in report.get("validation_reasons", [])
     )
 
     replayed = tmp_path / "replay.ndjson"
@@ -461,7 +464,7 @@ def test_injected_material_state_holds_at_compile(tmp_path: Path, capsys) -> Non
     assert compile_rc == 1
     assert receipt["status"] == "HOLD"
     assert "AUTHORITY_UNRECOGNIZED" in receipt["reason_codes"]
-    assert any("material_states" in item["detail"] for item in receipt["reasons"])
+    assert any("material_states" in item["detail"] for item in receipt["validation_reasons"])
     assert not compiled_dir.exists()
 
 

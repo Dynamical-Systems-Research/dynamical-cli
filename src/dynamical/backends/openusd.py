@@ -39,7 +39,7 @@ def emit_openusd(
         ],
         "claim_boundary": (
             "A valid rendered stage proves scene composition and visual inspection only. "
-            "It is not an embodied workflow or a W1 claim."
+            "It does not bind embodied or physical evidence."
         ),
     }
     artifacts = [write_json_artifact(output_dir, "backend_config", "backend_config.json", config)]

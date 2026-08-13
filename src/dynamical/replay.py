@@ -48,7 +48,7 @@ _RUNTIME_RECEIPT_FIELDS = {
     "intended_exit_code",
     "simulation_app_shutdown_requested",
     "runtime_error",
-    "w1_admitted",
+    "embodied_evidence_bound",
     "manual_gates",
     "artifacts",
 }
@@ -70,7 +70,7 @@ def _runtime_artifact_records(
         or receipt.get("intended_exit_code") != 0
         or receipt.get("simulation_app_shutdown_requested") is not True
         or receipt.get("runtime_error") is not None
-        or receipt.get("w1_admitted") is not False
+        or receipt.get("embodied_evidence_bound") is not False
         or not isinstance(receipt.get("manual_gates"), list)
         or not receipt["manual_gates"]
     ):
@@ -495,16 +495,16 @@ def replay_trace(
         for original, written in zip(source_events, written_events, strict=True)
     )
     result["embodied_evidence_bound"] = False
-    result["w1_evidence"] = False
     if binding is not None:
         result.update(binding)
-        result["w1_evidence"] = False
-        result["w1_blocker"] = (
-            "The embodied replay binding does not by itself prove render inspection or "
-            "independent W1 review."
+        result["claim_boundary"] = (
+            "Verified compiled-runtime replay binding only; no physical execution or "
+            "physical measurement is established."
         )
     else:
-        result["w1_blocker"] = (
-            "Replay is not bound to a verified compiled pack and runtime receipt."
+        result["claim_boundary"] = (
+            "Trace replay only; embodied evidence is not bound because no verified compiled "
+            "pack and runtime receipt were supplied."
         )
+    result["authority_anchor"] = "installed_bundle"
     return result

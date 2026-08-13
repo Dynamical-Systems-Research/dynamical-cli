@@ -235,7 +235,7 @@ def semantics_layer(document: FacilityDocument, core_ir_sha256: str) -> str:
 
 
 def calibration_layer(document: FacilityDocument) -> str:
-    """Create an evidence-binding overlay. It does not assign a W level."""
+    """Create an evidence-binding overlay."""
 
     evidence_ids = sorted(evidence.id for evidence in document.calibration_evidence)
     model_ids = sorted(model.id for model in document.model_bindings)
@@ -249,7 +249,6 @@ def calibration_layer(document: FacilityDocument) -> str:
             "{",
             f"    custom string[] dynamical:calibrationEvidenceIds = [{evidence_values}]",
             f"    custom string[] dynamical:modelBindingIds = [{model_values}]",
-            "    custom bool dynamical:w2Admitted = false",
             "}",
             "",
         ]

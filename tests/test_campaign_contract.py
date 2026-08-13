@@ -45,7 +45,7 @@ def _identity() -> CampaignIdentity:
         ir_hash=digest,
         world_hash=digest,
         campaign_hash=digest,
-        provenance={"embodied_backend": False, "w1_evidence": False},
+        provenance={"embodied_backend": False, "embodied_evidence_bound": False},
     )
 
 
@@ -390,7 +390,7 @@ def test_composed_runtime_threads_a_sample_through_transfer_and_a_dependent_step
 
     result = validate_events(events)
     assert result["valid"] is True
-    assert not any(reason["code"].startswith("SAMPLE_") for reason in result["reasons"])
+    assert not any(reason["code"].startswith("SAMPLE_") for reason in result["validation_reasons"])
 
 
 def test_independent_verifier_rejects_out_of_range_action() -> None:
@@ -532,7 +532,7 @@ def test_compiled_trace_actions_and_channels_are_declared_subsets(tmp_path: Path
     assert events[0].world_hash == manifest["world_sha256"]
     assert events[0].provenance["compiled_contract_bound"] is True
     assert events[0].provenance["embodied_backend"] is False
-    assert events[0].provenance["w1_evidence"] is False
+    assert events[0].provenance["embodied_evidence_bound"] is False
 
 
 def test_constraint_verifier_rejects_unit_mismatch() -> None:

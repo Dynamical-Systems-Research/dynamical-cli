@@ -552,7 +552,7 @@ def _write_receipt(output: Path, pack: dict[str, Any], status: str, trace_hash: 
                 "message": "Isaac runtime exited before a complete campaign trace passed",
             }
         ),
-        "w1_admitted": False,
+        "embodied_evidence_bound": False,
         "manual_gates": [
             "The portable adapter uses a fixed-joint manipulation binding. A validated "
             "Isaac Lab articulation task remains required.",
@@ -617,7 +617,7 @@ def main() -> int:
                 "embodied_backend": True,
                 "compiled_adapter": True,
                 "manipulation_binding": "portable_fixed_joint",
-                "w1_admitted": False,
+                "embodied_evidence_bound": False,
                 "prim_count": prim_count,
             },
             output_path=args.output,

@@ -809,8 +809,8 @@ def runtime_campaign(
         ),
         "claim_boundary": (
             "This campaign maps the compiled Dynamical contract to target actions. "
-            "W1 remains false "
-            "until the target run, render, trace, replay, and visual inspection pass."
+            "Embodied evidence remains unbound until the target run, render, trace, replay, "
+            "and visual inspection pass."
         ),
     }
 

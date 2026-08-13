@@ -59,7 +59,7 @@ _OWNERSHIP_ARTIFACTS = {
     "capability_graph.json",
     "core_ir.json",
     "facility_ir.json",
-    "fidelity_report.json",
+    "evidence_report.json",
     "layout.usda",
     "observation_schema.json",
     "physics.usda",
@@ -551,95 +551,19 @@ def _selected_capability_graph(composition: Any) -> dict[str, Any]:
     }
 
 
-def evaluate_calibration(document: FacilityDocument) -> dict[str, Any]:
-    """Evaluate declared calibration evidence into a bounded W2 decision.
+def _evidence_report(document: FacilityDocument, target: str) -> dict[str, Any]:
+    """Describe the compiled artifact without assigning an internal maturity level."""
 
-    W2 is admitted for a model binding's named channels and condition domain
-    only when its evidence comes from independent physical facility runs,
-    carries at least one gated metric on the independent_test split, and
-    every gated metric passes its frozen threshold (recomputed here, never
-    trusted from the record). Anything else -- no evidence, no held-out
-    gates, any failed gate, or a within-campaign validation design -- keeps
-    W2 closed. Every applicable closure reason is recorded, not just the
-    first, so an evidence record that both fails its gates and lacks
-    independent-facility validation shows both.
-    """
-
-    grants: list[dict[str, Any]] = []
-    closed: list[dict[str, Any]] = []
-    for evidence in sorted(document.calibration_evidence, key=lambda value: value.id):
-        gated = [metric for metric in evidence.metrics if metric.gate_passed() is not None]
-        held_out_gates = [metric for metric in gated if metric.split == "independent_test"]
-        failed = [metric.name for metric in gated if metric.gate_passed() is False]
-        record = {
-            "calibration_evidence_id": evidence.id,
-            "model_binding_id": evidence.applies_to_model_binding_id,
-            "channel_ids": list(evidence.supported_channel_ids),
-            "condition_domain": dict(evidence.condition_domain),
-        }
-        reasons: list[str] = []
-        if evidence.validation_design != "independent_facility_runs":
-            reasons.append(
-                "validation design is not independent_facility_runs "
-                f"(declared: {evidence.validation_design})"
-            )
-        if not held_out_gates:
-            reasons.append("no gated metric on the independent_test split")
-        if failed:
-            reasons.append(f"failed frozen gates: {failed}")
-        if reasons:
-            closed.append({**record, "reasons": reasons, "failed_metrics": failed})
-        else:
-            grants.append(record)
-    return {"w2_admitted": bool(grants), "w2_grants": grants, "w2_closed": closed}
-
-
-def _fidelity_template(document: FacilityDocument, target: str) -> dict[str, Any]:
-    calibration = evaluate_calibration(document)
-    if calibration["w2_admitted"]:
-        granted = calibration["w2_grants"]
-        calibration_statement = (
-            "Bounded W2 is admitted solely for the granted channels and condition domains: "
-            f"{granted}. Everything else remains W1."
-        )
-        w2_admission = {"status": "admitted_bounded", "reason": calibration_statement}
-    elif calibration["w2_closed"]:
-        closure_reasons = [
-            reason for item in calibration["w2_closed"] for reason in item["reasons"]
-        ]
-        calibration_statement = (
-            "W2 is not admitted. Declared calibration evidence is closed for: "
-            f"{closure_reasons}. The evidence record is preserved in calibration_bindings.json."
-        )
-        w2_admission = {"status": "not_admitted", "reason": calibration_statement}
-    else:
-        calibration_statement = (
-            "No physical calibration evidence; W2 is not admitted. Independent physical "
-            "facility runs remain required."
-        )
-        w2_admission = {"status": "not_admitted", "reason": calibration_statement}
     return {
         "schema_version": "0.1.0",
-        "rubric_owner": "Dynamical Systems",
-        "rubric_kind": "internal",
         "target": target,
         "authoring_basis": document.facility.authoring_basis,
-        "admission": {
-            "W0": {
-                "status": "candidate",
-                "reason": "Compilation must pass independent schema and artifact validation.",
-            },
-            "W1": {
-                "status": "not_admitted",
-                "reason": "A real rendered embodied workflow and trace are required.",
-            },
-            "W2": w2_admission,
-            "W3": {"status": "not_admitted", "reason": "No live read-only facility link."},
-            "W4": {"status": "not_admitted", "reason": "No approved physical submission path."},
-            "W5": {"status": "not_admitted", "reason": "No physical-result update loop."},
-        },
+        "evidence_classes": [],
+        "execution_status": "not_executed",
+        "embodied_evidence_bound": False,
         "claim_boundary": document.facility.claim_boundary,
-        "calibration_statement": calibration_statement,
+        "authority_anchor": "installed_bundle",
+        "validation_reasons": [],
     }
 
 
@@ -856,10 +780,9 @@ def compile_facility(
                     item.model_dump(mode="json", exclude_none=True)
                     for item in sorted(document.calibration_evidence, key=lambda value: value.id)
                 ],
-                **evaluate_calibration(document),
             },
         )
-        _write_json(staged / "fidelity_report.json", _fidelity_template(document, target))
+        _write_json(staged / "evidence_report.json", _evidence_report(document, target))
         if composition_result is not None:
             from .composition import CompositionResult, validate_composition_result
 

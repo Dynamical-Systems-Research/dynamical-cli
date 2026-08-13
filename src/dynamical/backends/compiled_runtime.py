@@ -968,9 +968,9 @@ def validate_trace(events: list[dict[str, Any]], pack: dict[str, Any]) -> None:
         provenance = event.get("provenance")
         if not isinstance(provenance, dict):
             raise RuntimeContractError("trace provenance is invalid")
-        if provenance.get("w1_admitted") is True or provenance.get("w1_evidence") is True:
+        if provenance.get("embodied_evidence_bound") is True:
             raise RuntimeContractError(
-                "a runtime trace cannot self-admit W1 from provenance booleans"
+                "a runtime trace cannot self-bind embodied evidence from provenance"
             )
         if (
             provenance.get("embodied_backend") is True

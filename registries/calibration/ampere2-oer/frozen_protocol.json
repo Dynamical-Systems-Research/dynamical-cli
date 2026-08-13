@@ -34,6 +34,6 @@
     "candidate_order_spearman": {"threshold": 0.7, "rule": "Spearman rank correlation between predicted and observed held-out condition-mean overpotential, pooled over both current densities after per-j mean-centering, must be >= 0.7"},
     "missing_data_behavior": {"rule": "model refuses inputs outside the admitted domain (composition entries outside the seven metals + two complexing agents, j outside [0.02, 0.05] A/cm2) with a typed out-of-envelope reason; verified by behavior test, not a fitted metric"}
   },
-  "w2_grant_shape": "if and only if every gate passes: bounded W2 admitted solely for channel overpotential_v (and its corrected-potential basis) from operation measure-oer, for nominal precursor compositions within the convex set of fit compositions over the seven metals with NH4OH/NaCi levels seen in fit data, at OER current densities in [0.02, 0.05] A/cm2, electrolyte/temperature as in the dataset; everything else stays W1",
-  "failure_rule": "if any gate fails, W2 stays closed, the failed report is preserved verbatim, thresholds are not revisited"
+  "calibrated_twin_grant_shape": "if and only if every gate passes: calibrated-twin evidence is admitted solely for channel overpotential_v (and its corrected-potential basis) from operation measure-oer, for nominal precursor compositions within the convex set of fit compositions over the seven metals with NH4OH/NaCi levels seen in fit data, at OER current densities in [0.02, 0.05] A/cm2, electrolyte/temperature as in the dataset; everything else remains simulator evidence",
+  "failure_rule": "if any gate fails, calibrated-twin admission is denied, the failed report is preserved verbatim, thresholds are not revisited"
 }

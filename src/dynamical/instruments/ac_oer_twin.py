@@ -9,9 +9,9 @@ rule. Frozen predictions of E@10mA (V vs RHE) for the admitted FastCat
 composition domain, produced by the independently validated provider
 (registries/calibration/fastcat-oer/: MAE 22.2 mV on a one-time sealed
 27-composition cohort, all nine predeclared gates passed, split-conformal
-90% half-width 0.104969 V). W2 applies to THIS output on THIS domain only.
-A composition outside the frozen table fails closed with a typed reason:
-the calibration does not extend to it.
+90% half-width 0.104969 V). Calibrated-twin evidence applies to this output and
+domain only. A composition outside the frozen table fails closed with a typed
+reason because the calibration does not extend to it.
 """
 
 from __future__ import annotations
