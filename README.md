@@ -20,15 +20,14 @@ supply the operating interface. The Python package supplies the runtime.
 
 ## See the virtual laboratory run
 
-https://github.com/user-attachments/assets/01cbd9b8-33b9-40d7-935b-9b90ab5c8df2
+[Watch the recorded agent campaign and synchronized Isaac replay.](https://dynamicalsystems.ai/scientific-autoresearch#see-the-virtual-laboratory-run)
 
-The video pairs a recorded agent campaign with a synchronized Isaac Sim replay.
-The agent composes a multi-instrument campaign, receives a model-generated
-scientific observation, revises its request for a physical experiment, and gets
-`HOLD` because the campaign has no approved physical route.
+An AI agent plans and runs experiments in a virtual lab.
+Every result carries its uncertainty and a record of where it came from.
+The agent reads that evidence, changes its plan, and asks for one physical experiment.
+Dynamical holds that request until a real instrument is approved.
 
-The replay visualizes the recorded composition in Isaac Sim. It is not a live
-physical execution or a calibrated twin of the full workstation.
+This video replays a recorded run. No physical experiment was performed.
 
 ## Install for an agent
 
@@ -77,6 +76,20 @@ constraint, sample-state change, cost, and duration.
 Use `dynamical compose --schema` to inspect the requirement schema. Use
 `dynamical capabilities --operation <operation-id> --json` to inspect the typed
 contract for one operation.
+
+## Run a concurrent autoresearch study
+
+Give an agent the scientific decision and comparison rule directly:
+
+```text
+Use Dynamical to run 16 independent virtual experiment arms over these candidate
+compositions. Keep the processing route fixed. Compare overpotential and
+uncertainty lexicographically. Confirm the study plan before execution. Stop
+when the budget is exhausted or the top candidate is stable across two rounds.
+Validate every arm before comparison. Preserve all promoted, not_promoted, HOLD,
+invalid, and failed arms. Return study-report.json with the supported decision,
+rival candidates, uncertainty, experiment snapshots, and next physical experiment.
+```
 
 ## How Dynamical works
 

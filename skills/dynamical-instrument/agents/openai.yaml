@@ -1,4 +1,4 @@
 interface:
   display_name: "Dynamical Instrument"
-  short_description: "Onboard a pending scientific instrument"
-  default_prompt: "Use $dynamical-instrument to turn these instrument sources into a pending Dynamical provider contribution."
+  short_description: "Route scientific evidence into a pending integration"
+  default_prompt: "Use $dynamical-instrument to choose the supported onboarding route without self-admission or physical authority."

@@ -1,7 +1,7 @@
 {
   "name": "dynamical",
-  "version": "0.1.7",
-  "description": "Build and run verified virtual labs from real facility capabilities.",
+  "version": "0.1.8",
+  "description": "Investigate materials decisions with verified virtual experiments.",
   "author": {
     "name": "Dynamical Systems Research",
     "url": "https://github.com/Dynamical-Systems-Research"
@@ -18,8 +18,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Dynamical",
-    "shortDescription": "Build and run verified virtual labs",
-    "longDescription": "Use Dynamical to inspect facility capabilities, compose research campaigns, run virtual labs, and validate the resulting evidence.",
+    "shortDescription": "Investigate materials decisions with validated evidence",
+    "longDescription": "Use Dynamical to plan, run, validate, and compare bounded virtual experiments while preserving evidence and physical authority boundaries.",
     "developerName": "Dynamical Systems Research",
     "category": "Research",
     "capabilities": [
@@ -28,7 +28,7 @@
       "Write"
     ],
     "defaultPrompt": [
-      "Use Dynamical to compile and validate this research campaign."
+      "Use Dynamical to investigate a materials decision: confirm, run, and validate experiments; report evidence and uncertainty."
     ]
   }
 }

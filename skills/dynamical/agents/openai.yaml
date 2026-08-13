@@ -1,4 +1,4 @@
 interface:
   display_name: "Dynamical"
-  short_description: "Compile and run virtual laboratory campaigns"
-  default_prompt: "Use $dynamical to assemble and run a virtual laboratory campaign for this engineering objective."
+  short_description: "Investigate materials decisions with validated evidence"
+  default_prompt: "Use $dynamical to investigate this materials decision. Confirm the objective, evidence requirements, search space, budget, comparison rule, and stopping rule. Run and validate bounded virtual experiments, then return the supported decision, uncertainty, rival hypotheses, all experiment outcomes, and the next physical experiment."

@@ -32,6 +32,21 @@ Inventory each supplied item before implementation:
 
 Separate source facts from assumptions and missing evidence. Do not infer calibration from a manual, infer a license from availability, or turn an HTTP success response into scientific validity. Do not invent a type, unit, limit, uncertainty, failure mode, endpoint, or authority record.
 
+## Select the onboarding route
+
+Choose the smallest route that the supplied evidence supports:
+
+| Supplied evidence | Candidate route | Boundary |
+| --- | --- | --- |
+| Executable computational model | `simulator` provider proposal | Repeated calls share model assumptions and are not independent evidence. |
+| Historical experiments | Archived replay | Reproduce realized evidence only; do not invent unseen outcomes. |
+| Model plus independent held-out validation | `calibrated_twin` candidate | Require uncertainty checks and a declared validity envelope. |
+| Hardware API or driver | Physical provider proposal | Keep admission, safety review, approval, and execution authority with the facility. |
+
+All routes are proposals until the installed authority accepts their complete
+records. Historical data alone does not support a counterfactual twin, and a
+working hardware API does not grant physical authority.
+
 ## Author the candidate
 
 Author only the layers that the inventory supports. Omit unsupported layers and list their missing evidence. Do not write a simulator to replace a missing interface or test endpoint.
