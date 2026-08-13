@@ -11,6 +11,7 @@ import yaml
 from _fixtures import write_reference_requirement
 
 from dynamical.cli import DEFAULT_REGISTRY, main
+from dynamical.compiler import compile_facility
 from dynamical.composition import compose_files, write_composition_result
 
 REPOSITORY = Path(__file__).resolve().parents[1]
@@ -112,6 +113,10 @@ def test_capability_index_is_compact_and_detail_is_complete(capsys) -> None:
     assert "\n" not in output.rstrip("\n")
     index = json.loads(output)
     assert index["schema_version"] == "dynamical.capability-index.v1"
+    assert index["registry_role"] == "installed_authority"
+    assert index["execution_status"] == "not_executed"
+    assert index["authority_anchor"] == "installed_bundle"
+    assert index["validation_reasons"] == []
     assert len(index["registry_sha256"]) == 64
     assert {item["operation_id"] for item in index["operations"]} >= {
         "dispense-electrolyte",
@@ -156,6 +161,10 @@ def test_compose_receipt_is_compact_and_saved_sources_are_self_contained(
     assert saved["sources"]["registry"]["registry_id"].startswith("dynamical-")
     assert saved["sources"]["facility"]["facility"]["id"] == ("ac-electrodeposition-cell")
     assert saved["sources"]["default_target"] == "openusd"
+    assert main(["validate", str(composition), "--json"]) == 0
+    validation = json.loads(capsys.readouterr().out)
+    assert validation["execution_status"] == "not_executable"
+    assert validation["authority_anchor"] == "not_evaluated"
 
 
 def test_hold_receipt_has_reasons_and_no_compile_instruction(tmp_path: Path, capsys) -> None:
@@ -173,6 +182,11 @@ def test_hold_receipt_has_reasons_and_no_compile_instruction(tmp_path: Path, cap
     assert receipt["reason_codes"]
     assert receipt["validation_reasons"]
     assert "next_command" not in receipt
+
+    assert main(["validate", str(composition), "--json"]) == 0
+    validation = json.loads(capsys.readouterr().out)
+    assert validation["execution_status"] == "blocked"
+    assert validation["validation_reasons"] == receipt["validation_reasons"]
 
 
 def test_saved_composition_compiles_runs_and_validates_without_extra_flags(
@@ -287,6 +301,35 @@ def test_self_admitted_physical_provider_is_demoted_not_trusted(tmp_path: Path, 
     forged_registry = tmp_path / "registry.yaml"
     forged_registry.write_text(yaml.safe_dump(registry, sort_keys=False), encoding="utf-8")
 
+    unchecked_requirement = write_reference_requirement(tmp_path / "unchecked-requirement.yaml")
+    unchecked = compose_files(unchecked_requirement, forged_registry, MANIFEST)
+    assert unchecked.status == "COMPILED"
+    api_world = tmp_path / "api-registry-proposal-world"
+    api_result = compile_facility(
+        MANIFEST,
+        "openusd",
+        api_world,
+        composition_result=unchecked,
+    )
+    assert api_result.authority_anchor == "unverified_proposal"
+    assert api_result.execution_status == "not_executable"
+    assert main(["run", str(api_world), "-o", str(tmp_path / "api-registry-trace.ndjson")]) == 2
+    assert "validation-only" in capsys.readouterr().err
+
+    assert main(["capabilities", "--registry", str(forged_registry), "--json"]) == 0
+    inspected = json.loads(capsys.readouterr().out)
+    assert inspected["registry_role"] == "proposal"
+    for forged_id in ("ac-oer-simulator", "ac-oer-twin"):
+        provider = next(
+            item
+            for operation in inspected["operations"]
+            for item in operation["providers"]
+            if item["provider_id"] == forged_id
+        )
+        assert provider["admission"] == "pending"
+        assert provider["proposed_admission"] == "admitted"
+    assert any(item["code"] == "PROVIDER_SELF_ADMITTED" for item in inspected["validation_reasons"])
+
     requirement_path = _write_measure_oer_requirement(tmp_path / "requirement.yaml")
     composition_path = tmp_path / "composition.json"
     compose_rc = main(
@@ -381,7 +424,7 @@ def test_modified_model_hash_in_agent_facility_is_refused(tmp_path: Path, capsys
     assert compose_rc == 1
     assert receipt["status"] == "HOLD"
     assert receipt["reason_codes"] == ["AUTHORITY_MODIFIED"]
-    assert any("ac-oer-model" in item["detail"] for item in receipt["validation_reasons"])
+    assert any("facility document" in item["detail"] for item in receipt["validation_reasons"])
 
     composition_path = tmp_path / "composition.json"
     write_composition_result(
@@ -437,7 +480,7 @@ def test_injected_material_state_holds_at_compile(tmp_path: Path, capsys) -> Non
     proposal, even in a section (material_states) the agent may otherwise
     leave empty: it seeds scientific conditions and must not compile silently.
     An agent-supplied facility that injects a material_states record holds at
-    compile with a typed AUTHORITY_UNRECOGNIZED reason."""
+    compile with a typed AUTHORITY_MODIFIED reason."""
 
     facility = yaml.safe_load(MANIFEST.read_text(encoding="utf-8"))
     facility["material_states"] = [
@@ -463,8 +506,8 @@ def test_injected_material_state_holds_at_compile(tmp_path: Path, capsys) -> Non
     receipt = json.loads(capsys.readouterr().out)
     assert compile_rc == 1
     assert receipt["status"] == "HOLD"
-    assert "AUTHORITY_UNRECOGNIZED" in receipt["reason_codes"]
-    assert any("material_states" in item["detail"] for item in receipt["validation_reasons"])
+    assert "AUTHORITY_MODIFIED" in receipt["reason_codes"]
+    assert any("facility document" in item["detail"] for item in receipt["validation_reasons"])
     assert not compiled_dir.exists()
 
 
@@ -473,6 +516,87 @@ def test_run_defaults_to_simulate_and_manifest_compile_requires_target(
 ) -> None:
     assert main(["compile", str(MANIFEST)]) == 2
     assert "requires --target" in capsys.readouterr().err
+
+    compiled = tmp_path / "manifest-world"
+    assert main(["compile", str(MANIFEST), "--target", "openusd", "-o", str(compiled)]) == 0
+    receipt = json.loads(capsys.readouterr().out)
+    assert receipt["execution_status"] == "not_executable"
+    assert receipt["authority_anchor"] == "installed_bundle"
+    assert receipt["next_command"] == f"dynamical validate {compiled} --json"
+    trace = tmp_path / "trace.ndjson"
+    assert main(["run", str(compiled), "-o", str(trace)]) == 2
+    assert "validation-only" in capsys.readouterr().err
+    assert not trace.exists()
+
+
+def test_modified_claim_boundary_is_a_proposal(tmp_path: Path, capsys) -> None:
+    facility = yaml.safe_load(MANIFEST.read_text(encoding="utf-8"))
+    facility["facility"]["claim_boundary"] = ["Agent-authored authority claim."]
+    proposed_facility = tmp_path / "facility.yaml"
+    proposed_facility.write_text(yaml.safe_dump(facility, sort_keys=False), encoding="utf-8")
+
+    requirement = write_reference_requirement(tmp_path / "requirement.yaml")
+    composition = tmp_path / "composition.json"
+    assert (
+        main(
+            [
+                "compose",
+                str(requirement),
+                "--facility",
+                str(proposed_facility),
+                "-o",
+                str(composition),
+            ]
+        )
+        == 1
+    )
+    receipt = json.loads(capsys.readouterr().out)
+    assert receipt["status"] == "HOLD"
+    assert receipt["authority_anchor"] == "installed_bundle"
+    assert "Agent-authored authority claim." not in receipt["claim_boundary"]
+    assert "AUTHORITY_MODIFIED" in receipt["reason_codes"]
+    assert not composition.exists()
+
+    compiled = tmp_path / "proposal-world"
+    assert (
+        main(
+            [
+                "compile",
+                str(proposed_facility),
+                "--target",
+                "openusd",
+                "-o",
+                str(compiled),
+            ]
+        )
+        == 0
+    )
+    compile_receipt = json.loads(capsys.readouterr().out)
+    assert compile_receipt["execution_status"] == "not_executable"
+    assert compile_receipt["authority_anchor"] == "unverified_proposal"
+    assert "Agent-authored authority claim." not in compile_receipt["claim_boundary"]
+    evidence_report = json.loads((compiled / "evidence_report.json").read_text(encoding="utf-8"))
+    assert evidence_report["authority_anchor"] == "unverified_proposal"
+    assert "Agent-authored authority claim." not in evidence_report["claim_boundary"]
+    assert main(["validate", str(compiled), "--json"]) == 0
+    validation = json.loads(capsys.readouterr().out)
+    assert validation["authority_anchor"] == "unverified_proposal"
+    assert validation["execution_status"] == "not_executable"
+    assert "Agent-authored authority claim." not in validation["claim_boundary"]
+
+    unchecked = compose_files(requirement, DEFAULT_REGISTRY, proposed_facility)
+    assert unchecked.status == "COMPILED"
+    api_world = tmp_path / "api-proposal-world"
+    api_result = compile_facility(
+        proposed_facility,
+        "openusd",
+        api_world,
+        composition_result=unchecked,
+    )
+    assert api_result.authority_anchor == "unverified_proposal"
+    assert api_result.execution_status == "not_executable"
+    assert main(["run", str(api_world), "-o", str(tmp_path / "api-trace.ndjson")]) == 2
+    assert "validation-only" in capsys.readouterr().err
 
 
 def test_missing_cli_inputs_name_the_absent_path(tmp_path: Path, capsys) -> None:
@@ -489,6 +613,17 @@ def test_missing_cli_inputs_name_the_absent_path(tmp_path: Path, capsys) -> None
         assert expected in error
         assert str(absent) in error
 
+    malformed = tmp_path / "malformed.yaml"
+    malformed.write_text("facility: [unterminated\n", encoding="utf-8")
+    for arguments in (
+        ["capabilities", "--registry", str(malformed), "--json"],
+        ["compile", str(malformed), "--target", "openusd"],
+    ):
+        assert main(arguments) == 2
+        error = capsys.readouterr().err
+        assert "malformed YAML" in error
+        assert "Traceback" not in error
+
 
 def test_only_dynamical_console_script_is_published() -> None:
     package = distribution("dynamical-cli")
@@ -498,9 +633,11 @@ def test_only_dynamical_console_script_is_published() -> None:
         if entry.group == "console_scripts"
     }
     assert scripts == {("dynamical", "dynamical.cli:main")}
+    from dynamical import __version__
     from dynamical.cli import _VERSION
 
     assert package.version == _VERSION
+    assert package.version == __version__
     dependencies = "\n".join(package.requires or []).lower()
     assert "openai" not in dependencies
     assert "anthropic" not in dependencies

@@ -7,13 +7,12 @@ import hashlib
 import json
 import sys
 from collections.abc import Sequence
-from importlib.metadata import PackageNotFoundError
-from importlib.metadata import version as _package_version
 from importlib.resources import files
 from pathlib import Path
 
 from pydantic import ValidationError
 
+from . import __version__ as _VERSION
 from .compiler import compile_facility, validate_path
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -31,11 +30,6 @@ DEFAULT_FACILITY = (
     if PACKAGED_FACILITY.is_file()
     else REPOSITORY_ROOT / "manifests" / "ac-electrodeposition-cell.yaml"
 )
-
-try:
-    _VERSION = _package_version("dynamical-cli")
-except PackageNotFoundError:
-    _VERSION = "0+unknown"
 
 
 def _print_json(value: object, *, compact: bool = False) -> None:
@@ -85,7 +79,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--registry",
         type=Path,
         default=DEFAULT_REGISTRY,
-        help="capability registry to inspect (default: the installed registry)",
+        help=(
+            "registry to inspect; a custom path is a proposal checked against the installed "
+            "registry"
+        ),
     )
 
     compile_parser = commands.add_parser(
@@ -94,7 +91,11 @@ def build_parser() -> argparse.ArgumentParser:
         epilog="Example: dynamical compile composition.json -o compiled-world",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    compile_parser.add_argument("input", type=Path)
+    compile_parser.add_argument(
+        "input",
+        type=Path,
+        help="composition for an executable world, or manifest for a validation-only world",
+    )
     compile_parser.add_argument("--target", choices=("isaac", "openusd"))
     compile_parser.add_argument("-o", "--output", type=Path)
 
@@ -147,13 +148,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--registry",
         type=Path,
         default=DEFAULT_REGISTRY,
-        help="capability registry to compose against (default: the installed registry)",
+        help="registry to use; a custom path is a proposal checked against installed authority",
     )
     compose_parser.add_argument(
         "--facility",
         type=Path,
         default=DEFAULT_FACILITY,
-        help="facility manifest to compose against (default: the installed facility)",
+        help="facility to use; a custom path is a proposal checked against installed authority",
     )
 
     run_parser = commands.add_parser(
@@ -201,10 +202,46 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         if args.command == "capabilities":
+            from .composition import authority_hold_reasons, demote_untrusted_admissions
             from .schema import load_capability_registry
 
-            registry = load_capability_registry(args.registry)
+            installed_registry = load_capability_registry(DEFAULT_REGISTRY)
+            proposed_registry = load_capability_registry(args.registry)
+            registry, admission_reasons = demote_untrusted_admissions(
+                proposed_registry, installed_registry
+            )
+            authority_reasons = authority_hold_reasons(
+                proposed_registry,
+                None,
+                installed_registry,
+                None,
+            )
+            validation_reasons = [
+                item.model_dump(mode="json", exclude_none=True)
+                for item in [*authority_reasons, *admission_reasons]
+            ]
+            registry_role = (
+                "installed_authority"
+                if args.registry.resolve() == DEFAULT_REGISTRY.resolve()
+                else "proposal"
+            )
             registry_payload = registry.model_dump(mode="json", exclude_none=True)
+            for provider in registry_payload["providers"]:
+                if authority_reasons and provider["admission"]["status"] == "admitted":
+                    provider["admission"]["status"] = "pending"
+            proposed_admissions = {
+                (item.provider_id, item.operation_id, item.evidence_class): item.admission.status
+                for item in proposed_registry.providers
+            }
+            for provider in registry_payload["providers"]:
+                key = (
+                    provider["provider_id"],
+                    provider["operation_id"],
+                    provider["evidence_class"],
+                )
+                proposed_status = proposed_admissions[key]
+                if proposed_status != provider["admission"]["status"]:
+                    provider["proposed_admission"] = proposed_status
             if args.operation is not None:
                 selected_capabilities = [
                     item
@@ -232,17 +269,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             else:
                 providers_by_operation: dict[str, list[dict[str, object]]] = {}
                 for provider in registry_payload["providers"]:
+                    provider_summary = {
+                        "provider_id": provider["provider_id"],
+                        "evidence_class": provider["evidence_class"],
+                        "admission": provider["admission"]["status"],
+                        "available": provider["availability"]["available"],
+                        "policy": provider["policy"],
+                        "cost": provider["cost"],
+                        "duration": provider["duration"],
+                        "validity_envelope": provider["validity_envelope"],
+                    }
+                    if "proposed_admission" in provider:
+                        provider_summary["proposed_admission"] = provider["proposed_admission"]
                     providers_by_operation.setdefault(provider["operation_id"], []).append(
-                        {
-                            "provider_id": provider["provider_id"],
-                            "evidence_class": provider["evidence_class"],
-                            "admission": provider["admission"]["status"],
-                            "available": provider["availability"]["available"],
-                            "policy": provider["policy"],
-                            "cost": provider["cost"],
-                            "duration": provider["duration"],
-                            "validity_envelope": provider["validity_envelope"],
-                        }
+                        provider_summary
                     )
                 result = {
                     "schema_version": "dynamical.capability-index.v1",
@@ -256,6 +296,20 @@ def main(argv: Sequence[str] | None = None) -> int:
                         for capability in registry_payload["capabilities"]
                     ],
                 }
+            result.update(
+                {
+                    "registry_role": registry_role,
+                    "execution_status": "not_executed",
+                    "evidence_classes": [],
+                    "embodied_evidence_bound": False,
+                    "claim_boundary": (
+                        "Capability inspection only; execution requires composition against "
+                        "the installed authority."
+                    ),
+                    "authority_anchor": "installed_bundle",
+                    "validation_reasons": validation_reasons,
+                }
+            )
             # The hash covers exactly the bytes this command emits in --json mode
             # (this dict, compact and key-sorted) so a consumer can recompute it
             # from the printed output alone; it must be the last key added.
@@ -265,7 +319,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             if args.as_json:
                 _print_json(result, compact=True)
             else:
-                print(f"Registry: {registry.registry_id}")
+                print(f"Registry: {registry.registry_id} ({registry_role})")
                 if args.operation is not None:
                     providers = sorted(item["provider_id"] for item in result["providers"])
                     operation_id = result["operation"]["operation_id"]
@@ -318,7 +372,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                             "execution_status": "blocked",
                             "evidence_classes": [],
                             "embodied_evidence_bound": False,
-                            "claim_boundary": saved.sources.facility.facility.claim_boundary,
+                            "claim_boundary": installed_facility.facility.claim_boundary,
                             "authority_anchor": "installed_bundle",
                             "reason_codes": sorted({item.code for item in hold_reasons}),
                             "validation_reasons": [
@@ -344,7 +398,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     payload["execution_status"] = "blocked"
                     payload["evidence_classes"] = []
                     payload["embodied_evidence_bound"] = False
-                    payload["claim_boundary"] = saved.sources.facility.facility.claim_boundary
+                    payload["claim_boundary"] = installed_facility.facility.claim_boundary
                     payload["authority_anchor"] = "installed_bundle"
                     payload["validation_reasons"] = payload.pop("reasons", [])
                     _print_json(
@@ -357,7 +411,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             else:
                 if args.target is None:
                     raise ValueError("manifest compilation requires --target")
-                facility_manifest = args.input
+                facility_manifest = load_facility_manifest(args.input)
                 target = args.target
             result = compile_facility(
                 facility_manifest,
@@ -365,14 +419,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.output,
                 composition_result=composition,
             )
-            compiled_claim_boundary = (
-                facility_manifest.facility.claim_boundary
-                if not isinstance(facility_manifest, Path)
-                else load_facility_manifest(facility_manifest).facility.claim_boundary
-            )
+            executable = result.execution_status == "ready"
             receipt = {
                 "status": "passed",
-                "execution_status": "passed",
+                "execution_status": result.execution_status,
                 "target": result.target,
                 "output_dir": str(result.output_dir),
                 "root_stage": str(result.stage_path),
@@ -395,11 +445,15 @@ def main(argv: Sequence[str] | None = None) -> int:
                     else []
                 ),
                 "embodied_evidence_bound": False,
-                "claim_boundary": compiled_claim_boundary,
-                "authority_anchor": "installed_bundle",
+                "claim_boundary": result.claim_boundary,
+                "authority_anchor": result.authority_anchor,
                 "validation_reasons": [],
-                "next_command": f"dynamical run {result.output_dir} -o trace.ndjson",
             }
+            receipt["next_command"] = (
+                f"dynamical run {result.output_dir} -o trace.ndjson"
+                if executable
+                else f"dynamical validate {result.output_dir} --json"
+            )
             _print_json(
                 receipt,
                 compact=args.output is not None,

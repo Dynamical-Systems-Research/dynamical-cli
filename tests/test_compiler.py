@@ -66,7 +66,7 @@ def test_evidence_report_uses_public_evidence_contract(
     for output in compiled_targets.values():
         report = _json(output / "evidence_report.json")
         assert report["evidence_classes"] == []
-        assert report["execution_status"] == "not_executed"
+        assert report["execution_status"] == "not_executable"
         assert report["embodied_evidence_bound"] is False
         assert report["authority_anchor"] == "installed_bundle"
         assert report["validation_reasons"] == []
@@ -211,6 +211,33 @@ def test_validator_rejects_coordinated_adapter_pack_tamper(tmp_path: Path) -> No
     result = validate_compiled_world(output)
     assert result["valid"] is False
     assert "adapter pack does not match" in " ".join(result["failures"])
+
+
+def test_validator_rejects_coordinated_evidence_claim_tamper(tmp_path: Path) -> None:
+    from dynamical.schema import canonical_sha256
+
+    output = compile_facility(MANIFEST, "openusd", tmp_path / "compiled").output_dir
+    report_path = output / "evidence_report.json"
+    manifest_path = output / "compile_manifest.json"
+    report = _json(report_path)
+    manifest = _json(manifest_path)
+
+    report["evidence_classes"] = ["physical"]
+    report["embodied_evidence_bound"] = True
+    report_path.write_text(json.dumps(report), encoding="utf-8")
+    for artifact in manifest["artifacts"]:
+        if artifact["path"] == "evidence_report.json":
+            artifact["sha256"] = hashlib.sha256(report_path.read_bytes()).hexdigest()
+    manifest["world_sha256"] = canonical_sha256(
+        {item["path"]: item["sha256"] for item in manifest["artifacts"]}
+    )
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    result = validate_compiled_world(output)
+    assert result["valid"] is False
+    assert result["evidence_classes"] == []
+    assert result["embodied_evidence_bound"] is False
+    assert "evidence report differs" in " ".join(result["failures"])
 
 
 def test_isaac_target_config_records_exact_runtime_revisions(

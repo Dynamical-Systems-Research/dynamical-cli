@@ -1,5 +1,7 @@
 """Dynamical public API."""
 
+from importlib.metadata import PackageNotFoundError, version
+
 from .compiler import CompileResult, compile_facility, validate_compiled_world
 from .schema import FacilityDocument, load_facility_manifest
 
@@ -11,4 +13,7 @@ __all__ = [
     "validate_compiled_world",
 ]
 
-__version__ = "0.1.0"
+try:
+    __version__ = version("dynamical-cli")
+except PackageNotFoundError:  # pragma: no cover - source tree without installed metadata
+    __version__ = "0+unknown"

@@ -1240,43 +1240,19 @@ def demote_untrusted_admissions(
     return registry.model_copy(update={"providers": demoted}), reasons
 
 
-# Facility sections whose records carry authority: operation contracts, device
-# and agent endpoint wiring, executable model bindings, backend adapters,
-# provider admission bindings, safety constraints, calibration evidence, asset
-# admission, and the declared initial material states (which seed scientific
-# conditions an agent must not fabricate). Everything else in a facility
-# document -- facility metadata, workstation layout, asset poses -- is topology
-# the agent is free to compose.
-_FACILITY_AUTHORITY_SECTIONS = (
-    "capabilities",
-    "devices",
-    "agents",
-    "model_bindings",
-    "adapter_bindings",
-    "provider_admission_bindings",
-    "constraints",
-    "calibration_evidence",
-    "asset_sources",
-    "material_states",
-)
-
-
 def authority_hold_reasons(
     registry: CapabilityRegistry,
     facility: FacilityDocument | None,
     installed_registry: CapabilityRegistry,
     installed_facility: FacilityDocument | None,
 ) -> list[CompositionReason]:
-    """Compare the authority-bearing projection against the installed bundle.
+    """Compare proposed authority records against the installed bundle.
 
-    The agent stays free to compose topology and to select a *subset* of
-    installed records; it cannot modify or introduce authority-bearing
-    records. Every operation contract in the supplied registry and every
-    record in the supplied facility's authority-bearing sections must be
-    identical to the installed record with the same id. Anything unknown or
-    modified is a proposal: it earns a typed reason for a structured HOLD,
-    never silent acceptance. Provider admission records are handled
-    separately by ``demote_untrusted_admissions``.
+    A registry can select installed operation contracts, but it cannot modify
+    them. In v0.1, a facility document must match the installed facility in
+    full. Controlled facility and topology extensions require a separate
+    authority-bundle design. Provider admission records are handled separately
+    by ``demote_untrusted_admissions``.
     """
 
     reasons: list[CompositionReason] = []
@@ -1303,29 +1279,14 @@ def authority_hold_reasons(
             )
     if facility is None or installed_facility is None:
         return _deduplicate_reasons(reasons)
-    for section in _FACILITY_AUTHORITY_SECTIONS:
-        installed_records = {
-            record.id: record.model_dump(mode="json")
-            for record in getattr(installed_facility, section)
-        }
-        for record in getattr(facility, section):
-            expected = installed_records.get(record.id)
-            if expected is None:
-                reasons.append(
-                    _reason(
-                        "AUTHORITY_UNRECOGNIZED",
-                        f"facility {section} record {record.id!r} is not in the installed "
-                        "facility authority; treated as a proposal",
-                    )
-                )
-            elif record.model_dump(mode="json") != expected:
-                reasons.append(
-                    _reason(
-                        "AUTHORITY_MODIFIED",
-                        f"facility {section} record {record.id!r} differs from the installed "
-                        "facility authority; treated as a proposal",
-                    )
-                )
+    if facility.model_dump(mode="json") != installed_facility.model_dump(mode="json"):
+        reasons.append(
+            _reason(
+                "AUTHORITY_MODIFIED",
+                "facility document differs from the installed facility authority; treated "
+                "as a proposal",
+            )
+        )
     return _deduplicate_reasons(reasons)
 
 

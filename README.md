@@ -119,6 +119,12 @@ Custom `--registry` and `--facility` inputs are proposals. They cannot grant
 themselves authority. In v0.1, the installed bundle is the local authority
 anchor.
 
+`capabilities --registry <path>` inspects a proposal without activating it. Its
+receipt reports effective admission after comparison with the installed
+authority and preserves any self-declared admission as `proposed_admission`.
+Direct manifest compilation creates a validation-only world with no campaign
+execution route; its `next_command` is `validate`, not `run`.
+
 ## Portable worlds and trace-bound execution
 
 [OpenUSD](https://openusd.org/release/index.html) carries the portable compiled

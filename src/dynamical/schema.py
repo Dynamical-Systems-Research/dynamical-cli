@@ -973,7 +973,10 @@ def load_facility_manifest(path: str | Path) -> FacilityDocument:
     if source.suffix.lower() == ".json":
         raw = json.loads(raw_text)
     elif source.suffix.lower() in {".yaml", ".yml"}:
-        raw = yaml.safe_load(raw_text)
+        try:
+            raw = yaml.safe_load(raw_text)
+        except yaml.YAMLError as exc:
+            raise ValueError(f"malformed YAML in {source}: {exc}") from exc
     else:
         raise ValueError("facility manifest must use .json, .yaml, or .yml")
     if not isinstance(raw, dict):
@@ -989,7 +992,10 @@ def _load_versioned_document(path: str | Path) -> dict[str, Any]:
     if source.suffix.lower() == ".json":
         raw = json.loads(raw_text)
     elif source.suffix.lower() in {".yaml", ".yml"}:
-        raw = yaml.safe_load(raw_text)
+        try:
+            raw = yaml.safe_load(raw_text)
+        except yaml.YAMLError as exc:
+            raise ValueError(f"malformed YAML in {source}: {exc}") from exc
     else:
         raise ValueError("document must use .json, .yaml, or .yml")
     if not isinstance(raw, dict):

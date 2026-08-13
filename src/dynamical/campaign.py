@@ -1676,6 +1676,12 @@ def load_compiled_campaign_contract(path: str | Path) -> CompiledCampaignContrac
         raise CampaignValidationError(
             f"compiled pack validation failed: {validation.get('failures', [])}"
         )
+    if validation.get("execution_status") != "ready":
+        raise CampaignValidationError(
+            "compiled world is validation-only; compose a campaign before running it"
+        )
+    if validation.get("authority_anchor") != "installed_bundle":
+        raise CampaignValidationError("compiled world is outside the installed authority bundle")
 
     manifest_path = destination / "compile_manifest.json"
     manifest = _read_json_object(manifest_path, "compile_manifest.json")

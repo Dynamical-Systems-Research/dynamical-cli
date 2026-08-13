@@ -14,8 +14,10 @@ from typing import Any, Literal
 
 from .openusd import write_openusd_layers
 from .schema import (
+    CapabilityProvider,
     FacilityDocument,
     canonical_sha256,
+    load_capability_registry,
     load_facility_manifest,
 )
 from .source_admission import SourceAdmissionError, admit_sources
@@ -38,6 +40,12 @@ _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 # pattern src/dynamical/cli.py already uses for its own packaged-data fallback
 # (PACKAGED_REGISTRY / PACKAGED_FACILITY).
 _PACKAGED_DATA_ROOT = Path(str(files("dynamical").joinpath("data")))
+_PACKAGED_FACILITY = _PACKAGED_DATA_ROOT / "ac-electrodeposition-cell.yaml"
+_PACKAGED_REGISTRY = _PACKAGED_DATA_ROOT / "electrodeposition-capabilities.yaml"
+_PROPOSAL_CLAIM_BOUNDARY = [
+    "Validation-only compilation of an unverified facility proposal; no execution "
+    "authority or scientific evidence."
+]
 
 _COMPILE_MANIFEST_FIELDS = {
     "schema_version",
@@ -78,6 +86,9 @@ class CompileResult:
     world_sha256: str
     stage_path: Path
     manifest_path: Path
+    execution_status: str
+    authority_anchor: str
+    claim_boundary: list[str]
 
 
 def _write_json(path: Path, value: Any) -> None:
@@ -296,6 +307,7 @@ def _verify_compile_receipt(path: Path, *, allow_unexpected: bool) -> dict[str, 
         or adapter.get("adapter_pack_sha256") != expected_adapter_hash
     ):
         raise ValueError("compiled adapter pack does not match the manifest")
+    selected_composition = None
     if "composition_result.json" in records:
         from .composition import validate_composition_result
 
@@ -303,6 +315,7 @@ def _verify_compile_receipt(path: Path, *, allow_unexpected: bool) -> dict[str, 
         selected = validate_composition_result(composition)
         if selected.status != "COMPILED":
             raise ValueError("compiled world contains a HOLD composition")
+        _validate_composition_facility_bindings(document, selected)
         if "selected_capability_graph.json" not in records:
             raise ValueError("compiled composition lacks its selected capability graph")
         selected_graph = json.loads(
@@ -310,12 +323,26 @@ def _verify_compile_receipt(path: Path, *, allow_unexpected: bool) -> dict[str, 
         )
         if selected_graph != _selected_capability_graph(selected):
             raise ValueError("selected capability graph does not match the composition")
+        selected_composition = selected
     elif "selected_capability_graph.json" in records:
         raise ValueError("selected capability graph has no composition result")
+    authority_anchor = _authority_anchor(document, selected_composition)
+    execution_status = (
+        "ready"
+        if selected_composition is not None and authority_anchor == "installed_bundle"
+        else "not_executable"
+    )
     return {
         "manifest": manifest,
         "records": records,
         "core_ir_sha256": actual_core_hash,
+        "authority_anchor": authority_anchor,
+        "evidence_report": _evidence_report(
+            document,
+            manifest["target"],
+            authority_anchor,
+            execution_status,
+        ),
     }
 
 
@@ -551,7 +578,80 @@ def _selected_capability_graph(composition: Any) -> dict[str, Any]:
     }
 
 
-def _evidence_report(document: FacilityDocument, target: str) -> dict[str, Any]:
+def _authority_anchor(document: FacilityDocument, composition_result: Any | None = None) -> str:
+    installed_facility_path = (
+        _PACKAGED_FACILITY
+        if _PACKAGED_FACILITY.is_file()
+        else _REPOSITORY_ROOT / "manifests" / "ac-electrodeposition-cell.yaml"
+    )
+    installed_facility = load_facility_manifest(installed_facility_path)
+    if document.model_dump(mode="json") != installed_facility.model_dump(mode="json"):
+        return "unverified_proposal"
+    if composition_result is None:
+        return "installed_bundle"
+    installed_registry_path = (
+        _PACKAGED_REGISTRY
+        if _PACKAGED_REGISTRY.is_file()
+        else _REPOSITORY_ROOT / "registries" / "electrodeposition-capabilities.yaml"
+    )
+    installed_registry = load_capability_registry(installed_registry_path)
+    if composition_result.registry_sha256 != canonical_sha256(
+        installed_registry.model_dump(mode="json")
+    ):
+        return "unverified_proposal"
+    sources = composition_result.sources
+    if sources is not None and (
+        sources.facility.model_dump(mode="json") != installed_facility.model_dump(mode="json")
+        or sources.registry.model_dump(mode="json") != installed_registry.model_dump(mode="json")
+    ):
+        return "unverified_proposal"
+    providers = {
+        (item.operation_id, item.provider_id): item for item in installed_registry.providers
+    }
+    capabilities = {item.operation_id: item for item in installed_registry.capabilities}
+    virtual_sdl = composition_result.virtual_sdl
+    if virtual_sdl is None:
+        return "unverified_proposal"
+    for selected in [*virtual_sdl.operation_bindings, *virtual_sdl.transport_bindings]:
+        expected_provider = providers.get((selected.operation_id, selected.provider_id))
+        expected_capability = capabilities.get(selected.operation_id)
+        selected_provider = CapabilityProvider.model_validate(
+            {name: getattr(selected, name) for name in CapabilityProvider.model_fields}
+        )
+        if (
+            expected_provider is None
+            or expected_capability is None
+            or _normalized_provider_payload(selected_provider)
+            != _normalized_provider_payload(expected_provider)
+            or selected.capability_contract.model_dump(mode="json")
+            != expected_capability.model_dump(mode="json")
+        ):
+            return "unverified_proposal"
+    return "installed_bundle"
+
+
+def _normalized_provider_payload(provider: CapabilityProvider) -> dict[str, Any]:
+    payload = provider.model_dump(mode="json")
+    payload["facility_ids"] = sorted(payload["facility_ids"])
+    for field in ("adapter_links", "validity_envelope", "failures"):
+        payload[field] = sorted(payload[field], key=canonical_sha256)
+    for field in ("safety_limit_ids", "policy_tags", "required_approval_ids"):
+        payload["policy"][field] = sorted(payload["policy"][field])
+    return payload
+
+
+def _effective_claim_boundary(document: FacilityDocument, authority_anchor: str) -> list[str]:
+    if authority_anchor == "installed_bundle":
+        return list(document.facility.claim_boundary)
+    return list(_PROPOSAL_CLAIM_BOUNDARY)
+
+
+def _evidence_report(
+    document: FacilityDocument,
+    target: str,
+    authority_anchor: str,
+    execution_status: str,
+) -> dict[str, Any]:
     """Describe the compiled artifact without assigning an internal maturity level."""
 
     return {
@@ -559,10 +659,10 @@ def _evidence_report(document: FacilityDocument, target: str) -> dict[str, Any]:
         "target": target,
         "authoring_basis": document.facility.authoring_basis,
         "evidence_classes": [],
-        "execution_status": "not_executed",
+        "execution_status": execution_status,
         "embodied_evidence_bound": False,
-        "claim_boundary": document.facility.claim_boundary,
-        "authority_anchor": "installed_bundle",
+        "claim_boundary": _effective_claim_boundary(document, authority_anchor),
+        "authority_anchor": authority_anchor,
         "validation_reasons": [],
     }
 
@@ -713,6 +813,25 @@ def compile_facility(
         if isinstance(manifest_path, FacilityDocument)
         else load_facility_manifest(manifest_path)
     )
+    selected = None
+    if composition_result is not None:
+        from .composition import CompositionResult, validate_composition_result
+
+        candidate = (
+            composition_result
+            if isinstance(composition_result, CompositionResult)
+            else CompositionResult.model_validate(composition_result)
+        )
+        selected = validate_composition_result(candidate)
+        if selected.status != "COMPILED":
+            raise ValueError("a HOLD composition cannot compile an embodied facility")
+        _validate_composition_facility_bindings(document, selected)
+    authority_anchor = _authority_anchor(document, selected)
+    execution_status = (
+        "ready"
+        if selected is not None and authority_anchor == "installed_bundle"
+        else "not_executable"
+    )
     target_bindings = [binding for binding in document.adapter_bindings if binding.target == target]
     if not target_bindings:
         raise ValueError(f"manifest has no adapter binding for target {target!r}")
@@ -782,19 +901,11 @@ def compile_facility(
                 ],
             },
         )
-        _write_json(staged / "evidence_report.json", _evidence_report(document, target))
-        if composition_result is not None:
-            from .composition import CompositionResult, validate_composition_result
-
-            candidate = (
-                composition_result
-                if isinstance(composition_result, CompositionResult)
-                else CompositionResult.model_validate(composition_result)
-            )
-            selected = validate_composition_result(candidate)
-            if selected.status != "COMPILED":
-                raise ValueError("a HOLD composition cannot compile an embodied facility")
-            _validate_composition_facility_bindings(document, selected)
+        _write_json(
+            staged / "evidence_report.json",
+            _evidence_report(document, target, authority_anchor, execution_status),
+        )
+        if selected is not None:
             _write_json(
                 staged / "composition_result.json",
                 selected.model_dump(mode="json", exclude_none=True),
@@ -847,6 +958,9 @@ def compile_facility(
         world_sha256=world_hash,
         stage_path=destination / "root.usda",
         manifest_path=manifest_path_out,
+        execution_status=execution_status,
+        authority_anchor=authority_anchor,
+        claim_boundary=_effective_claim_boundary(document, authority_anchor),
     )
 
 
@@ -887,14 +1001,38 @@ def validate_compiled_world(path: str | Path) -> dict[str, Any]:
     elif not stage.is_file():
         failures.append(f"root stage is absent: {stage.name}")
 
+    evidence_report: dict[str, Any] = {}
+    if receipt is not None:
+        try:
+            candidate = json.loads(
+                (destination / "evidence_report.json").read_text(encoding="utf-8")
+            )
+            if not isinstance(candidate, dict):
+                raise ValueError("evidence_report.json root is not an object")
+            evidence_report = receipt.get("evidence_report", {})
+            if candidate != evidence_report:
+                failures.append("evidence report differs from compiled authority and content")
+        except (ValueError, json.JSONDecodeError, OSError) as exc:
+            failures.append(f"evidence report is invalid: {exc}")
+
     return {
         "valid": not failures,
+        "kind": "compiled_world",
         "path": str(destination),
         "target": manifest.get("target"),
         "core_ir_sha256": actual_core_hash,
         "world_sha256": actual_world_hash,
         "usdchecker": usd_result,
         "failures": failures,
+        "execution_status": evidence_report.get("execution_status", "not_executable"),
+        "evidence_classes": evidence_report.get("evidence_classes", []),
+        "embodied_evidence_bound": evidence_report.get("embodied_evidence_bound", False),
+        "claim_boundary": evidence_report.get(
+            "claim_boundary",
+            "Compiled-world validation only; no scientific or physical evidence was produced.",
+        ),
+        "authority_anchor": evidence_report.get("authority_anchor", "not_evaluated"),
+        "validation_reasons": failures or evidence_report.get("validation_reasons", []),
     }
 
 
@@ -919,6 +1057,19 @@ def validate_path(path: str | Path) -> dict[str, Any]:
                     "path": str(source),
                     "status": result.status,
                     "resolution_sha256": result.resolution_sha256,
+                    "execution_status": (
+                        "not_executable" if result.status == "COMPILED" else "blocked"
+                    ),
+                    "evidence_classes": [],
+                    "embodied_evidence_bound": False,
+                    "claim_boundary": (
+                        "Composition structure and protected source hashes only; installed "
+                        "authority was not evaluated."
+                    ),
+                    "authority_anchor": "not_evaluated",
+                    "validation_reasons": [
+                        item.model_dump(mode="json", exclude_none=True) for item in result.reasons
+                    ],
                 }
         document = load_facility_manifest(source)
         return {
@@ -926,6 +1077,12 @@ def validate_path(path: str | Path) -> dict[str, Any]:
             "kind": "facility_manifest",
             "path": str(source),
             "core_ir_sha256": document.core_ir_sha256(),
+            "execution_status": "not_executed",
+            "evidence_classes": [],
+            "embodied_evidence_bound": False,
+            "claim_boundary": document.facility.claim_boundary,
+            "authority_anchor": "not_evaluated",
+            "validation_reasons": [],
         }
     try:
         from .campaign import validate_path as validate_campaign_path

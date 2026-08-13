@@ -11,6 +11,11 @@ htmlcov/
 build/
 dist/
 node_modules/
+.env
+.env.*
+!.env.example
+.claude/settings.local.json
+.superpowers/
 
 # Intermediate ASCII-USD from CAD conversion is large and never a release artifact;
 # only the compact derived .usdc layers under assets/usd/ are tracked. This guard

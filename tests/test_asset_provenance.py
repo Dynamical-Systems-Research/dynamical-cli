@@ -7,6 +7,7 @@ from pathlib import Path
 from dynamical.sources import AssetSource
 
 LOCK = Path("registries/electrodeposition-source-lock.json")
+AMPERE2 = Path("registries/calibration/ampere2-oer")
 
 
 def test_every_locked_artifact_matches_its_digest():
@@ -26,3 +27,11 @@ def test_derived_layers_declare_their_conversion():
     assert derived, "at least one derived USD layer must be locked"
     for source in derived:
         assert source.conversion_tool and source.conversion_tolerance
+
+
+def test_public_calibration_report_resolves_its_protocol_digest():
+    report = json.loads((AMPERE2 / "calibration_report.json").read_text(encoding="utf-8"))
+    actual = hashlib.sha256((AMPERE2 / "frozen_protocol.json").read_bytes()).hexdigest()
+    assert report["public_protocol_sha256"] == actual
+    assert report["frozen_protocol_sha256"] == report["source_frozen_protocol_sha256"]
+    assert report["source_frozen_protocol_sha256"] != actual

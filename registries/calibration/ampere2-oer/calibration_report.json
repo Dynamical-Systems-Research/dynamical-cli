@@ -1,6 +1,9 @@
 {
  "protocol_id": "ampere2-oer-calibration-v1",
  "frozen_protocol_sha256": "7098893d2f556084135c3c93b73b1ef8827b1292e6d258f6ad0b2f5573f5e3de",
+ "source_frozen_protocol_sha256": "7098893d2f556084135c3c93b73b1ef8827b1292e6d258f6ad0b2f5573f5e3de",
+ "public_protocol_sha256": "bcc2e272d3ee519804cfbb36918782931153f46d49dabb30073b974fe8b98032",
+ "protocol_normalization": "Public evidence vocabulary only; scientific method, thresholds, splits, and numeric outputs are unchanged from the v0.1.6 source freeze.",
  "corrected_voltage_column_used": "Corrected Working Electrode Voltage [V]",
  "counts": {
   "metadata_rows": 70,
