@@ -102,6 +102,13 @@ Run and validate the unmodified baseline first. Then use the confirmed plan:
 7. Stop on convergence, budget, repeated invalid routes, or need for physical
    evidence.
 
+Capture each command's structured stdout in its arm directory on first
+execution; do not rerun or reconstruct a command only to preserve its receipt.
+Use narrow structured queries to inspect only the capability, schema, receipt,
+and trace fields needed. When the host supports it, group each arm's ordered,
+fail-closed pipeline into one tool call. Do not print complete capability
+records, schemas, compositions, receipts, or traces into the agent context.
+
 Sequential studies can use a promoted result to propose the next arm, but must
 keep prior arm directories. Concurrent arms must not share mutable sample state
 or result files. Run long simulations as background jobs; poll logs and process
@@ -126,10 +133,11 @@ Preserve each arm with one of these statuses:
 - `failed`: execution ended before it produced a valid artifact.
 
 Record `HOLD`, invalid, and failed arms, but do not use them as scientific
-evidence. If `HOLD` identifies an incomplete requirement, author a corrected
-requirement without changing admission or authority. If no admitted route
-exists, continue only after the missing evidence, provider, policy, budget,
-safety condition, or authority changes.
+evidence. Validate each `HOLD` receipt with `dynamical validate` and preserve the
+validation result. If `HOLD` identifies an incomplete requirement, author a
+corrected requirement without changing admission or authority. If no admitted
+route exists, continue only after the missing evidence, provider, policy,
+budget, safety condition, or authority changes.
 
 If `HOLD` identifies a missing capability and source material is available, use
 `$dynamical-instrument` with the requirement and `HOLD` receipt to assess or
