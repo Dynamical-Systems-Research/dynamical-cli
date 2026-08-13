@@ -6,7 +6,7 @@ Only the current release receives security updates.
 
 | Version | Supported |
 | --- | --- |
-| 0.1.8 | Yes |
+| 0.1.9 | Yes |
 | Earlier versions | No |
 
 ## Report a vulnerability
