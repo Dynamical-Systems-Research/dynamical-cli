@@ -1,9 +1,15 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Dynamical-Systems-Research/dynamical-cli/main/.github/assets/dynamical-systems-banner.webp" width="1584" height="396" alt="Dynamical Systems">
+</p>
+
 # Dynamical CLI
 
-[![Release](https://img.shields.io/pypi/v/dynamical-cli.svg?label=release)](https://pypi.org/project/dynamical-cli/)
-[![CI](https://github.com/Dynamical-Systems-Research/dynamical-cli/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Dynamical-Systems-Research/dynamical-cli/actions/workflows/ci.yml)
-[![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://pypi.org/project/dynamical-cli/)
-[![License](https://img.shields.io/pypi/l/dynamical-cli.svg)](https://github.com/Dynamical-Systems-Research/dynamical-cli/blob/main/LICENSE)
+<p align="center">
+  <a href="https://github.com/Dynamical-Systems-Research/dynamical-cli/releases/latest"><img src="https://img.shields.io/github/v/release/Dynamical-Systems-Research/dynamical-cli?label=release&amp;cacheSeconds=300" alt="Latest release"></a>
+  <a href="https://github.com/Dynamical-Systems-Research/dynamical-cli/actions/workflows/ci.yml"><img src="https://github.com/Dynamical-Systems-Research/dynamical-cli/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
+  <a href="https://pypi.org/project/dynamical-cli/"><img src="https://img.shields.io/badge/python-3.11%2B-blue.svg" alt="Python 3.11 or later"></a>
+  <a href="https://github.com/Dynamical-Systems-Research/dynamical-cli/blob/main/LICENSE"><img src="https://img.shields.io/pypi/l/dynamical-cli.svg" alt="Apache 2.0 license"></a>
+</p>
 
 Dynamical CLI is the open-source execution interface for Dynamical's autonomous
 R&D network. An agent starts with an engineering objective and determines what
