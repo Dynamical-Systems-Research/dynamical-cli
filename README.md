@@ -5,22 +5,31 @@
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://pypi.org/project/dynamical-cli/)
 [![License](https://img.shields.io/pypi/l/dynamical-cli.svg)](https://github.com/Dynamical-Systems-Research/dynamical-cli/blob/main/LICENSE)
 
-Dynamical CLI is an open-source execution interface for scientific agents and
-facilities. It lets agents compose executable virtual laboratories from admitted
-capabilities, run campaigns, and route physical requests through a fail-closed
-authority gate.
+Dynamical CLI is the open-source execution interface for Dynamical's autonomous
+R&D network. An agent starts with an engineering objective and determines what
+evidence could support the decision. It compiles the admitted instruments and
+models needed for the campaign, runs virtual experiments, and can request the
+physical experiment worth running next. The facility decides what can run.
 
-Virtual laboratories let agents explore counterfactual campaigns, learn how
-instruments and workflows behave, and generate model-derived observations and
-verified execution trajectories. Connected facilities can then supply the
-physical evidence that virtual environments cannot establish.
+A virtual laboratory can represent a complete supported laboratory or a
+purpose-built multi-instrument workflow. Agents can explore counterfactual
+experiments, learn instrument behavior and operating limits, and preserve each
+campaign as a hash-bound experiment snapshot. They can replay a campaign or use
+its evidence to branch the study from an earlier decision. Connected facilities
+can then return the physical evidence that virtual environments cannot provide.
 
-Dynamical is designed for agent use. The Codex plugin and portable Agent Skill
-supply the operating interface. The Python package supplies the runtime.
+Dynamical provides two workflows:
+
+- Use `$dynamical` to compose, run, and validate scientific campaigns.
+- Use `$dynamical-instrument` to propose a computational model, archived
+  dataset, calibrated twin, or physical instrument integration.
+
+The agent skills provide the operating instructions. The Python package
+supplies the runtime.
 
 ## See the virtual laboratory run
 
-[Watch the recorded agent campaign and synchronized Isaac replay.](https://dynamicalsystems.ai/scientific-autoresearch#see-the-virtual-laboratory-run)
+[Watch the recorded agent campaign and synchronized NVIDIA Isaac Sim replay.](https://dynamicalsystems.ai/scientific-autoresearch#see-the-virtual-laboratory-run)
 
 An AI agent plans and runs experiments in a virtual lab.
 Every result carries its uncertainty and a record of where it came from.
@@ -29,7 +38,13 @@ Dynamical holds that request until a real instrument is approved.
 
 This video replays a recorded run. No physical experiment was performed.
 
-## Install for an agent
+The replay visualizes the recorded composition in NVIDIA Isaac Sim. It is not a
+live physical execution or a calibrated twin of the full workstation.
+
+The [Scientific Autoresearch study](https://dynamicalsystems.ai/scientific-autoresearch)
+reports the complete 144-trajectory evaluation.
+
+## Install Dynamical
 
 Install the runtime with Python 3.11 or later:
 
@@ -44,16 +59,21 @@ codex plugin marketplace add Dynamical-Systems-Research/dynamical-cli --json
 codex plugin add dynamical@dynamical-systems-research --json
 ```
 
-The plugin gives Codex the `dynamical` skill. The same portable skill can run in
-Claude Code and other compatible agent environments:
+The plugin gives Codex both `$dynamical` for campaigns and
+`$dynamical-instrument` for model and instrument integrations.
+
+Claude Code and other Agent Skills-compatible environments can install either
+portable skill directly:
 
 ```bash
-git clone https://github.com/Dynamical-Systems-Research/dynamical-cli.git
-cd dynamical-cli
-npx skills add . --skill dynamical --global --copy --yes
+npx skills add Dynamical-Systems-Research/dynamical-cli \
+  --skill dynamical --global --copy --yes
+
+npx skills add Dynamical-Systems-Research/dynamical-cli \
+  --skill dynamical-instrument --global --copy --yes
 ```
 
-The repository does not include an MCP server.
+The skills use the CLI as their runtime. No MCP server is required.
 
 ## Run a virtual campaign
 
@@ -76,6 +96,50 @@ constraint, sample-state change, cost, and duration.
 Use `dynamical compose --schema` to inspect the requirement schema. Use
 `dynamical capabilities --operation <operation-id> --json` to inspect the typed
 contract for one operation.
+
+## Run many campaigns
+
+Dynamical runs one campaign per process. Codex, Claude Code, or a scheduler can
+run campaigns sequentially or in parallel and control the model, condition,
+candidate pool, repeat, and worker count. Dynamical records the composition,
+compiled world, trace, and validation result for each cell.
+
+Store one predeclared requirement in each YAML file under `requirements/`.
+Give each file a unique, stable name. This example runs up to eight cells at
+the same time:
+
+```bash
+mkdir -p runs
+
+find requirements -type f -name '*.yaml' -print0 |
+  xargs -0 -P 8 -I {} sh -c '
+    set -eu
+    requirement_path=$1
+    cell_id=$(basename "$requirement_path" .yaml)
+    cell_dir="runs/$cell_id"
+    mkdir -p "$cell_dir"
+
+    dynamical compose "$requirement_path" \
+      -o "$cell_dir/composition.json" \
+      > "$cell_dir/compose-receipt.json"
+
+    dynamical compile "$cell_dir/composition.json" \
+      -o "$cell_dir/compiled-world" \
+      > "$cell_dir/compile-receipt.json"
+
+    dynamical run "$cell_dir/compiled-world" \
+      -o "$cell_dir/trace.ndjson" \
+      > "$cell_dir/run-receipt.json"
+
+    dynamical validate "$cell_dir/trace.ndjson" --json \
+      > "$cell_dir/validation.json"
+  ' sh '{}'
+```
+
+For agent studies, save the model, prompt, condition, candidate pool, repeat,
+and agent transcript beside these artifacts. Add a trace to the final analysis
+only after its validation result reports `"valid": true`. Keep every `HOLD`
+receipt as a study outcome.
 
 ## Run a concurrent autoresearch study
 
@@ -154,23 +218,43 @@ lineage, validation, and replay.
 Virtual output remains separate from physical evidence. A physical observation
 can only come from a facility-authorized execution.
 
-## Instrument onboarding
+## Add your own model or instrument
 
 The included
 [`dynamical-instrument`](https://github.com/Dynamical-Systems-Research/dynamical-cli/blob/main/skills/dynamical-instrument/SKILL.md)
-skill turns source evidence into a candidate integration. It works from manuals,
-interfaces, calibration records, operating limits, safety controls, facility
-authority, and licensed assets.
+skill maps source evidence to the existing Dynamical contracts. It adds only
+the parts that the supplied evidence supports.
 
-An integration contains 3 reviewable parts:
+Give the agent:
 
-1. An instrument skill that describes capabilities, procedures, limits, and recovery.
-2. An adapter that binds the contract to a simulator or physical instrument.
-3. A typed contract for actions, observations, units, state, errors, and provenance.
+- The model, dataset, or instrument source, revision, owner, license, and digest.
+- The API, SDK, protocol, simulator, or model interface and a test endpoint when
+  available.
+- The supported inputs, outputs, units, limits, failure states, cost, and
+  duration.
+- Calibration data, thresholds, covered variables, and operating range.
+- The facility endpoint, safety limits, approvals, and physical authority.
+- The CAD source, license, and tolerances when geometry is required.
 
-Conformance tests check the candidate. The facility decides which capabilities
-and physical routes to approve. An integration cannot admit itself. Missing
-calibration, licensing, safety, or authority remains an explicit review item.
+Then ask:
+
+> Use `$dynamical-instrument` to create the smallest pending Dynamical
+> integration that these sources support. Return the candidate files, source
+> evidence, capability operations, conformance commands, admission status, and
+> missing review items.
+
+A supported contribution can include:
+
+1. Provider-independent capability definitions with typed inputs and outputs.
+2. An adapter for a documented simulator or instrument interface.
+3. A pending provider and, when supported, candidate facility records.
+4. Calibration, provenance, license, and asset bindings.
+5. A minimal example and targeted conformance tests.
+
+The skill reports the exact files and validation commands for the contribution.
+Every new provider remains `pending` until the installed facility authority
+admits it. Missing calibration, licensing, safety review, or physical authority
+keeps the route pending or returns `HOLD`.
 
 ## Evidence and authority
 

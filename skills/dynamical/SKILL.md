@@ -7,7 +7,10 @@ description: Investigate materials decisions with admitted Dynamical capabilitie
 
 ## Start from the scientific decision
 
-Ask for or infer these items before creating a requirement:
+Use supplied context and capability metadata first. If a missing choice can
+change the campaign, ask one concise intake round before creating a requirement.
+Use the host's structured question tool when available; otherwise ask in chat.
+Ask only for missing items from this list:
 
 - Decision the scientist must make.
 - Material, sample, processing, campaign, and service context.
