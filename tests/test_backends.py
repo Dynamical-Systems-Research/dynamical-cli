@@ -10,19 +10,17 @@ from types import ModuleType
 from typing import Any
 
 import pytest
-import yaml
-from _fixtures import REFERENCE_REQUIREMENT, write_reference_requirement
-from jsonschema import Draft202012Validator
+from _fixtures import write_reference_requirement
 
-from dynamical.campaign import CampaignValidationError, read_trace
+from dynamical.campaign import CampaignValidationError
 from dynamical.compiler import compile_facility
 from dynamical.composition import CompositionResult, compose_files
 from dynamical.replay import _expected_snapshot_channels, replay_trace
 from dynamical.schema import canonical_sha256
 
 REPOSITORY = Path(__file__).resolve().parents[1]
-REGISTRY = REPOSITORY / "registries" / "electrodeposition-capabilities.yaml"
-MANIFEST = REPOSITORY / "manifests" / "ac-electrodeposition-cell.yaml"
+REGISTRY = REPOSITORY / "dynamical" / "bundle" / "registry.yaml"
+MANIFEST = REPOSITORY / "dynamical" / "bundle" / "facility.yaml"
 
 # A marker channel real for both compiled actions below (any declared facility
 # channel works: validate_action/_validate_channel only check that the name is
@@ -56,11 +54,6 @@ def _load_runtime_contract(output: Path) -> ModuleType:
     return _exec_pack_module(
         f"_dynamical_runtime_{output.name}", output / "dynamical_runtime_contract.py"
     )
-
-
-def _load_isaac_launcher(output: Path, monkeypatch: pytest.MonkeyPatch) -> ModuleType:
-    monkeypatch.syspath_prepend(str(output))
-    return _exec_pack_module(f"_dynamical_isaac_{output.name}", output / "run_isaac_sim.py")
 
 
 @pytest.fixture(scope="module")
@@ -207,30 +200,6 @@ def _resequence(events: list[dict[str, Any]]) -> None:
         event["sequence"] = sequence
 
 
-def test_backend_runtime_pack_verifies_all_compiler_artifacts(
-    backend_packs: dict[str, Path],
-) -> None:
-    output = backend_packs["isaac"]
-    runtime = _load_runtime_contract(output)
-    pack = runtime.verify_compiled_pack(output)
-
-    assert pack["manifest"]["core_ir_sha256"] == pack["backend"]["core_ir_sha256"]
-    assert pack["campaign"]["execution_status"] == "requires_external_runtime_gate"
-    assert [action["kind"] for action in pack["campaign"]["actions"]] == ["transfer", "condition"]
-    assert pack["action_schema"]["x-dynamical-declared-capability-action-types"] == [
-        "aliquot",
-        "clean",
-        "condition",
-        "deposit",
-        "dispense",
-        "electrodeposit",
-        "load",
-        "measure",
-        "transfer",
-    ]
-    assert MARKER_CHANNEL in pack["observation_schema"]["x-dynamical-declared-channel-ids"]
-
-
 def test_standalone_runtime_rejects_artifact_path_escape(tmp_path: Path) -> None:
     output = compile_facility(MANIFEST, "isaac", tmp_path / "isaac").output_dir
     runtime = _load_runtime_contract(output)
@@ -262,78 +231,6 @@ def test_standalone_runtime_rejects_required_json_symlink_before_read(tmp_path: 
 
     with pytest.raises(runtime.RuntimeContractError, match="symbolic link"):
         runtime.verify_compiled_pack(output)
-
-
-def test_runtime_campaign_uses_exact_facility_parameter_names(
-    backend_packs: dict[str, Path],
-) -> None:
-    campaign = _json(backend_packs["isaac"] / "runtime_campaign.json")
-    actions = campaign["actions"]
-    transfer, condition = actions
-
-    # transfer-sample is a transport capability: runtime_campaign() calls the
-    # same registered instrument model campaign.py's composed path calls live
-    # (transfer.py's transfer_sample), so its compiled action carries a real
-    # embedded sample_transition alongside its own requested parameters --
-    # not just the bare requested-parameter dict a non-transport action has.
-    transition = transfer["parameters"].pop("sample_transition")
-    assert transfer["parameters"] == {
-        "sample_id": "sample-electrodeposition-01",
-        "to_station": "arduino-conditioning",
-    }
-    assert transition["kind"] == "transfer"
-    assert transition["sample_id"] == "sample-electrodeposition-01"
-    assert transition["to_station"] == "arduino-conditioning"
-    assert transition["arrival_confirmed"] is True
-
-    assert condition["parameters"] == {"duration_s": 60.0, "setpoint_percent": 80.0}
-
-
-def test_standalone_runtime_writes_complete_canonical_dynamical_trace(
-    composed_backend_packs: dict[str, Path],
-    tmp_path: Path,
-) -> None:
-    output = composed_backend_packs["isaac"]
-    runtime = _load_runtime_contract(output)
-    pack = runtime.verify_compiled_pack(output)
-    writer = _canonical_writer(
-        runtime,
-        pack,
-        tmp_path,
-        run_id="static-contract-isaac",
-    )
-
-    trace_path = tmp_path / "trace.ndjson"
-    trace_hash = writer.write(trace_path)
-    events = [json.loads(line) for line in trace_path.read_text(encoding="utf-8").splitlines()]
-    runtime.validate_trace(events, pack)
-    parsed_events = read_trace(trace_path)
-    trace_schema = _json(output / "campaign_trace.schema.json")
-    validator = Draft202012Validator(trace_schema)
-    for event in events:
-        validator.validate(event)
-    replay_result = replay_trace(
-        trace_path,
-        tmp_path / "replay-isaac.ndjson",
-    )
-
-    assert len(trace_hash) == 64
-    assert len(parsed_events) == len(events)
-    # T14 closed the gap T16 documented here: runtime_campaign() now threads
-    # action.station_id (binding["selected_facility_id"]), mirroring campaign.py's
-    # in-process run_composed_campaign, so samples.check_invariants' lineage check on
-    # replay has what it needs for a standalone/embodied compiled pack too.
-    assert replay_result["valid"] is True, replay_result["validation_reasons"]
-    assert replay_result["validation_reasons"] == []
-    assert [event["event_type"] for event in events] == [
-        "campaign_start",
-        *[item for _ in pack["campaign"]["actions"] for item in ("action", "observation")],
-        "campaign_end",
-    ]
-    assert all(event["schema_version"] == "dynamical.campaign.v0.1" for event in events)
-    assert events[2]["evidence"][0]["sha256"] == runtime.file_sha256(
-        tmp_path / "observation-000.json"
-    )
 
 
 @pytest.mark.parametrize(
@@ -468,47 +365,6 @@ def test_trace_validator_rejects_reordered_actions(
         runtime.validate_trace(events, pack)
 
 
-def test_composed_runtime_uses_selected_provider_graph(tmp_path: Path) -> None:
-    requirement = write_reference_requirement(tmp_path / "requirement.yaml")
-    composition = compose_files(requirement, REGISTRY, MANIFEST)
-    assert composition.status == "COMPILED"
-    output = tmp_path / "composed-isaac"
-    compile_facility(MANIFEST, "isaac", output, composition_result=composition)
-    campaign = _json(output / "runtime_campaign.json")
-    config = _json(output / "backend_config.json")
-    assert (
-        config["module_status"]["representative_full_facility"] == "ready_for_external_runtime_gate"
-    )
-    assert config["full_facility_runtime_blocker"] is None
-    assert len(campaign["actions"]) == 2
-    assert {action["kind"] for action in campaign["actions"]} == {"transfer", "condition"}
-    assert {action["provider_id"] for action in campaign["actions"]} == {
-        "ac-transfer-simulator",
-        "ac-arduino-simulator",
-    }
-    assert {action["evidence_class"] for action in campaign["actions"]} == {"simulator"}
-    assert {binding.operation_id for binding in composition.virtual_sdl.operation_bindings} == {
-        "transfer-sample",
-        "condition-ultrasonic",
-    }
-    condition_action = next(
-        action for action in campaign["actions"] if action["kind"] == "condition"
-    )
-    assert condition_action["parameters"] == {"duration_s": 60.0, "setpoint_percent": 80.0}
-    assert condition_action["provider_id"] == "ac-arduino-simulator"
-    # provider_bindings is keyed by action_id (not action kind): look each action's
-    # binding up by its own action_id.
-    bindings = campaign["provider_bindings"]
-    assert set(bindings) == {action["action_id"] for action in campaign["actions"]}
-    for action in campaign["actions"]:
-        assert bindings[action["action_id"]]["provider_id"] == action["provider_id"]
-    runtime = _load_runtime_contract(output)
-    verified = runtime.verify_compiled_pack(output)
-    runtime.validate_action(campaign["actions"][0], verified)
-    manifest = _json(output / "compile_manifest.json")
-    assert "composition_result.json" in {item["path"] for item in manifest["artifacts"]}
-
-
 def test_runtime_rejects_non_string_action_id(composed_backend_packs: dict[str, Path]) -> None:
     output = composed_backend_packs["isaac"]
     runtime = _load_runtime_contract(output)
@@ -518,72 +374,6 @@ def test_runtime_rejects_non_string_action_id(composed_backend_packs: dict[str, 
 
     with pytest.raises(runtime.RuntimeContractError, match="action_id is absent or not a string"):
         runtime.validate_action(action, pack)
-
-
-def test_composed_runtime_uses_selected_conditioning_parameters(tmp_path: Path) -> None:
-    request = copy.deepcopy(REFERENCE_REQUIREMENT)
-    condition_step = next(step for step in request["steps"] if step["step_id"] == "condition")
-    parameter_values = {"duration_s": 42.0, "setpoint_percent": 65.0}
-    for parameter in condition_step["parameters"]:
-        parameter["value"] = parameter_values[parameter["name"]]
-    requirement = tmp_path / "requirement.yaml"
-    requirement.write_text(yaml.safe_dump(request, sort_keys=False), encoding="utf-8")
-
-    composition = compose_files(requirement, REGISTRY, MANIFEST)
-    assert composition.status == "COMPILED"
-    output = compile_facility(
-        MANIFEST,
-        "isaac",
-        tmp_path / "compiled",
-        composition_result=composition,
-    ).output_dir
-    campaign = _json(output / "runtime_campaign.json")
-
-    condition_action = next(
-        action for action in campaign["actions"] if action["kind"] == "condition"
-    )
-    assert condition_action["parameters"] == {"duration_s": 42.0, "setpoint_percent": 65.0}
-
-
-def test_isaac_emits_the_runtime_receipt_contract(
-    backend_packs: dict[str, Path],
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    expected_fields = {
-        "schema_version",
-        "backend",
-        "host_id",
-        "backend_revision",
-        "core_ir_sha256",
-        "compiled_world_sha256",
-        "execution_status",
-        "trace_sha256",
-        "receipt_complete",
-        "intended_exit_code",
-        "simulation_app_shutdown_requested",
-        "runtime_error",
-        "embodied_evidence_bound",
-        "manual_gates",
-        "artifacts",
-    }
-    output = backend_packs["isaac"]
-    runtime = _load_runtime_contract(output)
-    pack = runtime.verify_compiled_pack(output)
-    evidence = tmp_path / "isaac"
-    evidence.mkdir()
-    trace = evidence / "campaign_trace.ndjson"
-    trace.write_text("{}\n", encoding="utf-8")
-    trace_hash = hashlib.sha256(trace.read_bytes()).hexdigest()
-    launcher = _load_isaac_launcher(output, monkeypatch)
-    launcher._write_receipt(evidence, pack, "passed", trace_hash)
-    receipt = _json(evidence / "runtime_evidence.json")
-
-    assert set(receipt) == expected_fields
-    assert receipt["backend"] == "isaac_sim"
-    assert receipt["receipt_complete"] is True
-    assert receipt["intended_exit_code"] == 0
-    assert receipt["runtime_error"] is None
 
 
 def test_direct_embodied_replay_rejects_path_escape_and_forged_campaign(

@@ -270,11 +270,11 @@ def _twin_table_entry() -> tuple[dict[str, float], float]:
     from pathlib import Path
 
     packaged = resources.files("dynamical").joinpath(
-        "data/calibration/fastcat-oer/prediction_table.json"
+        "bundle/calibration/fastcat-oer/prediction_table.json"
     )
     repo = (
         Path(__file__).resolve().parents[1]
-        / "registries/calibration/fastcat-oer/prediction_table.json"
+        / "dynamical/bundle/calibration/fastcat-oer/prediction_table.json"
     )
     text = packaged.read_text() if packaged.is_file() else repo.read_text()
     entry = json.loads(text)["entries"][0]

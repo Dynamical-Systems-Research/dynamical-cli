@@ -287,7 +287,7 @@ def test_live_kit_run_rejects_the_deposit_action_before_executing_an_unsafe_curr
     action from executing, not merely be noticed afterward.
 
     Every declared facility constraint is ``pre_action`` + ``reject`` (see
-    ``manifests/ac-electrodeposition-cell.yaml``), the live path this exercises:
+    ``dynamical/bundle/facility.yaml``), the live path this exercises:
     ``current-envelope`` (narrowed below the campaign's real 0.002827 A current, see
     ``_compile_coverage_isaac_with_narrowed_current_envelope``) must reject the
     ``deposit`` action before Isaac ever submits it to the instrument, not execute it
@@ -402,11 +402,11 @@ def _compile_model_backed_isaac_world(destination: Path) -> Path:
 
     composition = compose_virtual_sdl(
         test_runtime_pack._model_backed_requirement(),
-        load_capability_registry("registries/electrodeposition-capabilities.yaml"),
+        load_capability_registry("dynamical/bundle/registry.yaml"),
     )
     assert composition.status == "COMPILED", composition.reason_codes
     return compile_facility(
-        "manifests/ac-electrodeposition-cell.yaml",
+        "dynamical/bundle/facility.yaml",
         "isaac",
         destination,
         composition_result=composition,

@@ -7,7 +7,7 @@ from dynamical.backends._runtime_pack import runtime_campaign, runtime_capabilit
 
 def test_campaign_follows_the_composition_order(three_station_composition):
     # Actions are kinded by the facility-declared action_type bound to each
-    # operation, not the raw operation_id: manifests/ac-electrodeposition-cell.yaml
+    # operation, not the raw operation_id: dynamical/bundle/facility.yaml
     # declares action_type "dispense" for operation_id "dispense-electrolyte"
     # (and "electrodeposit" / "measure" for the other two) -- they are not equal.
     campaign = runtime_campaign(three_station_composition)

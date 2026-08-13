@@ -12,8 +12,8 @@ Create the smallest candidate integration that the supplied evidence supports. T
 Work in a disposable branch or worktree. Preserve unrelated changes. Inspect the public interface first, then read only the contract files needed for this instrument:
 
 - `dynamical capabilities --json` and `dynamical compose --schema` for the installed public interface.
-- `src/dynamical/instruments/` for `InstrumentRequest`, `InstrumentResult`, registration, and one similar adapter.
-- The relevant models in `src/dynamical/schema.py` and `src/dynamical/sources.py`.
+- `dynamical/instruments/` for `InstrumentRequest`, `InstrumentResult`, registration, and one similar adapter.
+- The relevant models in `dynamical/schema.py` and `dynamical/sources.py`.
 - One relevant registry, manifest, and conformance test.
 - The package allowlist in `pyproject.toml`.
 

@@ -1,0 +1,338 @@
+{
+  "schema_version": "dynamical.source-lock.v1",
+  "notes": [
+    "conversion_tolerance 0.05,0.5 is chosen for execution visualization and collision, not metrology. Measured on the largest source (assembly_well_cartridge v44.step, 1.02 MB STEP): the world bounding box is identical -- 132.5 x 190.5 x 113.7 mm -- at every tolerance tested (0.001,0.05 through 0.1,0.5); only surface tessellation density changes (2,285,725 verts down to 90,997 verts across that range). The coarser tessellation recorded here is a deliberate, disclosed tradeoff for wheel size to keep wheel installs practical, not a fidelity regression: dimensions are exact-source-derived from the same verified STEP either way.",
+    "On 2026-08-09, every derived layer was re-converted every derived layer at tolerance 0.05,0.5 (previously 0.001,0.05) and switched output format from ASCII .usda to binary crate .usdc, taking assets/ from ~255 MB to ~2.5 MB. All derived sha256 values changed as a result; this lock file supersedes the one committed in f29d71c. The 255 MB blobs remain reachable through that commit's history."
+  ],
+  "sources": [
+    {
+      "id": "sources/ac-sdl1/assembly_well_cartridge v44.step",
+      "retrieval_uri": "https://zenodo.org/api/records/15575908/files/AccelerationConsortium/SDL1_OpenTron_electrodeposition-0.0.2.zip/content",
+      "sha256": "0d646ba7e37d1a441472ac165b40a2902be24b7fd2f5d5720133615a47432e76",
+      "admission": "admitted",
+      "authority_id": "dynamical-v0.1-release-authority",
+      "license_ref": "zenodo-record-metadata",
+      "license_evidence": "GET https://zenodo.org/api/records/15575908 (Zenodo record for tag 0.0.2, re-verified live 2026-08-09) -> metadata.license = {\"id\": \"cc-by-4.0\"}",
+      "conflict_notes": [
+        "the vendored archive (sha256 253a751531a83a62f3dc028dc4909069d23fe648da89339badf78a1fd00e986c) contains no LICENSE/COPYING file and no 'license' or 'copyright' string anywhere in its 174 members (grep -rli 'license|copyright' over the full extraction: zero matches)",
+        "Zenodo record 15575908 (tag 0.0.2) metadata.license = {'id': 'cc-by-4.0'}: a versioned CC BY 4.0 slug, but it is asserted only by the Zenodo platform's own record metadata -- it is not an SPDX license identifier field and is not evidenced anywhere inside the archive's own contents",
+        "GitHub AccelerationConsortium/SDL1_OpenTron_electrodeposition main (checked 2026-08-09) now carries LICENSE=MIT, copyright Technical University of Denmark 2025 (api.github.com/repos/AccelerationConsortium/SDL1_OpenTron_electrodeposition/license -> spdx_id MIT); raw.githubusercontent.com/.../0.0.2/LICENSE returns HTTP 404, so this MIT grant postdates the vendored 0.0.2 tag and cannot be relied on for these files"
+      ],
+      "revision": "0.0.2",
+      "retrieved_at": "2026-08-09"
+    },
+    {
+      "id": "assets/assembly-well-cartridge-v44.usdc",
+      "retrieval_uri": "https://zenodo.org/api/records/15575908/files/AccelerationConsortium/SDL1_OpenTron_electrodeposition-0.0.2.zip/content",
+      "sha256": "491e53a4c9df7a8718d4b890d50b7427e5cc8025cefa07b631b835af5aad333f",
+      "admission": "admitted",
+      "authority_id": "dynamical-v0.1-release-authority",
+      "license_ref": "zenodo-record-metadata",
+      "license_evidence": "GET https://zenodo.org/api/records/15575908 (Zenodo record for tag 0.0.2, re-verified live 2026-08-09) -> metadata.license = {\"id\": \"cc-by-4.0\"}",
+      "conflict_notes": [
+        "the vendored archive (sha256 253a751531a83a62f3dc028dc4909069d23fe648da89339badf78a1fd00e986c) contains no LICENSE/COPYING file and no 'license' or 'copyright' string anywhere in its 174 members (grep -rli 'license|copyright' over the full extraction: zero matches)",
+        "Zenodo record 15575908 (tag 0.0.2) metadata.license = {'id': 'cc-by-4.0'}: a versioned CC BY 4.0 slug, but it is asserted only by the Zenodo platform's own record metadata -- it is not an SPDX license identifier field and is not evidenced anywhere inside the archive's own contents",
+        "GitHub AccelerationConsortium/SDL1_OpenTron_electrodeposition main (checked 2026-08-09) now carries LICENSE=MIT, copyright Technical University of Denmark 2025 (api.github.com/repos/AccelerationConsortium/SDL1_OpenTron_electrodeposition/license -> spdx_id MIT); raw.githubusercontent.com/.../0.0.2/LICENSE returns HTTP 404, so this MIT grant postdates the vendored 0.0.2 tag and cannot be relied on for these files"
+      ],
+      "revision": "0.0.2",
+      "retrieved_at": "2026-08-09",
+      "derived_from_source_id": "sources/ac-sdl1/assembly_well_cartridge v44.step",
+      "conversion_tool": "tools/cad_to_usd.py (cascadio==0.1.1, trimesh==5.0.0, OpenUSD 26.05)",
+      "conversion_tolerance": "0.05,0.5"
+    },
+    {
+      "id": "sources/ac-sdl1/assembly_cleaning_cartridge v15.step",
+      "retrieval_uri": "https://zenodo.org/api/records/15575908/files/AccelerationConsortium/SDL1_OpenTron_electrodeposition-0.0.2.zip/content",
+      "sha256": "946172c09e98043d8d78807fc21c57517cbcd2653bc0fc6ffef5d16de44580f7",
+      "admission": "admitted",
+      "authority_id": "dynamical-v0.1-release-authority",
+      "license_ref": "zenodo-record-metadata",
+      "license_evidence": "GET https://zenodo.org/api/records/15575908 (Zenodo record for tag 0.0.2, re-verified live 2026-08-09) -> metadata.license = {\"id\": \"cc-by-4.0\"}",
+      "conflict_notes": [
+        "the vendored archive (sha256 253a751531a83a62f3dc028dc4909069d23fe648da89339badf78a1fd00e986c) contains no LICENSE/COPYING file and no 'license' or 'copyright' string anywhere in its 174 members (grep -rli 'license|copyright' over the full extraction: zero matches)",
+        "Zenodo record 15575908 (tag 0.0.2) metadata.license = {'id': 'cc-by-4.0'}: a versioned CC BY 4.0 slug, but it is asserted only by the Zenodo platform's own record metadata -- it is not an SPDX license identifier field and is not evidenced anywhere inside the archive's own contents",
+        "GitHub AccelerationConsortium/SDL1_OpenTron_electrodeposition main (checked 2026-08-09) now carries LICENSE=MIT, copyright Technical University of Denmark 2025 (api.github.com/repos/AccelerationConsortium/SDL1_OpenTron_electrodeposition/license -> spdx_id MIT); raw.githubusercontent.com/.../0.0.2/LICENSE returns HTTP 404, so this MIT grant postdates the vendored 0.0.2 tag and cannot be relied on for these files"
+      ],
+      "revision": "0.0.2",
+      "retrieved_at": "2026-08-09"
+    },
+    {
+      "id": "assets/assembly-cleaning-cartridge-v15.usdc",
+      "retrieval_uri": "https://zenodo.org/api/records/15575908/files/AccelerationConsortium/SDL1_OpenTron_electrodeposition-0.0.2.zip/content",
+      "sha256": "55233d6edc475aa0f080dba11c376c8c866b8fcfa0bfe534c0c08fd1fd9b08f4",
+      "admission": "admitted",
+      "authority_id": "dynamical-v0.1-release-authority",
+      "license_ref": "zenodo-record-metadata",
+      "license_evidence": "GET https://zenodo.org/api/records/15575908 (Zenodo record for tag 0.0.2, re-verified live 2026-08-09) -> metadata.license = {\"id\": \"cc-by-4.0\"}",
+      "conflict_notes": [
+        "the vendored archive (sha256 253a751531a83a62f3dc028dc4909069d23fe648da89339badf78a1fd00e986c) contains no LICENSE/COPYING file and no 'license' or 'copyright' string anywhere in its 174 members (grep -rli 'license|copyright' over the full extraction: zero matches)",
+        "Zenodo record 15575908 (tag 0.0.2) metadata.license = {'id': 'cc-by-4.0'}: a versioned CC BY 4.0 slug, but it is asserted only by the Zenodo platform's own record metadata -- it is not an SPDX license identifier field and is not evidenced anywhere inside the archive's own contents",
+        "GitHub AccelerationConsortium/SDL1_OpenTron_electrodeposition main (checked 2026-08-09) now carries LICENSE=MIT, copyright Technical University of Denmark 2025 (api.github.com/repos/AccelerationConsortium/SDL1_OpenTron_electrodeposition/license -> spdx_id MIT); raw.githubusercontent.com/.../0.0.2/LICENSE returns HTTP 404, so this MIT grant postdates the vendored 0.0.2 tag and cannot be relied on for these files"
+      ],
+      "revision": "0.0.2",
+      "retrieved_at": "2026-08-09",
+      "derived_from_source_id": "sources/ac-sdl1/assembly_cleaning_cartridge v15.step",
+      "conversion_tool": "tools/cad_to_usd.py (cascadio==0.1.1, trimesh==5.0.0, OpenUSD 26.05)",
+      "conversion_tolerance": "0.05,0.5"
+    },
+    {
+      "id": "sources/ac-sdl1/tool_cartridge_v7.step",
+      "retrieval_uri": "https://zenodo.org/api/records/15575908/files/AccelerationConsortium/SDL1_OpenTron_electrodeposition-0.0.2.zip/content",
+      "sha256": "069e91b3044b010b4ce14fcd7345e022d6d57ea5bb3a6e0076f4b2e92db505f8",
+      "admission": "admitted",
+      "authority_id": "dynamical-v0.1-release-authority",
+      "license_ref": "zenodo-record-metadata",
+      "license_evidence": "GET https://zenodo.org/api/records/15575908 (Zenodo record for tag 0.0.2, re-verified live 2026-08-09) -> metadata.license = {\"id\": \"cc-by-4.0\"}",
+      "conflict_notes": [
+        "the vendored archive (sha256 253a751531a83a62f3dc028dc4909069d23fe648da89339badf78a1fd00e986c) contains no LICENSE/COPYING file and no 'license' or 'copyright' string anywhere in its 174 members (grep -rli 'license|copyright' over the full extraction: zero matches)",
+        "Zenodo record 15575908 (tag 0.0.2) metadata.license = {'id': 'cc-by-4.0'}: a versioned CC BY 4.0 slug, but it is asserted only by the Zenodo platform's own record metadata -- it is not an SPDX license identifier field and is not evidenced anywhere inside the archive's own contents",
+        "GitHub AccelerationConsortium/SDL1_OpenTron_electrodeposition main (checked 2026-08-09) now carries LICENSE=MIT, copyright Technical University of Denmark 2025 (api.github.com/repos/AccelerationConsortium/SDL1_OpenTron_electrodeposition/license -> spdx_id MIT); raw.githubusercontent.com/.../0.0.2/LICENSE returns HTTP 404, so this MIT grant postdates the vendored 0.0.2 tag and cannot be relied on for these files"
+      ],
+      "revision": "0.0.2",
+      "retrieved_at": "2026-08-09"
+    },
+    {
+      "id": "assets/tool-cartridge-v7.usdc",
+      "retrieval_uri": "https://zenodo.org/api/records/15575908/files/AccelerationConsortium/SDL1_OpenTron_electrodeposition-0.0.2.zip/content",
+      "sha256": "8228f67814e022e2aea8338f052694b396fe20e98e6317a1aaf7fe346b74b0b4",
+      "admission": "admitted",
+      "authority_id": "dynamical-v0.1-release-authority",
+      "license_ref": "zenodo-record-metadata",
+      "license_evidence": "GET https://zenodo.org/api/records/15575908 (Zenodo record for tag 0.0.2, re-verified live 2026-08-09) -> metadata.license = {\"id\": \"cc-by-4.0\"}",
+      "conflict_notes": [
+        "the vendored archive (sha256 253a751531a83a62f3dc028dc4909069d23fe648da89339badf78a1fd00e986c) contains no LICENSE/COPYING file and no 'license' or 'copyright' string anywhere in its 174 members (grep -rli 'license|copyright' over the full extraction: zero matches)",
+        "Zenodo record 15575908 (tag 0.0.2) metadata.license = {'id': 'cc-by-4.0'}: a versioned CC BY 4.0 slug, but it is asserted only by the Zenodo platform's own record metadata -- it is not an SPDX license identifier field and is not evidenced anywhere inside the archive's own contents",
+        "GitHub AccelerationConsortium/SDL1_OpenTron_electrodeposition main (checked 2026-08-09) now carries LICENSE=MIT, copyright Technical University of Denmark 2025 (api.github.com/repos/AccelerationConsortium/SDL1_OpenTron_electrodeposition/license -> spdx_id MIT); raw.githubusercontent.com/.../0.0.2/LICENSE returns HTTP 404, so this MIT grant postdates the vendored 0.0.2 tag and cannot be relied on for these files"
+      ],
+      "revision": "0.0.2",
+      "retrieved_at": "2026-08-09",
+      "derived_from_source_id": "sources/ac-sdl1/tool_cartridge_v7.step",
+      "conversion_tool": "tools/cad_to_usd.py (cascadio==0.1.1, trimesh==5.0.0, OpenUSD 26.05)",
+      "conversion_tolerance": "0.05,0.5"
+    },
+    {
+      "id": "sources/ac-sdl1/1_well_catridge_ultrasound_mount v5.step",
+      "retrieval_uri": "https://zenodo.org/api/records/15575908/files/AccelerationConsortium/SDL1_OpenTron_electrodeposition-0.0.2.zip/content",
+      "sha256": "d5fb7976ac35bfe13578eb3ae6bff92505859c7d1f7ad31a41a9f2595c21d638",
+      "admission": "admitted",
+      "authority_id": "dynamical-v0.1-release-authority",
+      "license_ref": "zenodo-record-metadata",
+      "license_evidence": "GET https://zenodo.org/api/records/15575908 (Zenodo record for tag 0.0.2, re-verified live 2026-08-09) -> metadata.license = {\"id\": \"cc-by-4.0\"}",
+      "conflict_notes": [
+        "the vendored archive (sha256 253a751531a83a62f3dc028dc4909069d23fe648da89339badf78a1fd00e986c) contains no LICENSE/COPYING file and no 'license' or 'copyright' string anywhere in its 174 members (grep -rli 'license|copyright' over the full extraction: zero matches)",
+        "Zenodo record 15575908 (tag 0.0.2) metadata.license = {'id': 'cc-by-4.0'}: a versioned CC BY 4.0 slug, but it is asserted only by the Zenodo platform's own record metadata -- it is not an SPDX license identifier field and is not evidenced anywhere inside the archive's own contents",
+        "GitHub AccelerationConsortium/SDL1_OpenTron_electrodeposition main (checked 2026-08-09) now carries LICENSE=MIT, copyright Technical University of Denmark 2025 (api.github.com/repos/AccelerationConsortium/SDL1_OpenTron_electrodeposition/license -> spdx_id MIT); raw.githubusercontent.com/.../0.0.2/LICENSE returns HTTP 404, so this MIT grant postdates the vendored 0.0.2 tag and cannot be relied on for these files"
+      ],
+      "revision": "0.0.2",
+      "retrieved_at": "2026-08-09"
+    },
+    {
+      "id": "assets/1-well-cartridge-ultrasound-mount-v5.usdc",
+      "retrieval_uri": "https://zenodo.org/api/records/15575908/files/AccelerationConsortium/SDL1_OpenTron_electrodeposition-0.0.2.zip/content",
+      "sha256": "71eb42b9913abbdb190a52b07c5a2e79cfa2f2b5c41e270997c1229591744a29",
+      "admission": "admitted",
+      "authority_id": "dynamical-v0.1-release-authority",
+      "license_ref": "zenodo-record-metadata",
+      "license_evidence": "GET https://zenodo.org/api/records/15575908 (Zenodo record for tag 0.0.2, re-verified live 2026-08-09) -> metadata.license = {\"id\": \"cc-by-4.0\"}",
+      "conflict_notes": [
+        "the vendored archive (sha256 253a751531a83a62f3dc028dc4909069d23fe648da89339badf78a1fd00e986c) contains no LICENSE/COPYING file and no 'license' or 'copyright' string anywhere in its 174 members (grep -rli 'license|copyright' over the full extraction: zero matches)",
+        "Zenodo record 15575908 (tag 0.0.2) metadata.license = {'id': 'cc-by-4.0'}: a versioned CC BY 4.0 slug, but it is asserted only by the Zenodo platform's own record metadata -- it is not an SPDX license identifier field and is not evidenced anywhere inside the archive's own contents",
+        "GitHub AccelerationConsortium/SDL1_OpenTron_electrodeposition main (checked 2026-08-09) now carries LICENSE=MIT, copyright Technical University of Denmark 2025 (api.github.com/repos/AccelerationConsortium/SDL1_OpenTron_electrodeposition/license -> spdx_id MIT); raw.githubusercontent.com/.../0.0.2/LICENSE returns HTTP 404, so this MIT grant postdates the vendored 0.0.2 tag and cannot be relied on for these files"
+      ],
+      "revision": "0.0.2",
+      "retrieved_at": "2026-08-09",
+      "derived_from_source_id": "sources/ac-sdl1/1_well_catridge_ultrasound_mount v5.step",
+      "conversion_tool": "tools/cad_to_usd.py (cascadio==0.1.1, trimesh==5.0.0, OpenUSD 26.05)",
+      "conversion_tolerance": "0.05,0.5"
+    },
+    {
+      "id": "sources/ac-sdl1/vial_rack v3.step",
+      "retrieval_uri": "https://zenodo.org/api/records/15575908/files/AccelerationConsortium/SDL1_OpenTron_electrodeposition-0.0.2.zip/content",
+      "sha256": "487f6b026999e20c592456713b90c702a13fa159a1268a8024c4e2dd85544821",
+      "admission": "admitted",
+      "authority_id": "dynamical-v0.1-release-authority",
+      "license_ref": "zenodo-record-metadata",
+      "license_evidence": "GET https://zenodo.org/api/records/15575908 (Zenodo record for tag 0.0.2, re-verified live 2026-08-09) -> metadata.license = {\"id\": \"cc-by-4.0\"}",
+      "conflict_notes": [
+        "the vendored archive (sha256 253a751531a83a62f3dc028dc4909069d23fe648da89339badf78a1fd00e986c) contains no LICENSE/COPYING file and no 'license' or 'copyright' string anywhere in its 174 members (grep -rli 'license|copyright' over the full extraction: zero matches)",
+        "Zenodo record 15575908 (tag 0.0.2) metadata.license = {'id': 'cc-by-4.0'}: a versioned CC BY 4.0 slug, but it is asserted only by the Zenodo platform's own record metadata -- it is not an SPDX license identifier field and is not evidenced anywhere inside the archive's own contents",
+        "GitHub AccelerationConsortium/SDL1_OpenTron_electrodeposition main (checked 2026-08-09) now carries LICENSE=MIT, copyright Technical University of Denmark 2025 (api.github.com/repos/AccelerationConsortium/SDL1_OpenTron_electrodeposition/license -> spdx_id MIT); raw.githubusercontent.com/.../0.0.2/LICENSE returns HTTP 404, so this MIT grant postdates the vendored 0.0.2 tag and cannot be relied on for these files"
+      ],
+      "revision": "0.0.2",
+      "retrieved_at": "2026-08-09"
+    },
+    {
+      "id": "assets/vial-rack-v3.usdc",
+      "retrieval_uri": "https://zenodo.org/api/records/15575908/files/AccelerationConsortium/SDL1_OpenTron_electrodeposition-0.0.2.zip/content",
+      "sha256": "97008f3ac8dd1503fd69466879241d5a40fbcbfde84e4e6bfadb3d1dec45cf72",
+      "admission": "admitted",
+      "authority_id": "dynamical-v0.1-release-authority",
+      "license_ref": "zenodo-record-metadata",
+      "license_evidence": "GET https://zenodo.org/api/records/15575908 (Zenodo record for tag 0.0.2, re-verified live 2026-08-09) -> metadata.license = {\"id\": \"cc-by-4.0\"}",
+      "conflict_notes": [
+        "the vendored archive (sha256 253a751531a83a62f3dc028dc4909069d23fe648da89339badf78a1fd00e986c) contains no LICENSE/COPYING file and no 'license' or 'copyright' string anywhere in its 174 members (grep -rli 'license|copyright' over the full extraction: zero matches)",
+        "Zenodo record 15575908 (tag 0.0.2) metadata.license = {'id': 'cc-by-4.0'}: a versioned CC BY 4.0 slug, but it is asserted only by the Zenodo platform's own record metadata -- it is not an SPDX license identifier field and is not evidenced anywhere inside the archive's own contents",
+        "GitHub AccelerationConsortium/SDL1_OpenTron_electrodeposition main (checked 2026-08-09) now carries LICENSE=MIT, copyright Technical University of Denmark 2025 (api.github.com/repos/AccelerationConsortium/SDL1_OpenTron_electrodeposition/license -> spdx_id MIT); raw.githubusercontent.com/.../0.0.2/LICENSE returns HTTP 404, so this MIT grant postdates the vendored 0.0.2 tag and cannot be relied on for these files"
+      ],
+      "revision": "0.0.2",
+      "retrieved_at": "2026-08-09",
+      "derived_from_source_id": "sources/ac-sdl1/vial_rack v3.step",
+      "conversion_tool": "tools/cad_to_usd.py (cascadio==0.1.1, trimesh==5.0.0, OpenUSD 26.05)",
+      "conversion_tolerance": "0.05,0.5"
+    },
+    {
+      "id": "sources/ac-sdl1/nickel_electrode v30.step",
+      "retrieval_uri": "https://zenodo.org/api/records/15575908/files/AccelerationConsortium/SDL1_OpenTron_electrodeposition-0.0.2.zip/content",
+      "sha256": "414060fce1008aaf0462ec92238cb9733499ee197df6af3fe554d06808ccf371",
+      "admission": "admitted",
+      "authority_id": "dynamical-v0.1-release-authority",
+      "license_ref": "zenodo-record-metadata",
+      "license_evidence": "GET https://zenodo.org/api/records/15575908 (Zenodo record for tag 0.0.2, re-verified live 2026-08-09) -> metadata.license = {\"id\": \"cc-by-4.0\"}",
+      "conflict_notes": [
+        "the vendored archive (sha256 253a751531a83a62f3dc028dc4909069d23fe648da89339badf78a1fd00e986c) contains no LICENSE/COPYING file and no 'license' or 'copyright' string anywhere in its 174 members (grep -rli 'license|copyright' over the full extraction: zero matches)",
+        "Zenodo record 15575908 (tag 0.0.2) metadata.license = {'id': 'cc-by-4.0'}: a versioned CC BY 4.0 slug, but it is asserted only by the Zenodo platform's own record metadata -- it is not an SPDX license identifier field and is not evidenced anywhere inside the archive's own contents",
+        "GitHub AccelerationConsortium/SDL1_OpenTron_electrodeposition main (checked 2026-08-09) now carries LICENSE=MIT, copyright Technical University of Denmark 2025 (api.github.com/repos/AccelerationConsortium/SDL1_OpenTron_electrodeposition/license -> spdx_id MIT); raw.githubusercontent.com/.../0.0.2/LICENSE returns HTTP 404, so this MIT grant postdates the vendored 0.0.2 tag and cannot be relied on for these files"
+      ],
+      "revision": "0.0.2",
+      "retrieved_at": "2026-08-09"
+    },
+    {
+      "id": "assets/nickel-electrode-v30.usdc",
+      "retrieval_uri": "https://zenodo.org/api/records/15575908/files/AccelerationConsortium/SDL1_OpenTron_electrodeposition-0.0.2.zip/content",
+      "sha256": "e7def9302f0f192bfa56cd4eb07f2de593819b5f465b99d907f3081a5b715c42",
+      "admission": "admitted",
+      "authority_id": "dynamical-v0.1-release-authority",
+      "license_ref": "zenodo-record-metadata",
+      "license_evidence": "GET https://zenodo.org/api/records/15575908 (Zenodo record for tag 0.0.2, re-verified live 2026-08-09) -> metadata.license = {\"id\": \"cc-by-4.0\"}",
+      "conflict_notes": [
+        "the vendored archive (sha256 253a751531a83a62f3dc028dc4909069d23fe648da89339badf78a1fd00e986c) contains no LICENSE/COPYING file and no 'license' or 'copyright' string anywhere in its 174 members (grep -rli 'license|copyright' over the full extraction: zero matches)",
+        "Zenodo record 15575908 (tag 0.0.2) metadata.license = {'id': 'cc-by-4.0'}: a versioned CC BY 4.0 slug, but it is asserted only by the Zenodo platform's own record metadata -- it is not an SPDX license identifier field and is not evidenced anywhere inside the archive's own contents",
+        "GitHub AccelerationConsortium/SDL1_OpenTron_electrodeposition main (checked 2026-08-09) now carries LICENSE=MIT, copyright Technical University of Denmark 2025 (api.github.com/repos/AccelerationConsortium/SDL1_OpenTron_electrodeposition/license -> spdx_id MIT); raw.githubusercontent.com/.../0.0.2/LICENSE returns HTTP 404, so this MIT grant postdates the vendored 0.0.2 tag and cannot be relied on for these files"
+      ],
+      "revision": "0.0.2",
+      "retrieved_at": "2026-08-09",
+      "derived_from_source_id": "sources/ac-sdl1/nickel_electrode v30.step",
+      "conversion_tool": "tools/cad_to_usd.py (cascadio==0.1.1, trimesh==5.0.0, OpenUSD 26.05)",
+      "conversion_tolerance": "0.05,0.5"
+    },
+    {
+      "id": "sources/ac-sdl1/platinum_electrode v46.step",
+      "retrieval_uri": "https://zenodo.org/api/records/15575908/files/AccelerationConsortium/SDL1_OpenTron_electrodeposition-0.0.2.zip/content",
+      "sha256": "398ceed8aadb041b344a43eaf3def143bd5cce83eae1069448f609aaf621341b",
+      "admission": "admitted",
+      "authority_id": "dynamical-v0.1-release-authority",
+      "license_ref": "zenodo-record-metadata",
+      "license_evidence": "GET https://zenodo.org/api/records/15575908 (Zenodo record for tag 0.0.2, re-verified live 2026-08-09) -> metadata.license = {\"id\": \"cc-by-4.0\"}",
+      "conflict_notes": [
+        "the vendored archive (sha256 253a751531a83a62f3dc028dc4909069d23fe648da89339badf78a1fd00e986c) contains no LICENSE/COPYING file and no 'license' or 'copyright' string anywhere in its 174 members (grep -rli 'license|copyright' over the full extraction: zero matches)",
+        "Zenodo record 15575908 (tag 0.0.2) metadata.license = {'id': 'cc-by-4.0'}: a versioned CC BY 4.0 slug, but it is asserted only by the Zenodo platform's own record metadata -- it is not an SPDX license identifier field and is not evidenced anywhere inside the archive's own contents",
+        "GitHub AccelerationConsortium/SDL1_OpenTron_electrodeposition main (checked 2026-08-09) now carries LICENSE=MIT, copyright Technical University of Denmark 2025 (api.github.com/repos/AccelerationConsortium/SDL1_OpenTron_electrodeposition/license -> spdx_id MIT); raw.githubusercontent.com/.../0.0.2/LICENSE returns HTTP 404, so this MIT grant postdates the vendored 0.0.2 tag and cannot be relied on for these files"
+      ],
+      "revision": "0.0.2",
+      "retrieved_at": "2026-08-09"
+    },
+    {
+      "id": "assets/platinum-electrode-v46.usdc",
+      "retrieval_uri": "https://zenodo.org/api/records/15575908/files/AccelerationConsortium/SDL1_OpenTron_electrodeposition-0.0.2.zip/content",
+      "sha256": "b790b51684c271112554995e38a9ae455fbed632a0e4e1b11158cd801d779a7f",
+      "admission": "admitted",
+      "authority_id": "dynamical-v0.1-release-authority",
+      "license_ref": "zenodo-record-metadata",
+      "license_evidence": "GET https://zenodo.org/api/records/15575908 (Zenodo record for tag 0.0.2, re-verified live 2026-08-09) -> metadata.license = {\"id\": \"cc-by-4.0\"}",
+      "conflict_notes": [
+        "the vendored archive (sha256 253a751531a83a62f3dc028dc4909069d23fe648da89339badf78a1fd00e986c) contains no LICENSE/COPYING file and no 'license' or 'copyright' string anywhere in its 174 members (grep -rli 'license|copyright' over the full extraction: zero matches)",
+        "Zenodo record 15575908 (tag 0.0.2) metadata.license = {'id': 'cc-by-4.0'}: a versioned CC BY 4.0 slug, but it is asserted only by the Zenodo platform's own record metadata -- it is not an SPDX license identifier field and is not evidenced anywhere inside the archive's own contents",
+        "GitHub AccelerationConsortium/SDL1_OpenTron_electrodeposition main (checked 2026-08-09) now carries LICENSE=MIT, copyright Technical University of Denmark 2025 (api.github.com/repos/AccelerationConsortium/SDL1_OpenTron_electrodeposition/license -> spdx_id MIT); raw.githubusercontent.com/.../0.0.2/LICENSE returns HTTP 404, so this MIT grant postdates the vendored 0.0.2 tag and cannot be relied on for these files"
+      ],
+      "revision": "0.0.2",
+      "retrieved_at": "2026-08-09",
+      "derived_from_source_id": "sources/ac-sdl1/platinum_electrode v46.step",
+      "conversion_tool": "tools/cad_to_usd.py (cascadio==0.1.1, trimesh==5.0.0, OpenUSD 26.05)",
+      "conversion_tolerance": "0.05,0.5"
+    },
+    {
+      "id": "sources/echem-cell/Cap Body v5 3.3.stl",
+      "retrieval_uri": "https://raw.githubusercontent.com/AccelerationConsortium/echem-cell/9b063f80a1166475b3249709f4fd3afdb3dadb5d/Cap%20Body%20v5%203.3.stl",
+      "sha256": "f63f0a9a6671ad1eec118cf06c66b3b8b5f1e59121852e5dcb8c88a51bc14002",
+      "admission": "admitted",
+      "authority_id": "dynamical-v0.1-release-authority",
+      "spdx_id": "MIT",
+      "license_evidence": "echem-cell LICENSE (root of repo at commit 9b063f80a1166475b3249709f4fd3afdb3dadb5d): 'MIT License / Copyright (c) 2025 Sterling G. Baird'",
+      "conflict_notes": [],
+      "revision": "9b063f80a1166475b3249709f4fd3afdb3dadb5d",
+      "retrieved_at": "2026-08-09"
+    },
+    {
+      "id": "assets/cap-body-v5-3.3.usdc",
+      "retrieval_uri": "https://codeload.github.com/AccelerationConsortium/echem-cell/tar.gz/9b063f80a1166475b3249709f4fd3afdb3dadb5d",
+      "sha256": "de331d0c6555b64cd627ace5fb68b501330817f63ec98c14ad466021ba49d669",
+      "admission": "admitted",
+      "authority_id": "dynamical-v0.1-release-authority",
+      "spdx_id": "MIT",
+      "license_evidence": "echem-cell LICENSE (root of repo at commit 9b063f80a1166475b3249709f4fd3afdb3dadb5d): 'MIT License / Copyright (c) 2025 Sterling G. Baird'",
+      "conflict_notes": [],
+      "revision": "9b063f80a1166475b3249709f4fd3afdb3dadb5d",
+      "retrieved_at": "2026-08-09",
+      "derived_from_source_id": "sources/echem-cell/Cap Body v5 3.3.stl",
+      "conversion_tool": "tools/cad_to_usd.py (cascadio==0.1.1, trimesh==5.0.0, OpenUSD 26.05)",
+      "conversion_tolerance": "0.05,0.5"
+    },
+    {
+      "id": "sources/echem-cell/Foil Base v5 1.3.stl",
+      "retrieval_uri": "https://raw.githubusercontent.com/AccelerationConsortium/echem-cell/9b063f80a1166475b3249709f4fd3afdb3dadb5d/Foil%20Base%20v5%201.3.stl",
+      "sha256": "ec8f562adafcd89ed4173a0b33161c04c783a889db349cc129ec0122a4bf0d51",
+      "admission": "admitted",
+      "authority_id": "dynamical-v0.1-release-authority",
+      "spdx_id": "MIT",
+      "license_evidence": "echem-cell LICENSE (root of repo at commit 9b063f80a1166475b3249709f4fd3afdb3dadb5d): 'MIT License / Copyright (c) 2025 Sterling G. Baird'",
+      "conflict_notes": [],
+      "revision": "9b063f80a1166475b3249709f4fd3afdb3dadb5d",
+      "retrieved_at": "2026-08-09"
+    },
+    {
+      "id": "assets/foil-base-v5-1.3.usdc",
+      "retrieval_uri": "https://codeload.github.com/AccelerationConsortium/echem-cell/tar.gz/9b063f80a1166475b3249709f4fd3afdb3dadb5d",
+      "sha256": "521c46ed7fb7f0151e39111cc96d08d129c2a9ac1dcf369d6bf2c70be42508e4",
+      "admission": "admitted",
+      "authority_id": "dynamical-v0.1-release-authority",
+      "spdx_id": "MIT",
+      "license_evidence": "echem-cell LICENSE (root of repo at commit 9b063f80a1166475b3249709f4fd3afdb3dadb5d): 'MIT License / Copyright (c) 2025 Sterling G. Baird'",
+      "conflict_notes": [],
+      "revision": "9b063f80a1166475b3249709f4fd3afdb3dadb5d",
+      "retrieved_at": "2026-08-09",
+      "derived_from_source_id": "sources/echem-cell/Foil Base v5 1.3.stl",
+      "conversion_tool": "tools/cad_to_usd.py (cascadio==0.1.1, trimesh==5.0.0, OpenUSD 26.05)",
+      "conversion_tolerance": "0.05,0.5"
+    },
+    {
+      "id": "sources/echem-cell/Main Body v5 wo Block 2.3 US.stl",
+      "retrieval_uri": "https://raw.githubusercontent.com/AccelerationConsortium/echem-cell/9b063f80a1166475b3249709f4fd3afdb3dadb5d/Main%20Body%20v5%20wo%20Block%202.3%20US.stl",
+      "sha256": "96824637a4acbd118fe5e5040f0cec5b2dbf777b2e42d34fab8855207870d7a6",
+      "admission": "admitted",
+      "authority_id": "dynamical-v0.1-release-authority",
+      "spdx_id": "MIT",
+      "license_evidence": "echem-cell LICENSE (root of repo at commit 9b063f80a1166475b3249709f4fd3afdb3dadb5d): 'MIT License / Copyright (c) 2025 Sterling G. Baird'",
+      "conflict_notes": [
+        "source archive (sha256 5d38b33f8ebb744ca744b62da14b1adabd5fddb49f0ebd96e0e0b2c9cb7032ac) at https://raw.githubusercontent.com/AccelerationConsortium/echem-cell/9b063f80a1166475b3249709f4fd3afdb3dadb5d/Version.5.wo.Block.US.zip is recorded provenance, not vendored: only its extracted STL members are tracked, to avoid shipping duplicate bytes.",
+        "echem-cell distributes this same body as two zips at commit 9b063f80a1166475b3249709f4fd3afdb3dadb5d: Version.5.wo.Block.US.zip -> 'Main Body v5 wo Block 2.3 US.stl' (vendored here) and Version.5.wo.Block.EU.zip -> 'Main Body v5 wo Block 2.3 EU.stl'. The two STL members are byte-identical (sha256 96824637a4acbd118fe5e5040f0cec5b2dbf777b2e42d34fab8855207870d7a6 for both); only the US-named file is vendored to avoid shipping duplicate bytes under two names."
+      ],
+      "revision": "9b063f80a1166475b3249709f4fd3afdb3dadb5d",
+      "retrieved_at": "2026-08-09"
+    },
+    {
+      "id": "assets/main-body-v5-wo-block-2.3-us.usdc",
+      "retrieval_uri": "https://codeload.github.com/AccelerationConsortium/echem-cell/tar.gz/9b063f80a1166475b3249709f4fd3afdb3dadb5d",
+      "sha256": "6939a095259f5c9dc5f47f25f0eb4b461ccd198e369c706eccfb712d8b196f96",
+      "admission": "admitted",
+      "authority_id": "dynamical-v0.1-release-authority",
+      "spdx_id": "MIT",
+      "license_evidence": "echem-cell LICENSE (root of repo at commit 9b063f80a1166475b3249709f4fd3afdb3dadb5d): 'MIT License / Copyright (c) 2025 Sterling G. Baird'",
+      "conflict_notes": [],
+      "revision": "9b063f80a1166475b3249709f4fd3afdb3dadb5d",
+      "retrieved_at": "2026-08-09",
+      "derived_from_source_id": "sources/echem-cell/Main Body v5 wo Block 2.3 US.stl",
+      "conversion_tool": "tools/cad_to_usd.py (cascadio==0.1.1, trimesh==5.0.0, OpenUSD 26.05)",
+      "conversion_tolerance": "0.05,0.5"
+    }
+  ]
+}

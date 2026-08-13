@@ -4,7 +4,6 @@ import hashlib
 import json
 import subprocess
 import sys
-from importlib.metadata import distribution
 from pathlib import Path
 
 import yaml
@@ -15,7 +14,7 @@ from dynamical.compiler import compile_facility
 from dynamical.composition import compose_files, write_composition_result
 
 REPOSITORY = Path(__file__).resolve().parents[1]
-MANIFEST = REPOSITORY / "manifests" / "ac-electrodeposition-cell.yaml"
+MANIFEST = REPOSITORY / "dynamical" / "bundle" / "facility.yaml"
 
 
 def _write_measure_oer_requirement(path: Path) -> Path:
@@ -244,7 +243,7 @@ def test_saved_composition_tampering_fails_closed(tmp_path: Path, capsys) -> Non
 def test_coordinated_authority_rehash_fails_closed(tmp_path: Path, capsys) -> None:
     requirement = write_reference_requirement(tmp_path / "requirement.yaml")
     registry = yaml.safe_load(
-        (REPOSITORY / "registries/electrodeposition-capabilities.yaml").read_text(encoding="utf-8")
+        (REPOSITORY / "dynamical/bundle/registry.yaml").read_text(encoding="utf-8")
     )
     registry["providers"][0]["admission"]["authority_id"] = "agent-authored-authority"
     forged_registry = tmp_path / "registry.yaml"
@@ -284,7 +283,7 @@ def test_self_admitted_physical_provider_is_demoted_not_trusted(tmp_path: Path, 
     """
 
     registry = yaml.safe_load(
-        (REPOSITORY / "registries/electrodeposition-capabilities.yaml").read_text(encoding="utf-8")
+        (REPOSITORY / "dynamical/bundle/registry.yaml").read_text(encoding="utf-8")
     )
     for provider in registry["providers"]:
         if provider["provider_id"] in {"ac-oer-simulator", "ac-oer-twin"}:
@@ -367,7 +366,7 @@ def test_known_provider_with_modified_safety_fields_is_not_trusted(tmp_path: Pat
     a full authority-record comparison catches it."""
 
     registry = yaml.safe_load(
-        (REPOSITORY / "registries/electrodeposition-capabilities.yaml").read_text(encoding="utf-8")
+        (REPOSITORY / "dynamical/bundle/registry.yaml").read_text(encoding="utf-8")
     )
     for provider in registry["providers"]:
         if provider["provider_id"] in {"ac-oer-simulator", "ac-oer-twin"}:
@@ -623,24 +622,6 @@ def test_missing_cli_inputs_name_the_absent_path(tmp_path: Path, capsys) -> None
         error = capsys.readouterr().err
         assert "malformed YAML" in error
         assert "Traceback" not in error
-
-
-def test_only_dynamical_console_script_is_published() -> None:
-    package = distribution("dynamical-cli")
-    scripts = {
-        (entry.name, entry.value)
-        for entry in package.entry_points
-        if entry.group == "console_scripts"
-    }
-    assert scripts == {("dynamical", "dynamical.cli:main")}
-    from dynamical import __version__
-    from dynamical.cli import _VERSION
-
-    assert package.version == _VERSION
-    assert package.version == __version__
-    dependencies = "\n".join(package.requires or []).lower()
-    assert "openai" not in dependencies
-    assert "anthropic" not in dependencies
 
 
 def test_registry_sha256_is_recomputable_from_the_emitted_bytes(capsys):

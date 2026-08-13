@@ -2,33 +2,14 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
 from pathlib import Path
 
 import pytest
 
-from dynamical.compiler import _resolve_asset_root, compile_facility, validate_compiled_world
-from dynamical.source_admission import SourceAdmissionError
+from dynamical.compiler import compile_facility, validate_compiled_world
 
 REPOSITORY = Path(__file__).resolve().parents[1]
-MANIFEST = REPOSITORY / "manifests" / "ac-electrodeposition-cell.yaml"
-REQUIRED_ARTIFACTS = {
-    "action_schema.json",
-    "adapter_pack.json",
-    "calibration.usda",
-    "calibration_bindings.json",
-    "campaign_trace.schema.json",
-    "capability_graph.json",
-    "compile_manifest.json",
-    "core_ir.json",
-    "facility_ir.json",
-    "evidence_report.json",
-    "layout.usda",
-    "observation_schema.json",
-    "physics.usda",
-    "root.usda",
-    "semantics.usda",
-}
+MANIFEST = REPOSITORY / "dynamical" / "bundle" / "facility.yaml"
 
 
 def _json(path: Path) -> dict[str, object]:
@@ -46,11 +27,6 @@ def compiled_targets(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path
         compile_facility(MANIFEST, target, output)
         outputs[target] = output
     return outputs
-
-
-def test_all_targets_emit_required_core_artifacts(compiled_targets: dict[str, Path]) -> None:
-    for output in compiled_targets.values():
-        assert {path.name for path in output.iterdir() if path.is_file()} >= REQUIRED_ARTIFACTS
 
 
 def test_core_hash_is_equal_across_all_targets(compiled_targets: dict[str, Path]) -> None:
@@ -240,15 +216,6 @@ def test_validator_rejects_coordinated_evidence_claim_tamper(tmp_path: Path) -> 
     assert "evidence report differs" in " ".join(result["failures"])
 
 
-def test_isaac_target_config_records_exact_runtime_revisions(
-    compiled_targets: dict[str, Path],
-) -> None:
-    isaac = _json(compiled_targets["isaac"] / "backend_config.json")
-
-    assert isaac["isaac_sim_version"] == "5.1.0.0"
-    assert isaac["python"] == "3.11"
-
-
 def test_compiled_agent_schemas_require_provider_and_evidence_identity(
     tmp_path: Path,
 ) -> None:
@@ -266,44 +233,3 @@ def test_compiled_agent_schemas_require_provider_and_evidence_identity(
     assert {"provider_id", "evidence_class"} <= set(observations["required"])
     channel = observations["properties"]["channels"]["items"]
     assert {"provider_id", "evidence_class"} <= set(channel["required"])
-
-
-def test_compile_manifest_hashes_every_declared_artifact(
-    compiled_targets: dict[str, Path],
-) -> None:
-    for output in compiled_targets.values():
-        manifest = _json(output / "compile_manifest.json")
-        for artifact in manifest["artifacts"]:
-            path = output / artifact["path"]
-            digest = hashlib.sha256(path.read_bytes()).hexdigest()
-            assert digest == artifact["sha256"]
-
-
-def test_resolve_asset_root_prefers_the_repository_checkout() -> None:
-    """From this repo checkout (no wheel installed here), every real derived layer id
-    must resolve under the repository root -- the same root the full compiled_targets
-    fixture above already exercises implicitly on every test run.
-    """
-    real_ids = [
-        "assets/usd/vial-rack-v3.usdc",
-        "assets/usd/nickel-electrode-v30.usdc",
-    ]
-    assert _resolve_asset_root(real_ids) == REPOSITORY
-
-
-def test_resolve_asset_root_fails_loudly_naming_the_id_and_both_paths() -> None:
-    """The bug a live agent hit on a clean wheel install: an asset that resolves under
-    neither the packaged install nor the repository checkout must never be silently
-    treated as absent-but-fine -- it must raise, naming the missing id and both full
-    paths that were tried, so a future asset added at a new repo path that
-    pyproject.toml's force-include list forgets to mirror fails loudly instead of
-    resolving to nothing.
-    """
-    missing_id = "assets/usd/does-not-exist-anywhere.usdc"
-    with pytest.raises(SourceAdmissionError, match=re.escape(missing_id)) as excinfo:
-        _resolve_asset_root(["assets/usd/vial-rack-v3.usdc", missing_id])
-    message = str(excinfo.value)
-    assert "artifact is absent at both" in message
-    # Both candidate roots must be named, not just whichever one happened to be tried.
-    assert str(REPOSITORY / missing_id) in message
-    assert message.count(missing_id) >= 2

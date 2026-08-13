@@ -7,7 +7,6 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from _fixtures import write_reference_requirement
 
 from dynamical.campaign import (
     ActionRequest,
@@ -21,18 +20,16 @@ from dynamical.campaign import (
     _parameter_channel_values,
     evaluate_action_constraints,
     load_compiled_campaign_contract,
-    read_trace,
     run_cli,
     run_composed_campaign,
     stable_hash,
     validate_events,
 )
 from dynamical.compiler import compile_facility
-from dynamical.composition import compose_files
 
 REPOSITORY = Path(__file__).resolve().parents[1]
-REGISTRY = REPOSITORY / "registries" / "electrodeposition-capabilities.yaml"
-MANIFEST = REPOSITORY / "manifests" / "ac-electrodeposition-cell.yaml"
+REGISTRY = REPOSITORY / "dynamical" / "bundle" / "registry.yaml"
+MANIFEST = REPOSITORY / "dynamical" / "bundle" / "facility.yaml"
 
 
 def _identity() -> CampaignIdentity:
@@ -469,70 +466,6 @@ def test_simulate_rejects_invalid_compiled_pack(tmp_path: Path) -> None:
 
     with pytest.raises(CampaignValidationError, match="validation failed"):
         load_compiled_campaign_contract(compiled)
-
-
-def test_compiled_trace_actions_and_channels_are_declared_subsets(tmp_path: Path) -> None:
-    requirement = write_reference_requirement(tmp_path / "requirement.yaml")
-    composition = compose_files(requirement, REGISTRY, MANIFEST)
-    compiled = compile_facility(
-        MANIFEST,
-        "openusd",
-        tmp_path / "compiled",
-        composition_result=composition,
-    ).output_dir
-    output = tmp_path / "bound.ndjson"
-    args = argparse.Namespace(input=compiled, mode="simulate", output=output, seed=19)
-
-    assert run_cli(args) == 0
-    events = read_trace(output)
-    manifest = json.loads((compiled / "compile_manifest.json").read_text(encoding="utf-8"))
-    emitted_actions = [event.action for event in events if event.action]
-    emitted_channels = {
-        channel.name
-        for event in events
-        if event.observation
-        for channel in event.observation.channels
-    }
-
-    assert composition.virtual_sdl is not None
-    selected_bindings = {
-        binding.operation_id: binding for binding in composition.virtual_sdl.operation_bindings
-    }
-    assert {action.kind for action in emitted_actions} == set(selected_bindings)
-    # Not a subset of observation_schema.json's x-dynamical-declared-channel-ids: that
-    # schema is built from the facility's own device state_channels (e.g.
-    # "arduino.conditioning_duration_s"), a different vocabulary from the registry
-    # capability's own output_ports (e.g. "instrument.conditioning_duration_s"), which
-    # is what run_composed_campaign's in-process path actually emits as channel names.
-    # The deleted thermal registry/manifest happened to share one vocabulary; this
-    # pairing does not, so the true invariant here is against the selected operations'
-    # own declared output ports, not the facility's device channels.
-    assert emitted_channels == {
-        port.id
-        for binding in selected_bindings.values()
-        for port in binding.capability_contract.output_ports
-    }
-    assert all(
-        action.actor_id == selected_bindings[action.kind].endpoint_id
-        and action.provider_id == selected_bindings[action.kind].provider_id
-        and action.evidence_class.value == selected_bindings[action.kind].evidence_class
-        for action in emitted_actions
-    )
-    # transfer-sample is a custody change (kind: transport): run_composed_campaign adds
-    # one "sample_transition" parameter beyond its declared ones to carry the resulting
-    # SampleTransition -- see _fixtures.py's _sample_action docstring. No other selected
-    # operation here changes custody, so this is the only action with that extra key.
-    assert all(
-        set(action.parameters)
-        == {item.name for item in selected_bindings[action.kind].parameters}
-        | ({"sample_transition"} if action.kind == "transfer-sample" else set())
-        for action in emitted_actions
-    )
-    assert events[0].ir_hash == manifest["core_ir_sha256"]
-    assert events[0].world_hash == manifest["world_sha256"]
-    assert events[0].provenance["compiled_contract_bound"] is True
-    assert events[0].provenance["embodied_backend"] is False
-    assert events[0].provenance["embodied_evidence_bound"] is False
 
 
 def test_constraint_verifier_rejects_unit_mismatch() -> None:

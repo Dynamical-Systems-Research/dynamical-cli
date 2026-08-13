@@ -1,6 +1,7 @@
 """Admission opens the artifact and digests it. A declared hash is not evidence."""
 
 import hashlib
+import json
 from pathlib import Path
 
 import pytest
@@ -57,3 +58,11 @@ def test_unadmitted_source_is_refused(tmp_path):
     )
     with pytest.raises(SourceAdmissionError, match="not admitted"):
         admit_sources([source], tmp_path)
+
+
+def test_public_calibration_report_resolves_its_protocol_digest():
+    root = Path("dynamical/bundle/calibration/ampere2-oer")
+    report = json.loads((root / "calibration_report.json").read_text(encoding="utf-8"))
+    digest = hashlib.sha256((root / "frozen_protocol.json").read_bytes()).hexdigest()
+
+    assert report["public_protocol_sha256"] == digest

@@ -3,13 +3,13 @@
 Dynamical source code is licensed under the Apache License 2.0 (see `LICENSE`).
 The redistributed third-party materials below keep their own licenses and
 attributions. Machine-readable per-file provenance, hashes, and license
-evidence live in `registries/electrodeposition-source-lock.json`.
+evidence live in `dynamical/bundle/source-lock.json`.
 
 ## AC SDL1 electrodeposition platform geometry
 
-Source CAD for the AC SDL1 electrodeposition cell (cartridges, racks, tools,
-electrodes, ultrasonic mount) and the tessellated USD meshes derived from it
-under `assets/usd/`:
+The AC SDL1 electrodeposition cell geometry (cartridges, racks, tools,
+electrodes, and ultrasonic mount) is redistributed as tessellated USD meshes
+under `dynamical/bundle/assets/`:
 
 - Creator: Nis Fisker-Bødker
 - Archive: Zenodo record 15575908, version 0.0.2,
@@ -23,14 +23,14 @@ under `assets/usd/`:
   of Denmark, 2025) that postdates tag 0.0.2. All three signals are recorded,
   unresolved, in the source lock's `conflict_notes`.
 
-Changes made by Dynamical: STEP sources were tessellated to USD meshes at a
+Changes made by Dynamical: upstream STEP sources were tessellated to USD meshes at a
 recorded tolerance for execution visualization and collision (not metrology);
 file names were normalized. No semantic changes to the geometry.
 
 ## Electrochemical cell geometry
 
-The electrochemical cell body, cap, and foil base STL sources and their
-derived USD meshes:
+The electrochemical cell body, cap, and foil base are redistributed as derived
+USD meshes:
 
 - Copyright (c) 2025 Sterling G. Baird
 - Source: repository commit `9b063f80a1166475b3249709f4fd3afdb3dadb5d`

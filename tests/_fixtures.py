@@ -22,8 +22,8 @@ from dynamical.compiler import compile_facility
 from dynamical.composition import compose_files
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
-ELECTRODEPOSITION_REGISTRY = REPOSITORY_ROOT / "registries" / "electrodeposition-capabilities.yaml"
-ELECTRODEPOSITION_MANIFEST = REPOSITORY_ROOT / "manifests" / "ac-electrodeposition-cell.yaml"
+ELECTRODEPOSITION_REGISTRY = REPOSITORY_ROOT / "dynamical" / "bundle" / "registry.yaml"
+ELECTRODEPOSITION_MANIFEST = REPOSITORY_ROOT / "dynamical" / "bundle" / "facility.yaml"
 
 REFERENCE_REQUIREMENT = {
     "document_type": "dynamical.campaign-requirement",
@@ -580,9 +580,8 @@ def _electrodeposition_capability_contract(
 def three_station_composition() -> _CompositionDocument:
     """Three real AC SDL1 operations, deliberately unordered, with real dependency edges.
 
-    Grounded in the registered ``(operation_id, provider_id)`` pairs from
-    ``instruments.registered_operations()`` and the endpoint ids declared in
-    ``registries/electrodeposition-capabilities.yaml``: dispense on the OT-2,
+    Grounded in the instrument models and endpoint ids declared in
+    ``dynamical/bundle/registry.yaml``: dispense on the OT-2,
     deposit on the Squidstat, measure OER on the Squidstat. The bindings list is
     given out of dependency order so the test only passes if runtime_campaign
     performs a real topological walk of dependency_edges rather than trusting
@@ -672,7 +671,7 @@ def three_station_composition() -> _CompositionDocument:
     # runtime_campaign() resolves each selected operation to the one
     # facility-declared action_type it embodies, so the fixture must declare a
     # device per operation binding's endpoint_id with exactly one capability.
-    # Real short verbs from manifests/ac-electrodeposition-cell.yaml's
+    # Real short verbs from dynamical/bundle/facility.yaml's
     # capabilities section (dispense/electrodeposit/measure), keyed here by
     # the operation binding's own endpoint_id rather than the real manifest's
     # separate device id, to keep the fixture self-contained.

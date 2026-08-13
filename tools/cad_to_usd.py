@@ -3,12 +3,12 @@
 BUILD-TIME ONLY. This module is never packaged: it pulls OCCT (LGPL-2.1) via
 cascadio and OpenUSD via conda-forge, neither of which may enter the wheel.
 
-Output is binary crate (.usdc): a wheel that force-includes assets/usd/* (Task
+Output is binary crate (.usdc): a wheel that includes the bundled assets (Task
 10) must stay small enough for `uv tool install` to be practical, and ASCII
 .usda text ran ~40x larger than the equivalent .usdc for the same geometry.
 
 The default tolerance (0.05, 0.5) is chosen for execution visualization and
-collision, not metrology -- see registries/electrodeposition-source-lock.json
+collision, not metrology -- see dynamical/bundle/source-lock.json
 for the measured tradeoff. Bounding-box dimensions are identical across every
 tolerance tested; only surface tessellation density changes.
 

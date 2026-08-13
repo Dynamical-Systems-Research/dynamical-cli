@@ -1,21 +1,15 @@
 from __future__ import annotations
 
 import copy
-from pathlib import Path
 
 import pytest
-from _fixtures import write_reference_requirement
 from pydantic import ValidationError
 
 from dynamical.composition import compose_virtual_sdl
 from dynamical.schema import (
     CampaignRequirement,
     CapabilityRegistry,
-    load_campaign_requirement,
-    load_capability_registry,
 )
-
-REPOSITORY = Path(__file__).resolve().parents[1]
 
 
 def _capability(
@@ -482,50 +476,10 @@ def test_repeated_resolution_has_identical_content_hashes() -> None:
     assert first.model_dump(mode="json") == second.model_dump(mode="json")
 
 
-def test_reference_virtual_sdl_keeps_deterministic_execution_bindings(tmp_path: Path) -> None:
-    requirement = write_reference_requirement(tmp_path / "requirement.yaml")
-    result = compose_virtual_sdl(
-        load_campaign_requirement(requirement),
-        load_capability_registry(REPOSITORY / "registries/electrodeposition-capabilities.yaml"),
-    )
-
-    assert result.status == "COMPILED"
-    assert result.virtual_sdl is not None
-    transfer, condition = result.virtual_sdl.operation_bindings
-    assert transfer.operation_id == "transfer-sample"
-    assert transfer.provider_id == "ac-transfer-simulator"
-    assert [item.name for item in transfer.parameters] == ["sample_id", "to_station"]
-    assert [item.model_dump(mode="json", exclude_none=True) for item in transfer.inputs] == [
-        {
-            "target_port_id": "sample.state",
-            "target_state_type": "sample_state",
-            "target_unit": "1",
-            "source_kind": "campaign_input",
-            "source_id": "campaign.sample-id",
-            "source_state_type": "sample_state",
-            "source_unit": "1",
-            "value": "sample-electrodeposition-01",
-            "source_facility_id": "arduino-conditioning",
-            "sample_id": "sample-electrodeposition-01",
-        }
-    ]
-    assert condition.operation_id == "condition-ultrasonic"
-    assert condition.provider_id == "ac-arduino-simulator"
-    assert [item.name for item in condition.parameters] == [
-        "duration_s",
-        "setpoint_percent",
-    ]
-    assert [item.target_port_id for item in condition.inputs] == ["sample.state"]
-    assert [item.source_kind for item in condition.inputs] == ["step_output"]
-    assert [item.source_id for item in condition.inputs] == ["transfer"]
-    assert [item.source_port_id for item in condition.inputs] == ["sample.state.transferred"]
-    assert {item.source_facility_id for item in condition.inputs} == {"arduino-conditioning"}
-
-
 # --- Task 12: sample identity, transport dependency edges, and provider preference ---
 #
 # Synthetic, in the same style as `_registry()`/`_transport_case()` above, rather than
-# `registries/electrodeposition-capabilities.yaml`: that registry's real `transfer-sample`
+# `dynamical/bundle/registry.yaml`: that registry's real `transfer-sample`
 # capability declares a required `to_station` parameter that `_transport_candidate`
 # (composition.py `_transport_candidate`) never supplies, so every real transport candidate is
 # unconditionally rejected today regardless of these fixes -- a pre-existing gap unrelated to

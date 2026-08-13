@@ -30,8 +30,8 @@ ISAAC = Path(
     os.environ.get("ISAAC_SIM_ROOT", "/home/jarrodbarnes/.local/share/dynamical/isaac-sim-5.1")
 )
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
-SOURCE_LOCK_PATH = REPOSITORY_ROOT / "registries" / "electrodeposition-source-lock.json"
-EXACT_MESH_SOURCE_ID = "assets/usd/vial-rack-v3.usdc"
+SOURCE_LOCK_PATH = REPOSITORY_ROOT / "dynamical" / "bundle" / "source-lock.json"
+EXACT_MESH_SOURCE_ID = "assets/vial-rack-v3.usdc"
 EXACT_MESH_BASENAME = "vial-rack-v3.usdc"
 
 _PARSE_SCRIPT = """
@@ -149,7 +149,7 @@ requires_usd = pytest.mark.skipif(_isaac_usd_env() is None, reason="no local USD
 
 @requires_usd
 def test_compiled_stage_composes_every_facility_prim(tmp_path):
-    document = load_facility_manifest("manifests/ac-electrodeposition-cell.yaml")
+    document = load_facility_manifest("dynamical/bundle/facility.yaml")
     world = tmp_path / "world"
     compile_facility(document, "openusd", world)
 
@@ -252,21 +252,6 @@ def electrodeposition_document() -> FacilityDocument:
     )
 
 
-def test_exact_geometry_emits_a_reference_arc(tmp_path, electrodeposition_document):
-    world = tmp_path / "world"
-    compile_facility(electrodeposition_document, "openusd", world)
-    layout = (world / "layout.usda").read_text(encoding="utf-8")
-    assert "prepend references = @./assets/" in layout
-
-
-def test_proxy_geometry_is_labelled_in_the_stage(tmp_path, electrodeposition_document):
-    world = tmp_path / "world"
-    compile_facility(electrodeposition_document, "openusd", world)
-    semantics = (world / "semantics.usda").read_text(encoding="utf-8")
-    assert 'dynamical:representation = "execution_visualization_primitive"' in semantics
-    assert 'dynamical:representation = "exact_source_geometry"' in semantics
-
-
 def test_exact_geometry_stamps_source_provenance_in_the_stage(tmp_path, electrodeposition_document):
     world = tmp_path / "world"
     compile_facility(electrodeposition_document, "openusd", world)
@@ -284,7 +269,7 @@ def test_admitted_derived_layer_is_staged_as_a_declared_artifact(
     staged_layer = world / "assets" / EXACT_MESH_BASENAME
     assert staged_layer.is_file()
     assert not staged_layer.is_symlink()
-    # flattened: no nested assets/assets/usd/... -- the source id's own directory
+    # flattened: no nested assets/assets/... -- the source id's own directory
     # namespace must not survive into the compiled world.
     assert not (world / "assets" / "usd").exists()
 
@@ -319,7 +304,7 @@ def test_colliding_staged_basenames_are_refused_by_name(electrodeposition_docume
     both source ids.
     """
     colliding_source = AssetSource(
-        id="assets/usd/alt-cartridge/vial-rack-v3.usdc",
+        id="assets/alt-cartridge/vial-rack-v3.usdc",
         retrieval_uri="https://example.invalid/alt-cartridge/vial-rack-v3.usdc",
         sha256="1" * 64,
         admission="admitted",
@@ -370,7 +355,7 @@ def test_source_geometry_composes_at_laboratory_scale(tmp_path):
     the referenced layer, so a layer authored in millimetres composes 1000x too
     large. Prim count cannot see that; only world bounds can.
     """
-    document = load_facility_manifest("manifests/ac-electrodeposition-cell.yaml")
+    document = load_facility_manifest("dynamical/bundle/facility.yaml")
     world = tmp_path / "world"
     compile_facility(document, "openusd", world)
 

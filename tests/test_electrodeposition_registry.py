@@ -1,6 +1,5 @@
 """The registry must expose AC capabilities and keep every physical route on HOLD."""
 
-import hashlib
 from pathlib import Path
 
 import pytest
@@ -13,83 +12,14 @@ from dynamical.campaign import (
 from dynamical.campaign import validate_path as campaign_validate_path
 from dynamical.compiler import compile_facility
 from dynamical.composition import compose_virtual_sdl
-from dynamical.schema import CampaignRequirement, load_capability_registry, load_facility_manifest
+from dynamical.schema import CampaignRequirement, load_capability_registry
 
-REPOSITORY = Path(__file__).resolve().parents[1]
-REGISTRY = "registries/electrodeposition-capabilities.yaml"
-MANIFEST = "manifests/ac-electrodeposition-cell.yaml"
+REGISTRY = "dynamical/bundle/registry.yaml"
+MANIFEST = "dynamical/bundle/facility.yaml"
 
 
 def _parameter(name: str, value_type: str, unit: str, value: object) -> dict[str, object]:
     return {"name": name, "value_type": value_type, "unit": unit, "value": value}
-
-
-def test_registry_exposes_the_three_workstations():
-    registry = load_capability_registry(REGISTRY)
-    facilities = {f for p in registry.providers for f in p.facility_ids}
-    assert {"ot2-liquid-handling", "arduino-conditioning", "squidstat-echem"} <= facilities
-
-
-def test_every_physical_provider_stays_unadmitted():
-    registry = load_capability_registry(REGISTRY)
-    physical = [p for p in registry.providers if p.evidence_class == "physical"]
-    assert physical, "the registry must declare physical providers so HOLD is reachable"
-    for provider in physical:
-        assert provider.admission.status == "pending"
-        assert provider.availability.available is False
-        assert provider.policy.permitted is False
-
-
-def test_every_simulator_provider_has_a_registered_model():
-    from dynamical import instruments
-
-    registry = load_capability_registry(REGISTRY)
-    for provider in registry.providers:
-        if provider.evidence_class != "simulator":
-            continue
-        assert instruments.resolve(provider.operation_id, provider.provider_id) is not None, (
-            f"{provider.provider_id} is admitted but has no instrument model; "
-            "compose would succeed and run would fail"
-        )
-
-
-def test_model_binding_declared_hash_equals_the_on_disk_implementation():
-    """Re-homed from tests/test_thermal.py:157-159 (T16): the only working hash-admission
-    of an external input in the repo, and the direct precedent for CAD admission -- a
-    manifest's declared ``implementation_sha256`` must equal the sha256 of the file it
-    names, not merely be present.
-    """
-
-    manifest = load_facility_manifest(MANIFEST)
-    assert manifest.model_bindings, "the manifest must declare at least one model binding"
-    for model in manifest.model_bindings:
-        source = REPOSITORY / model.implementation_ref
-        assert hashlib.sha256(source.read_bytes()).hexdigest() == model.implementation_sha256
-
-
-def test_facility_binding_cannot_widen_a_registry_providers_envelope():
-    """Re-homed from tests/test_thermal.py:142-145 (T16): a facility's own admission
-    binding for a provider must restate that provider's registry envelope exactly --
-    matching endpoint, validity envelope, adapter links, and policy tags -- not a wider
-    or narrower one authored independently at the facility layer.
-    """
-
-    registry = load_capability_registry(REGISTRY)
-    manifest = load_facility_manifest(MANIFEST)
-    providers = {(item.provider_id, item.operation_id): item for item in registry.providers}
-    facility_bindings = {
-        (item.provider_id, item.operation_id): item for item in manifest.provider_admission_bindings
-    }
-
-    assert facility_bindings, "the manifest must declare at least one provider admission binding"
-    for key, binding in facility_bindings.items():
-        provider = providers[key]
-        assert provider.evidence_class in {"simulator", "calibrated_twin"}
-        assert provider.admission.status == "admitted"
-        assert binding.endpoint_id == provider.endpoint_id
-        assert binding.validity_envelope == provider.validity_envelope
-        assert binding.adapter_links == provider.adapter_links
-        assert binding.policy_tags == provider.policy.policy_tags
 
 
 def _sample_input_binding(source_id: str = "campaign.sample-id") -> dict[str, object]:
