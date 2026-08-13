@@ -1,4 +1,4 @@
 interface:
   display_name: "Dynamical Instrument"
-  short_description: "Route scientific evidence into a pending integration"
-  default_prompt: "Use $dynamical-instrument to choose the supported onboarding route without self-admission or physical authority."
+  short_description: "Assess models, data, instruments, and facilities"
+  default_prompt: "Use $dynamical-instrument to assess this model, dataset, instrument, or facility interface for a Dynamical virtual lab. Use any supplied scientific objective or HOLD receipt to identify the evidence gap, questions it can support, and smallest onboarding route. If implementation is requested, prepare only the smallest source-supported candidate; keep provider admission, facility approval, and physical authority pending."

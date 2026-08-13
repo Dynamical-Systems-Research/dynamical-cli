@@ -1,4 +1,4 @@
 interface:
   display_name: "Dynamical"
-  short_description: "Investigate materials decisions with validated evidence"
-  default_prompt: "Use $dynamical to investigate this materials decision. Confirm the objective, evidence requirements, search space, budget, comparison rule, and stopping rule. Run and validate bounded virtual experiments, then return the supported decision, uncertainty, rival hypotheses, all experiment outcomes, and the next physical experiment."
+  short_description: "Compose and run evidence-bound virtual laboratories"
+  default_prompt: "Use $dynamical to investigate this materials research objective. Confirm the question, hypothesis, or decision; identify the uncertainty that limits progress and the evidence that could resolve it; and propose a bounded search space, budget, comparison rule, and stopping rule where they are missing. Run and validate virtual experiments, then return the supported conclusion or decision, remaining uncertainty, rival hypotheses, every experiment outcome, and the physical experiment worth running next."

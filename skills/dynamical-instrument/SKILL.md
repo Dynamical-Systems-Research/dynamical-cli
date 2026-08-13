@@ -1,15 +1,22 @@
 ---
 name: dynamical-instrument
-description: Create a pending Dynamical instrument or simulator integration from complete or partial manuals, APIs, SDKs, protocols, calibration records, or licensed CAD. Use when an agent must map source material to existing capability, adapter, provider, facility, source, calibration, conformance, and HOLD contracts without self-admission or physical authority.
+description: Assess source evidence and create the smallest supported pending Dynamical integration for a computational model, experimental dataset, instrument, or facility interface. Use when an agent must map partial or complete source material to simulator, archived-replay, calibrated-twin, or physical-proposal contracts, or when a campaign HOLD identifies a missing capability. Keep evidence limits explicit; do not grant provider admission, facility approval, or physical authority.
 ---
 
 # Dynamical Instrument
 
-Create the smallest candidate integration that the supplied evidence supports. The candidate can define and test an adapter. It cannot admit itself.
+Match the requested scope. For an assessment, inventory the evidence, select the
+supported route, and report gaps without editing files. For implementation,
+create the smallest candidate integration that the supplied evidence supports.
+The candidate can define and test an adapter. It cannot admit itself.
+
+If a scientific objective, requirement, `HOLD` receipt, or study report is
+supplied, use it to identify the needed capability and evidence gap. It does not
+prove that the source can provide that capability.
 
 ## Inspect the existing contract
 
-Work in a disposable branch or worktree. Preserve unrelated changes. Inspect the public interface first, then read only the contract files needed for this instrument:
+For implementation, work in a disposable branch or worktree. Preserve unrelated changes. Inspect the public interface first, then read only the contract files needed for this instrument:
 
 - `dynamical capabilities --json` and `dynamical compose --schema` for the installed public interface.
 - `dynamical/instruments/` for `InstrumentRequest`, `InstrumentResult`, registration, and one similar adapter.
@@ -78,7 +85,9 @@ Do not change admission, safety, validation, or physical-routing code to make a 
 
 Report:
 
-- Candidate files and the source evidence each uses.
+- Candidate files, if any, and the source evidence each uses.
+- Scientific questions the candidate can and cannot answer within its declared envelope.
+- The supplied campaign gap it may address and the smallest bounded campaign that could test it.
 - Capability operations and, when supported, the adapter entry point, provider ID, evidence class, and declared operating range. Mark omitted layers as absent.
 - Exact example and conformance commands with results.
 - Admission status: `pending` or `HOLD`.
