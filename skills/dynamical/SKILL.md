@@ -74,6 +74,10 @@ changes. Omit `facility_id` for the mobile sample. Do not add implicit transport
 to a route that already contains explicit transfer steps; Dynamical carries
 current state and location by sample identity.
 
+For a physical request, set `minimum_evidence_class: physical` on every custody,
+transfer, preparation, synthesis, and measurement step. A physical measurement
+step alone does not make the full campaign physical.
+
 Replay a simulator trace directly:
 
 ```bash
