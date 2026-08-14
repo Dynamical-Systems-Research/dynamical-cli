@@ -9,23 +9,14 @@ from pathlib import Path
 import pytest
 
 ISAAC = Path(
-    os.environ.get("ISAAC_SIM_ROOT", "/home/jarrodbarnes/.local/share/dynamical/isaac-sim-5.1")
+    os.environ.get("ISAAC_SIM_ROOT", "/home/jarrodbarnes/.local/share/dynamical/isaac-sim-6.0.1")
 )
 requires_isaac = pytest.mark.skipif(not ISAAC.exists(), reason="Isaac Sim not installed")
 
 
 def _run_isaac_launcher(compiled_world: Path, output: Path) -> subprocess.CompletedProcess[str]:
-    """Shell out to the compiled pack's own launcher, exactly as an operator would.
+    """Shell out to the compiled pack's own launcher, exactly as an operator would."""
 
-    Kit's EULA gate has no environment variable (piped ``"Yes\\n"``); ``LD_PRELOAD``
-    is mandatory or the launcher exits before Kit starts.
-    """
-
-    env = dict(os.environ)
-    env["LD_PRELOAD"] = (
-        "/lib/aarch64-linux-gnu/libgomp.so.1:"
-        f"{ISAAC}/lib/python3.11/site-packages/torch.libs/libgomp-58a43326.so.1.0.0"
-    )
     return subprocess.run(
         [
             str(ISAAC / "bin" / "python"),
@@ -38,7 +29,7 @@ def _run_isaac_launcher(compiled_world: Path, output: Path) -> subprocess.Comple
         input="Yes\n",
         capture_output=True,
         text=True,
-        env=env,
+        env=dict(os.environ),
     )
 
 
@@ -47,11 +38,6 @@ def test_live_run_composes_the_facility_and_writes_a_trace(
     tmp_path, compiled_electrodeposition_world
 ):
     trace = tmp_path / "trace.ndjson"
-    env = dict(os.environ)
-    env["LD_PRELOAD"] = (
-        "/lib/aarch64-linux-gnu/libgomp.so.1:"
-        f"{ISAAC}/lib/python3.11/site-packages/torch.libs/libgomp-58a43326.so.1.0.0"
-    )
     result = subprocess.run(
         [
             str(ISAAC / "bin" / "python"),
@@ -64,7 +50,7 @@ def test_live_run_composes_the_facility_and_writes_a_trace(
         input="Yes\n",
         capture_output=True,
         text=True,
-        env=env,
+        env=dict(os.environ),
     )
     assert result.returncode == 0, result.stderr[-4000:]
     events = [json.loads(line) for line in trace.read_text().splitlines() if line.strip()]
@@ -118,6 +104,9 @@ def test_compiled_instrument_runtime_returns_scientific_feedback(
     from dynamical.replay import _expected_snapshot_channels
 
     pack = verify_compiled_pack(compiled_electrodeposition_coverage_world)
+    assert pack["backend"]["isaac_sim_version"] == "6.0.1"
+    assert pack["backend"]["isaac_lab_revision"] == "portable-runtime-no-isaac-lab-task"
+    assert pack["backend"]["python"] == "3.12"
     launcher = __import__("dynamical.backends.isaac_runtime", fromlist=["execute_action"])
     state = {}
     outcomes = [

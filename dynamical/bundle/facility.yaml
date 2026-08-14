@@ -1193,8 +1193,8 @@ adapter_bindings:
   adapter_version: 0.1.0
   binding_schema_ref: dynamical.isaac-sim-target.v1
   configuration:
-    isaac_sim_version: 5.1.0.0
-    isaac_lab_revision: 2.3.0
+    isaac_sim_version: 6.0.1
+    isaac_lab_revision: portable-runtime-no-isaac-lab-task
     task_id: Dynamical-AC-Electrodeposition-Cell-v0
     experience: isaacsim.exp.full
     vendor_asset_paths: {}

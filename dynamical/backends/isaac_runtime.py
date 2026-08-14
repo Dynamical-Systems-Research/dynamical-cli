@@ -528,7 +528,13 @@ def _handle_constraints(
     return reasons, hard_failures
 
 
-def _write_receipt(output: Path, pack: dict[str, Any], status: str, trace_hash: str | None) -> None:
+def _write_receipt(
+    output: Path,
+    pack: dict[str, Any],
+    status: str,
+    trace_hash: str | None,
+    runtime_error: dict[str, str] | None = None,
+) -> None:
     from dynamical_runtime_contract import file_sha256
 
     files = sorted(path for path in output.rglob("*") if path.is_file())
@@ -544,14 +550,13 @@ def _write_receipt(output: Path, pack: dict[str, Any], status: str, trace_hash: 
         "receipt_complete": True,
         "intended_exit_code": 0 if status == "passed" else 1,
         "simulation_app_shutdown_requested": True,
-        "runtime_error": (
-            None
-            if status == "passed"
-            else {
-                "type": "runtime_failure",
-                "message": "Isaac runtime exited before a complete campaign trace passed",
-            }
-        ),
+        "runtime_error": None
+        if status == "passed"
+        else runtime_error
+        or {
+            "type": "runtime_failure",
+            "message": "Isaac runtime exited before a complete campaign trace passed",
+        },
         "embodied_evidence_bound": False,
         "manual_gates": [
             "The portable adapter uses a fixed-joint manipulation binding. A validated "
@@ -585,6 +590,7 @@ def main() -> int:
     app = SimulationApp({"headless": args.headless})
     status = "failed"
     trace_hash: str | None = None
+    runtime_error: dict[str, str] | None = None
     try:
         import omni.usd
         from dynamical_runtime_contract import TraceWriter, constraint_evidence, write_snapshot
@@ -728,11 +734,17 @@ def main() -> int:
         # execution_status above, which validate_events checks on its own terms.
         status = "passed"
         return 0
+    except Exception as exc:
+        runtime_error = {
+            "type": type(exc).__name__,
+            "message": str(exc) or "Isaac runtime failed without an error message",
+        }
+        raise
     finally:
         # Write the receipt before closing the app, not after: SimulationApp.close()
         # can tear the process down hard enough that code after it never runs (empirically
         # observed: a passed trace with the receipt silently never written).
-        _write_receipt(run_dir, pack, status, trace_hash)
+        _write_receipt(run_dir, pack, status, trace_hash, runtime_error)
         app.close()
 
 

@@ -27,7 +27,7 @@ from dynamical.schema import (
 from dynamical.sources import AssetSource
 
 ISAAC = Path(
-    os.environ.get("ISAAC_SIM_ROOT", "/home/jarrodbarnes/.local/share/dynamical/isaac-sim-5.1")
+    os.environ.get("ISAAC_SIM_ROOT", "/home/jarrodbarnes/.local/share/dynamical/isaac-sim-6.0.1")
 )
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 SOURCE_LOCK_PATH = REPOSITORY_ROOT / "dynamical" / "bundle" / "source-lock.json"
@@ -78,8 +78,8 @@ def _isaac_usd_env() -> dict[str, str] | None:
 
     Kit does not put pxr on the base interpreter's sys.path: it lives inside a
     versioned omni.usd.libs extension bundle under extscache, and its compiled
-    modules need that bundle's bin/ (libusd_tf.so) plus the uv-managed CPython's
-    lib/ (libpython3.11.so.1.0) on LD_LIBRARY_PATH. Returns None if no such
+    modules need that bundle's bin/ (libusd_tf.so) plus the embedded CPython's
+    lib/ on LD_LIBRARY_PATH. Returns None if no such
     bundle is present at all, so the gate skips cleanly. Raises
     AmbiguousUsdRuntime if more than one candidate bundle or libpython is
     found -- see that class's docstring.
@@ -88,7 +88,21 @@ def _isaac_usd_env() -> dict[str, str] | None:
     collection time and again inside parse_stage_prims, and resolution shells
     out to Isaac's interpreter, so recomputing it on every call is wasteful.
     """
-    extscache = ISAAC / "lib" / "python3.11" / "site-packages" / "isaacsim" / "extscache"
+    if not (ISAAC / "bin" / "python").is_file():
+        return None
+    python_version = subprocess.run(
+        [
+            str(ISAAC / "bin" / "python"),
+            "-c",
+            "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    extscache = (
+        ISAAC / "lib" / f"python{python_version}" / "site-packages" / "isaacsim" / "extscache"
+    )
     usd_libs_matches = sorted(extscache.glob("omni.usd.libs-*"))
     if not usd_libs_matches:
         return None

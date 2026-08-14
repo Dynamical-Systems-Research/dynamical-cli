@@ -1,4 +1,4 @@
-"""Isaac Sim 5.1 target adapter for the supported Linux ARM64 route."""
+"""Isaac Sim 6.0.1 target adapter for the supported Linux ARM64 route."""
 
 from __future__ import annotations
 
@@ -347,13 +347,9 @@ def emit_isaac_sim(
         "schema_version": "dynamical.isaac-sim-target.v1",
         "core_ir_sha256": ir_hash,
         "target": "isaac_sim",
-        "isaac_sim_version": "5.1.0.0",
-        "isaac_lab_version": "2.3.0",
-        "torch": "2.9.0",
-        "torchvision": "0.24.0",
-        "pytorch_index": "https://download.pytorch.org/whl/cu130",
-        "nvidia_index": "https://pypi.nvidia.com",
-        "python": "3.11",
+        "isaac_sim_version": "6.0.1",
+        "isaac_lab_revision": "portable-runtime-no-isaac-lab-task",
+        "python": "3.12",
         "architecture": "linux-aarch64",
         "stage": stage_reference(output_dir, stage_path),
         "compiled_world_loading": {
