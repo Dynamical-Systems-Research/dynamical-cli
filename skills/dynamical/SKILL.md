@@ -1,9 +1,14 @@
 ---
 name: dynamical
-description: Compose and run evidence-bound virtual laboratories from admitted capabilities for materials research. Use when an agent must investigate a question, hypothesis, or decision; compose a complete supported virtual laboratory or a purpose-built multi-instrument workflow; run sequential, high-concurrency, or batched adaptive counterfactual campaigns; replay or branch from hash-bound experiment snapshots; prepare validated trajectories for evaluation or post-training; compare matched virtual and physical evidence; request the next physical experiment; or preserve a HOLD result.
+description: Compose and run evidence-bound virtual laboratories from admitted capabilities for materials research. Use when an agent must use Dynamical to investigate a question, hypothesis, or decision; compose a complete supported virtual laboratory or a purpose-built multi-instrument workflow; run sequential, high-concurrency, or batched adaptive counterfactual campaigns; replay or branch from hash-bound experiment snapshots; prepare validated trajectories for evaluation or post-training; compare matched virtual and physical evidence; request the next physical experiment; or preserve a HOLD result.
 ---
 
 # Dynamical
+
+Use the campaign-planning sections only when starting or continuing a study.
+For a direct interface operation such as capability inspection, compilation,
+validation, or exact replay, perform the requested operation and preserve its
+receipt without creating a study plan or report.
 
 ## Start from the scientific objective
 
@@ -37,16 +42,19 @@ continue. Do not request confirmation for each CLI command.
 
 ## Inspect and operate the installed interface
 
-Confirm that the CLI is installed and inspect only the needed command and
-capability help:
+Use a host-supplied Dynamical executable when present. Otherwise confirm the
+installed executable. Do not search for, install, or select another runtime
+during a campaign. Inspect only the needed command and capability help:
 
 ```bash
 command -v dynamical
 dynamical --help
-dynamical capabilities --json
+dynamical capabilities
 dynamical capabilities --operation <operation-id> --json
-dynamical compose --schema
 ```
+
+Use `dynamical compose --schema` only when command help and operation detail do
+not resolve a required field. Inspect only the relevant section.
 
 Use the five commands:
 
@@ -89,7 +97,8 @@ For an embodied trace, also pass both `--compiled-world` and
 
 ## Run sequential, concurrent, or batched adaptive autoresearch
 
-Run and validate the unmodified baseline first. Then use the confirmed plan:
+Run and validate a declared baseline first when the study has a meaningful
+reference condition. Then use the confirmed plan:
 
 1. Propose one sequential study or a bounded batch of `N` isolated concurrent
    arms. Derive `N` from the design space, budget, available compute, provider
@@ -115,8 +124,9 @@ records, schemas, compositions, receipts, or traces into the agent context.
 
 Sequential studies can use a promoted result to propose the next arm, but must
 keep prior arm directories. Concurrent arms must not share mutable sample state
-or result files. Run long simulations as background jobs; poll logs and process
-state, and check final exit status before reading outputs.
+or result files. Use a host-supplied executor when available. Otherwise, run
+long simulations as background jobs; poll logs and process state, and check
+final exit status before reading outputs.
 
 For adaptive studies, validate and compare the current batch before planning the
 next batch. Preserve the completed batch as a decision-point snapshot.
@@ -190,9 +200,9 @@ calibration.
 
 ## Return an agent-authored study report
 
-Write one concise `study-report.json` from the preserved receipts and validated
-traces. It is an agent-authored summary, not a CLI-validated schema or authority
-record.
+For a multi-arm or adaptive study, write one concise `study-report.json` from
+the preserved receipts and validated traces. It is an agent-authored summary,
+not a CLI-validated schema or authority record.
 
 ```json
 {
