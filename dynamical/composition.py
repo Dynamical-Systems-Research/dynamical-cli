@@ -384,6 +384,15 @@ def _contract_reasons(
                         )
                     )
                     continue
+                if source.value is None:
+                    reasons.append(
+                        _reason(
+                            "MISSING_INPUT_VALUE",
+                            f"campaign input {binding.source_id!r} has no executable value",
+                            step_id=step.step_id,
+                        )
+                    )
+                    continue
                 source_type, source_unit = source.state_type, source.unit
             else:
                 source_step = steps.get(binding.source_id)

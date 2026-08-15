@@ -274,6 +274,16 @@ def test_exact_input_state_and_unit_contract(field: str, value: str, code: str) 
     assert code in result.reason_codes
 
 
+def test_bound_campaign_input_requires_an_executable_value() -> None:
+    request = _request()
+    request["inputs"][0].pop("value")
+
+    result = _compose(request)
+
+    assert result.status == "HOLD"
+    assert result.reason_codes == ["MISSING_INPUT_VALUE"]
+
+
 def test_invalid_range_and_unknown_physical_setpoint_fail_closed() -> None:
     request = _request("physical")
     request["steps"][0]["parameters"][0]["value"] = 950.0
