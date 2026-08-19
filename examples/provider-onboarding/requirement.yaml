@@ -1,0 +1,32 @@
+document_type: dynamical.campaign-requirement
+schema_version: 0.1.0
+requirement_id: example-band-gap-onboarding-hold
+objective:
+  id: check-band-gap-proposal
+  statement: Estimate the electronic band gap of Si with the proposed model.
+  decision: Decide if the proposal has enough evidence for admission.
+  proof_requirements:
+    - id: band-gap-proof
+      operation_id: estimate-band-gap
+      output_port_ids: [band_gap_ev]
+      minimum_evidence_class: simulator
+      acceptance_rule: Record band_gap_ev in eV.
+      independent_verification_required: true
+inputs:
+  - id: composition.formula
+    state_type: string
+    unit: "1"
+    value: Si
+steps:
+  - step_id: estimate
+    operation_id: estimate-band-gap
+    minimum_evidence_class: simulator
+    parameters: []
+    input_bindings:
+      - target_port_id: composition.formula
+        source_kind: campaign_input
+        source_id: composition.formula
+    depends_on: []
+    required_policy_tags: []
+max_cost_usd: 0.0
+max_duration_s: 10.0

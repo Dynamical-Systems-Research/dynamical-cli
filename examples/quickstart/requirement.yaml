@@ -4,7 +4,7 @@ requirement_id: ultrasonic-conditioning-quickstart
 objective:
   id: check-conditioned-sample
   statement: Transfer one sample and run one bounded ultrasonic conditioning program.
-  decision: Decide if the virtual result merits a later physical experiment.
+  decision: Confirm that the simulator ran the declared steps and kept their source records.
   proof_requirements:
     - id: conditioning-proof
       operation_id: condition-ultrasonic

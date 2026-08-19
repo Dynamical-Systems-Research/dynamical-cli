@@ -28,9 +28,9 @@ facility:
   - The OT-2 body, the Arduino controller enclosure, the Squidstat instrument body, and the OT-2 tiprack
     have no admitted source geometry and are represented as execution_visualization_primitive proxies,
     not exact source geometry.
-  - The electrodeposition, OER, dispense/aliquot, and ultrasonic-conditioning models are idealizations
-    with declared uncertainty. The AC SDL1 archive contains no experimental electrodeposition, OER, or
-    conditioning data, so none of these models is fitted to, or validated against, measured data.
+  - The AC SDL1 archive contains no measured electrodeposition, OER, or conditioning data. The simulator
+    providers are idealizations with declared uncertainty. The ac-oer-twin provider uses separate FastCat
+    calibration evidence. Its calibrated claim applies only within its frozen limits.
   - Per-asset dimensions_m values are coarse declarative bounds for visualization and collision, not metrology;
     the assembly-well-cartridge-v44 world bounding box (132.5 x 190.5 x 113.7 mm) is the one figure directly
     measured from the admitted conversion (see source-lock.json notes). The
@@ -1098,7 +1098,7 @@ model_bindings:
   calibration_evidence_ids: []
 - id: ac-oer-twin-model
   implementation_ref: dynamical/instruments/ac_oer_twin.py
-  implementation_sha256: 30cd5109aac284543f82ecaa4e03ebd753905e885ea37d27a68821227c9efafe
+  implementation_sha256: 2298d5f9ab4f9aa1fe41f9baeb231f29be101a733a192a6bc2e8445fe2e03654
   input_channel_map: {}
   output_channel_map: {}
   parameter_map:
@@ -1138,7 +1138,7 @@ model_bindings:
   calibration_evidence_ids: []
 - id: ac-oer-model
   implementation_ref: dynamical/instruments/ac_oer.py
-  implementation_sha256: 93c939fd9a855a7bf102ee65520b3114a4e33f405134ad4b3590b021792f21ac
+  implementation_sha256: 0f66718a5bf9ea457d7302da2bc3ba9ccf0c200d34ed70c5510e9640159c5f8d
   input_channel_map: {}
   output_channel_map: {}
   parameter_map:
@@ -1639,7 +1639,7 @@ calibration_evidence:
   - Held-out labels are predominantly single physical runs; the certified replicate noise floor (20.8 mV median within-replicate SD) bounds achievable residuals.
   - The interval half-width (0.104969 V at 90% target coverage) reflects split-conformal calibration on 22 development compositions.
   split_rule_ref: calibration/fastcat-oer/calibration_report.json
-  split_rule_sha256: 2436f7036f4e46dd19dc335a55743882dc264f3368f87eeb3a922c3ebcd8edc5
+  split_rule_sha256: c4d79ebe0836575f09c09002560670e844e9532462c6fe617bd071fa629d8c79
   fit_artifact_ref: calibration/fastcat-oer/prediction_table.json
   fit_artifact_sha256: 098245794ec3925a16777b3df18eb9fcaf06816588f46cd562dbd8b957fb2728
 - id: ampere2-oer-cp-2050

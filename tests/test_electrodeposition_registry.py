@@ -14,8 +14,8 @@ from dynamical.compiler import compile_facility
 from dynamical.composition import compose_virtual_sdl
 from dynamical.schema import CampaignRequirement, load_capability_registry
 
-REGISTRY = "dynamical/bundle/registry.yaml"
-MANIFEST = "dynamical/bundle/facility.yaml"
+REGISTRY = "dynamical/bundle/reference-lab/registry.yaml"
+MANIFEST = "dynamical/bundle/reference-lab/facility.yaml"
 
 
 def _parameter(name: str, value_type: str, unit: str, value: object) -> dict[str, object]:
@@ -233,6 +233,56 @@ def _coverage_requirement(
     )
 
 
+def _terminal_transfer_requirement(destination: str) -> CampaignRequirement:
+    requirement = _coverage_requirement()
+    transfer = requirement.steps[0]
+    parameters = [
+        item.model_copy(update={"value": destination}) if item.name == "to_station" else item
+        for item in transfer.parameters
+    ]
+    proof = requirement.objective.proof_requirements[0].model_copy(
+        update={
+            "operation_id": "transfer-sample",
+            "output_port_ids": ["sample.state.transferred"],
+            "minimum_evidence_class": "simulator",
+        }
+    )
+    return requirement.model_copy(
+        update={
+            "objective": requirement.objective.model_copy(update={"proof_requirements": [proof]}),
+            "steps": [transfer.model_copy(update={"parameters": parameters})],
+        }
+    )
+
+
+def test_terminal_transfer_selects_its_supported_destination() -> None:
+    result = compose_virtual_sdl(
+        _terminal_transfer_requirement("squidstat-echem"),
+        load_capability_registry(REGISTRY),
+    )
+
+    assert result.status == "COMPILED", result.reason_codes
+    assert result.virtual_sdl is not None
+    binding = result.virtual_sdl.operation_bindings[0]
+    assert binding.selected_facility_id == "squidstat-echem"
+    assert result.virtual_sdl.transport_bindings == []
+
+
+def test_terminal_transfer_holds_for_an_unsupported_destination() -> None:
+    result = compose_virtual_sdl(
+        _terminal_transfer_requirement("unsupported-station"),
+        load_capability_registry(REGISTRY),
+    )
+
+    assert result.status == "HOLD"
+    assert result.virtual_sdl is None
+    assert "TRANSPORT_UNAVAILABLE" in result.reason_codes
+    assert any(
+        reason.code == "TRANSPORT_UNAVAILABLE" and reason.provider_id == "ac-transfer-simulator"
+        for reason in result.reasons
+    )
+
+
 def test_one_sample_moves_through_three_workstations_by_explicit_transfer():
     """Sample lineage across explicit transfers: one sample crosses three workstations via
     ``transfer-sample`` steps (not the implicit cross-facility transport gate, which stays
@@ -347,23 +397,16 @@ def test_coverage_campaign_compiles_and_runs_with_zero_lineage_findings(tmp_path
     assert result["validation_reasons"] == []
 
 
-def test_coverage_campaign_retargeted_transfer_still_fails_lineage(tmp_path: Path):
-    """Fix round 1 verification (negative direction): an invariant that stops firing is
-    worse than one that fires wrongly. Retarget only ``to-squidstat``'s declared
-    destination to a workstation the sample is never transferred to again
-    (``arduino-conditioning``, where ``condition`` already ran) -- ``deposit`` and
-    ``measure`` are untouched and still independently resolve to squidstat-echem through
-    their own provider bindings, so this is a genuine custody mismatch, not a
-    reintroduction of the actor_id/station_id bug this round fixed.
-    """
+def test_coverage_campaign_retargeted_transfer_holds_before_run():
+    """A transfer to the wrong supported station must stop during composition."""
 
-    result = _run_coverage_campaign(tmp_path, to_squidstat_station="arduino-conditioning")
-
-    assert result["execution_status"] == "failed"
-    assert result["valid"] is False
-    assert any(
-        reason["code"] == "SAMPLE_TRANSFER_MISSING" for reason in result["validation_reasons"]
+    result = compose_virtual_sdl(
+        _coverage_requirement(to_squidstat_station="arduino-conditioning"),
+        load_capability_registry(REGISTRY),
     )
+
+    assert result.status == "HOLD"
+    assert "TRANSPORT_REQUIRED" in result.reason_codes
 
 
 def test_tampered_instrument_module_fails_closed_on_declared_hash(

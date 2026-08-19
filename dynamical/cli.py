@@ -15,9 +15,9 @@ from pydantic import ValidationError
 from . import __version__ as _VERSION
 from .compiler import compile_facility, validate_path
 
-BUNDLE = Path(str(files("dynamical").joinpath("bundle")))
-DEFAULT_REGISTRY = BUNDLE / "registry.yaml"
-DEFAULT_FACILITY = BUNDLE / "facility.yaml"
+REFERENCE_LAB = Path(str(files("dynamical").joinpath("bundle", "reference-lab")))
+DEFAULT_REGISTRY = REFERENCE_LAB / "registry.yaml"
+DEFAULT_FACILITY = REFERENCE_LAB / "facility.yaml"
 
 
 def _print_json(value: object, *, compact: bool = False) -> None:

@@ -488,12 +488,8 @@ def test_repeated_resolution_has_identical_content_hashes() -> None:
 
 # --- Task 12: sample identity, transport dependency edges, and provider preference ---
 #
-# Synthetic, in the same style as `_registry()`/`_transport_case()` above, rather than
-# `dynamical/bundle/registry.yaml`: that registry's real `transfer-sample`
-# capability declares a required `to_station` parameter that `_transport_candidate`
-# (composition.py `_transport_candidate`) never supplies, so every real transport candidate is
-# unconditionally rejected today regardless of these fixes -- a pre-existing gap unrelated to
-# sample identity, transport dedup, or provider preference, and out of scope here.
+# These synthetic cases isolate sample identity, transport dependency edges, and provider
+# preference from the reference lab's destination-bearing transfer contract.
 
 
 def _transport_registry_document() -> dict[str, object]:
@@ -720,6 +716,32 @@ def test_provider_preference_defaults_to_lowest_evidence_class(registry) -> None
     assert result.virtual_sdl is not None
     chosen = {b.provider_id for b in result.virtual_sdl.operation_bindings}
     assert "deposit-simulator" in chosen
+
+
+def test_generic_transport_without_to_station_still_composes(registry) -> None:
+    document = _transport_requirement_document([])
+    document["steps"].append(
+        {
+            "step_id": "terminal-transport",
+            "operation_id": "transfer-sample",
+            "minimum_evidence_class": "simulator",
+            "parameters": [],
+            "input_bindings": [],
+            "depends_on": ["deposit"],
+            "required_policy_tags": [],
+        }
+    )
+
+    result = compose_virtual_sdl(CampaignRequirement.model_validate(document), registry)
+
+    assert result.status == "COMPILED", result.reason_codes
+    assert result.virtual_sdl is not None
+    binding = next(
+        item
+        for item in result.virtual_sdl.operation_bindings
+        if item.step_id == "terminal-transport"
+    )
+    assert binding.selected_facility_id in binding.facility_ids
 
 
 def test_candidate_search_is_bounded_and_truncation_is_visible(

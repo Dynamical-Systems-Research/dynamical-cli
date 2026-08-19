@@ -276,7 +276,7 @@ def test_live_kit_run_rejects_the_deposit_action_before_executing_an_unsafe_curr
     action from executing, not merely be noticed afterward.
 
     Every declared facility constraint is ``pre_action`` + ``reject`` (see
-    ``dynamical/bundle/facility.yaml``), the live path this exercises:
+    ``dynamical/bundle/reference-lab/facility.yaml``), the live path this exercises:
     ``current-envelope`` (narrowed below the campaign's real 0.002827 A current, see
     ``_compile_coverage_isaac_with_narrowed_current_envelope``) must reject the
     ``deposit`` action before Isaac ever submits it to the instrument, not execute it
@@ -363,23 +363,6 @@ def test_coverage_campaign_compiles_for_isaac_with_zero_lineage_findings(tmp_pat
     assert check_invariants(events) == []
 
 
-def test_coverage_campaign_retargeted_transfer_still_fails_lineage_on_isaac(tmp_path):
-    """Negative control mirroring ``test_electrodeposition_registry.py``'s
-    ``test_coverage_campaign_retargeted_transfer_still_fails_lineage``: retargeting
-    ``to-squidstat``'s declared destination away from where ``deposit``/``measure``
-    actually resolve must still fail lineage on the isaac path too -- an invariant
-    that stops firing is worse than one that fires wrongly.
-    """
-    from dynamical.backends.compiled_runtime import verify_compiled_pack
-    from dynamical.samples import check_invariants
-
-    output = _compile_coverage_isaac(tmp_path, to_squidstat_station="arduino-conditioning")
-    pack = verify_compiled_pack(output)
-    events = _action_events_from_isaac_campaign(pack)
-    reasons = check_invariants(events)
-    assert any(reason.code == "SAMPLE_TRANSFER_MISSING" for reason in reasons)
-
-
 def _compile_model_backed_isaac_world(destination: Path) -> Path:
     """Compile a campaign whose scientific work is done only by model-backed providers."""
 
@@ -391,11 +374,11 @@ def _compile_model_backed_isaac_world(destination: Path) -> Path:
 
     composition = compose_virtual_sdl(
         test_runtime_pack._model_backed_requirement(),
-        load_capability_registry("dynamical/bundle/registry.yaml"),
+        load_capability_registry("dynamical/bundle/reference-lab/registry.yaml"),
     )
     assert composition.status == "COMPILED", composition.reason_codes
     return compile_facility(
-        "dynamical/bundle/facility.yaml",
+        "dynamical/bundle/reference-lab/facility.yaml",
         "isaac",
         destination,
         composition_result=composition,

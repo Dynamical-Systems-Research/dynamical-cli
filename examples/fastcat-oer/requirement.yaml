@@ -1,0 +1,82 @@
+document_type: dynamical.campaign-requirement
+schema_version: 0.1.0
+requirement_id: fastcat-oer-reference
+objective:
+  id: check-fastcat-oer-response
+  statement: Deposit one declared catalyst composition and estimate its OER overpotential at 0.010 A/cm^2.
+  decision: Use this virtual result to decide if a physical experiment is worth review.
+  proof_requirements:
+    - id: oer-proof
+      operation_id: measure-oer
+      output_port_ids:
+        - overpotential_v
+      minimum_evidence_class: calibrated_twin
+      acceptance_rule: Record overpotential_v with its declared uncertainty.
+      independent_verification_required: true
+inputs:
+  - id: sample.state
+    state_type: sample_state
+    unit: "1"
+    value: fastcat-reference-01
+    facility_id: ot2-liquid-handling
+steps:
+  - step_id: mount-sample
+    operation_id: transfer-sample
+    minimum_evidence_class: simulator
+    parameters:
+      - {name: to_station, value_type: string, unit: "1", value: ot2-liquid-handling}
+      - {name: sample_id, value_type: string, unit: "1", value: fastcat-reference-01}
+      - {name: arrival_confirmed, value_type: boolean, unit: "1", value: true}
+    input_bindings:
+      - {target_port_id: sample.state, source_kind: campaign_input, source_id: sample.state}
+    depends_on: []
+    required_policy_tags: [simulation-only, custody-bookkeeping-only]
+  - step_id: deposit-film
+    operation_id: deposit-chemical-bath
+    minimum_evidence_class: simulator
+    parameters:
+      - {name: fraction_cr, value_type: number, unit: "1", value: 0.25}
+      - {name: fraction_al, value_type: number, unit: "1", value: 0.0}
+      - {name: fraction_fe, value_type: number, unit: "1", value: 0.25}
+      - {name: fraction_co, value_type: number, unit: "1", value: 0.05}
+      - {name: fraction_mn, value_type: number, unit: "1", value: 0.0}
+      - {name: fraction_ni, value_type: number, unit: "1", value: 0.45}
+      - {name: fraction_cu, value_type: number, unit: "1", value: 0.0}
+      - {name: fraction_zn, value_type: number, unit: "1", value: 0.0}
+      - {name: synthesis_time_s, value_type: number, unit: s, value: 600.0}
+    input_bindings:
+      - {target_port_id: sample.state, source_kind: step_output, source_id: mount-sample, source_port_id: sample.state.transferred}
+    depends_on: [mount-sample]
+    required_policy_tags: [simulation-only, process-state-only]
+  - step_id: move-to-echem
+    operation_id: transfer-sample
+    minimum_evidence_class: simulator
+    parameters:
+      - {name: to_station, value_type: string, unit: "1", value: squidstat-echem}
+      - {name: arrival_confirmed, value_type: boolean, unit: "1", value: true}
+    input_bindings:
+      - {target_port_id: sample.state, source_kind: step_output, source_id: mount-sample, source_port_id: sample.state.transferred}
+    depends_on: [deposit-film, mount-sample]
+    required_policy_tags: [simulation-only, custody-bookkeeping-only]
+  - step_id: load-cell
+    operation_id: load-electrochemical-cell
+    minimum_evidence_class: simulator
+    parameters:
+      - {name: cell_id, value_type: string, unit: "1", value: echem-cell-1}
+      - {name: seated, value_type: boolean, unit: "1", value: true}
+    input_bindings:
+      - {target_port_id: sample.state, source_kind: step_output, source_id: move-to-echem, source_port_id: sample.state.transferred}
+    depends_on: [move-to-echem]
+    required_policy_tags: [simulation-only]
+  - step_id: measure-oer-10ma
+    operation_id: measure-oer
+    minimum_evidence_class: calibrated_twin
+    parameters:
+      - {name: current_density_a_cm2, value_type: number, unit: A/cm^2, value: 0.010}
+    input_bindings:
+      - {target_port_id: sample.state, source_kind: step_output, source_id: move-to-echem, source_port_id: sample.state.transferred}
+    depends_on: [load-cell, move-to-echem]
+    required_policy_tags: [calibrated-twin, frozen-prediction-table]
+max_cost_usd: 0.0
+max_duration_s: 3600.0
+provider_preference: prefer_lowest_evidence_class

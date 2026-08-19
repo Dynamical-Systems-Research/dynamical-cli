@@ -26,11 +26,11 @@ from .sources import AssetSource, staged_asset_basename
 COMPILER_VERSION = "0.2.0"
 Target = Literal["isaac", "openusd"]
 
-# The authority bundle lives inside the Python package in source checkouts and wheels.
+# The reference lab lives inside the Python package in source checkouts and wheels.
 # Asset source ids are relative to this directory, so one resolution path works in both.
-_BUNDLE_ROOT = Path(str(files("dynamical").joinpath("bundle")))
-_BUNDLED_FACILITY = _BUNDLE_ROOT / "facility.yaml"
-_BUNDLED_REGISTRY = _BUNDLE_ROOT / "registry.yaml"
+_REFERENCE_LAB_ROOT = Path(str(files("dynamical").joinpath("bundle", "reference-lab")))
+_REFERENCE_LAB_FACILITY = _REFERENCE_LAB_ROOT / "facility.yaml"
+_REFERENCE_LAB_REGISTRY = _REFERENCE_LAB_ROOT / "registry.yaml"
 _PROPOSAL_CLAIM_BOUNDARY = [
     "Validation-only compilation of an unverified facility proposal; no execution "
     "authority or scientific evidence."
@@ -531,12 +531,12 @@ def _selected_capability_graph(composition: Any) -> dict[str, Any]:
 
 
 def _authority_anchor(document: FacilityDocument, composition_result: Any | None = None) -> str:
-    installed_facility = load_facility_manifest(_BUNDLED_FACILITY)
+    installed_facility = load_facility_manifest(_REFERENCE_LAB_FACILITY)
     if document.model_dump(mode="json") != installed_facility.model_dump(mode="json"):
         return "unverified_proposal"
     if composition_result is None:
         return "installed_bundle"
-    installed_registry = load_capability_registry(_BUNDLED_REGISTRY)
+    installed_registry = load_capability_registry(_REFERENCE_LAB_REGISTRY)
     if composition_result.registry_sha256 != canonical_sha256(
         installed_registry.model_dump(mode="json")
     ):
@@ -817,13 +817,13 @@ def compile_facility(
             source for source in document.asset_sources if source.derived_from_source_id is not None
         ]
         for source in derived_sources:
-            candidate = _BUNDLE_ROOT / source.id
+            candidate = _REFERENCE_LAB_ROOT / source.id
             if not candidate.is_file():
                 raise SourceAdmissionError(
                     f"{source.id}: artifact is absent from the installed authority bundle "
                     f"at {candidate}"
                 )
-        asset_root = _BUNDLE_ROOT
+        asset_root = _REFERENCE_LAB_ROOT
         admission = admit_sources(derived_sources, asset_root)
         _write_json(staged / "source_admission.json", admission)
         staged_basenames = _staged_asset_basenames(derived_sources)

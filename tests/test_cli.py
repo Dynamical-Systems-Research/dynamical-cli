@@ -14,7 +14,8 @@ from dynamical.compiler import compile_facility
 from dynamical.composition import compose_files, write_composition_result
 
 REPOSITORY = Path(__file__).resolve().parents[1]
-MANIFEST = REPOSITORY / "dynamical" / "bundle" / "facility.yaml"
+REFERENCE_LAB = REPOSITORY / "dynamical" / "bundle" / "reference-lab"
+MANIFEST = REFERENCE_LAB / "facility.yaml"
 
 
 def _write_measure_oer_requirement(path: Path) -> Path:
@@ -226,6 +227,94 @@ def test_saved_composition_compiles_runs_and_validates_without_extra_flags(
         assert json.loads(capsys.readouterr().out)["valid"] is True
 
 
+def test_public_examples_keep_fastcat_provenance_lineage_and_hold(tmp_path: Path, capsys) -> None:
+    def sha256(path: Path) -> str:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+
+    report_path = REFERENCE_LAB / "calibration" / "fastcat-oer" / "calibration_report.json"
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    facility = yaml.safe_load(MANIFEST.read_text(encoding="utf-8"))
+    adapter_hashes = {
+        name: sha256(REPOSITORY / "dynamical" / "instruments" / name)
+        for name in report["adapter_sha256"]
+    }
+    assert report["adapter_sha256"] == adapter_hashes
+    assert {
+        Path(item["implementation_ref"]).name: item["implementation_sha256"]
+        for item in facility["model_bindings"]
+        if Path(item["implementation_ref"]).name in adapter_hashes
+    } == adapter_hashes
+
+    calibration = next(
+        item for item in facility["calibration_evidence"] if item["id"] == "fastcat-oer-e10"
+    )
+    assert calibration["split_rule_sha256"] == sha256(report_path)
+    assert calibration["fit_artifact_sha256"] == sha256(
+        REFERENCE_LAB / calibration["fit_artifact_ref"]
+    )
+
+    compositions: dict[str, dict[str, object]] = {}
+    for example in ("quickstart", "fastcat-oer"):
+        example_dir = REPOSITORY / "examples" / example
+        composition = tmp_path / f"{example}.json"
+
+        assert main(["compose", str(example_dir / "requirement.yaml"), "-o", str(composition)]) == 0
+        assert json.loads(capsys.readouterr().out)["status"] == "COMPILED"
+        compositions[example] = json.loads(composition.read_text(encoding="utf-8"))
+
+    fastcat = compositions["fastcat-oer"]
+    assert fastcat["sources"]["requirement"]["inputs"][0]["facility_id"] == ("ot2-liquid-handling")
+    actual = []
+    for binding in fastcat["virtual_sdl"]["operation_bindings"]:
+        sample_input = binding["inputs"][0]
+        actual.append(
+            (
+                binding["step_id"],
+                binding["selected_facility_id"],
+                sample_input["source_kind"],
+                sample_input["source_id"],
+            )
+        )
+        if sample_input["source_kind"] == "step_output":
+            assert sample_input["source_port_id"] == "sample.state.transferred"
+    assert actual == [
+        ("mount-sample", "ot2-liquid-handling", "campaign_input", "sample.state"),
+        ("deposit-film", "ot2-liquid-handling", "step_output", "mount-sample"),
+        ("move-to-echem", "squidstat-echem", "step_output", "mount-sample"),
+        ("load-cell", "squidstat-echem", "step_output", "move-to-echem"),
+        ("measure-oer-10ma", "squidstat-echem", "step_output", "move-to-echem"),
+    ]
+
+    onboarding = REPOSITORY / "examples" / "provider-onboarding"
+    registry = onboarding / "registry.pending.yaml"
+    inspect_args = [
+        "capabilities",
+        "--registry",
+        str(registry),
+        "--operation",
+        "estimate-band-gap",
+        "--json",
+    ]
+    assert main(inspect_args) == 0
+    proposal = json.loads(capsys.readouterr().out)
+    assert proposal["registry_role"] == "proposal"
+    assert proposal["providers"][0]["admission"]["status"] == "pending"
+    hold_output = tmp_path / "onboarding-composition.json"
+    hold_args = [
+        "compose",
+        str(onboarding / "requirement.yaml"),
+        "--registry",
+        str(registry),
+        "-o",
+        str(hold_output),
+    ]
+    assert main(hold_args) == 1
+    hold = json.loads(capsys.readouterr().out)
+    assert hold["status"] == "HOLD"
+    assert hold["reason_codes"] == ["AUTHORITY_UNRECOGNIZED"]
+    assert not hold_output.exists()
+
+
 def test_saved_composition_tampering_fails_closed(tmp_path: Path, capsys) -> None:
     requirement = write_reference_requirement(tmp_path / "requirement.yaml")
     composition = tmp_path / "composition.json"
@@ -242,9 +331,7 @@ def test_saved_composition_tampering_fails_closed(tmp_path: Path, capsys) -> Non
 
 def test_coordinated_authority_rehash_fails_closed(tmp_path: Path, capsys) -> None:
     requirement = write_reference_requirement(tmp_path / "requirement.yaml")
-    registry = yaml.safe_load(
-        (REPOSITORY / "dynamical/bundle/registry.yaml").read_text(encoding="utf-8")
-    )
+    registry = yaml.safe_load((REFERENCE_LAB / "registry.yaml").read_text(encoding="utf-8"))
     registry["providers"][0]["admission"]["authority_id"] = "agent-authored-authority"
     forged_registry = tmp_path / "registry.yaml"
     forged_registry.write_text(yaml.safe_dump(registry), encoding="utf-8")
@@ -282,9 +369,7 @@ def test_self_admitted_physical_provider_is_demoted_not_trusted(tmp_path: Path, 
     compiled world, run, or validated trace is ever reachable.
     """
 
-    registry = yaml.safe_load(
-        (REPOSITORY / "dynamical/bundle/registry.yaml").read_text(encoding="utf-8")
-    )
+    registry = yaml.safe_load((REFERENCE_LAB / "registry.yaml").read_text(encoding="utf-8"))
     for provider in registry["providers"]:
         if provider["provider_id"] in {"ac-oer-simulator", "ac-oer-twin"}:
             provider["evidence_class"] = "physical"
@@ -365,9 +450,7 @@ def test_known_provider_with_modified_safety_fields_is_not_trusted(tmp_path: Pat
     admitted. The identity tuple still matches the installed record, so only
     a full authority-record comparison catches it."""
 
-    registry = yaml.safe_load(
-        (REPOSITORY / "dynamical/bundle/registry.yaml").read_text(encoding="utf-8")
-    )
+    registry = yaml.safe_load((REFERENCE_LAB / "registry.yaml").read_text(encoding="utf-8"))
     for provider in registry["providers"]:
         if provider["provider_id"] in {"ac-oer-simulator", "ac-oer-twin"}:
             provider["policy"]["safety_limit_ids"] = []

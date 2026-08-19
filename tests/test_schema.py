@@ -14,7 +14,7 @@ from dynamical.schema import (
 )
 
 REPOSITORY = Path(__file__).resolve().parents[1]
-MANIFEST = REPOSITORY / "dynamical" / "bundle" / "facility.yaml"
+MANIFEST = REPOSITORY / "dynamical" / "bundle" / "reference-lab" / "facility.yaml"
 
 
 def _raw_manifest(path: Path = MANIFEST) -> dict[str, object]:

@@ -3,13 +3,13 @@
 Dynamical source code is licensed under the Apache License 2.0 (see `LICENSE`).
 The redistributed third-party materials below keep their own licenses and
 attributions. Machine-readable per-file provenance, hashes, and license
-evidence live in `dynamical/bundle/source-lock.json`.
+evidence live in `dynamical/bundle/reference-lab/source-lock.json`.
 
 ## AC SDL1 electrodeposition platform geometry
 
 The AC SDL1 electrodeposition cell geometry (cartridges, racks, tools,
 electrodes, and ultrasonic mount) is redistributed as tessellated USD meshes
-under `dynamical/bundle/assets/`:
+under `dynamical/bundle/reference-lab/assets/`:
 
 - Creator: Nis Fisker-Bødker
 - Archive: Zenodo record 15575908, version 0.0.2,

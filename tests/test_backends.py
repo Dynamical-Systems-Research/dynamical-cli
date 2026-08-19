@@ -19,8 +19,9 @@ from dynamical.replay import _expected_snapshot_channels, replay_trace
 from dynamical.schema import canonical_sha256
 
 REPOSITORY = Path(__file__).resolve().parents[1]
-REGISTRY = REPOSITORY / "dynamical" / "bundle" / "registry.yaml"
-MANIFEST = REPOSITORY / "dynamical" / "bundle" / "facility.yaml"
+REFERENCE_LAB = REPOSITORY / "dynamical" / "bundle" / "reference-lab"
+REGISTRY = REFERENCE_LAB / "registry.yaml"
+MANIFEST = REFERENCE_LAB / "facility.yaml"
 
 # A marker channel real for both compiled actions below (any declared facility
 # channel works: validate_action/_validate_channel only check that the name is

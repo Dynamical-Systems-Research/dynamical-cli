@@ -1,13 +1,13 @@
 """Calibrated-twin OER overpotential at 10 mA/cm^2 (ac-oer-twin).
 
 Instrument identity is orthogonal to calibration lineage: this twin's
-current calibration evidence is dynamical/bundle/calibration/fastcat-oer/; a
+current calibration evidence is dynamical/bundle/reference-lab/calibration/fastcat-oer/; a
 future recalibration changes evidence refs, never this identity.
 
 Instrument prediction only. No objective, no experiment order, no stopping
 rule. Frozen predictions of E@10mA (V vs RHE) for the admitted FastCat
 composition domain, produced by the independently validated provider
-(dynamical/bundle/calibration/fastcat-oer/: MAE 22.2 mV on a one-time sealed
+(dynamical/bundle/reference-lab/calibration/fastcat-oer/: MAE 22.2 mV on a one-time sealed
 27-composition cohort, all nine predeclared gates passed, split-conformal
 90% half-width 0.104969 V). Calibrated-twin evidence applies to this output and
 domain only. A composition outside the frozen table fails closed with a typed
@@ -29,7 +29,7 @@ MATCH_TOLERANCE = 1e-6
 # Frozen prediction table: composition tuple (Cr, Al, Fe, Co, Mn, Ni, Cu,
 # Zn) -> predicted E@10mA (V). Generated from the admitted provider under
 # the frozen conditioning protocol; provenance hashes in
-# dynamical/bundle/calibration/fastcat-oer/prediction_table.json.
+# dynamical/bundle/reference-lab/calibration/fastcat-oer/prediction_table.json.
 PREDICTED_E10_V = {
     (0.149, 0.308, 0.251, 0.292, 0.0, 0.0, 0.0, 0.0): 1.534605,
     (0.223, 0.28, 0.444, 0.053, 0.0, 0.0, 0.0, 0.0): 1.531349,

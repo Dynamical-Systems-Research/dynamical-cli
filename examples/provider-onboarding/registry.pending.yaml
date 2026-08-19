@@ -1,0 +1,65 @@
+document_type: dynamical.capability-registry
+schema_version: 0.1.0
+registry_id: example-band-gap-proposal-20260819
+capabilities:
+  - operation_id: estimate-band-gap
+    kind: scientific
+    description: Estimate the electronic band gap for a material formula.
+    input_ports:
+      - id: composition.formula
+        state_type: string
+        unit: "1"
+        required: true
+        description: The material formula that the model receives.
+    output_ports:
+      - id: band_gap_ev
+        state_type: number
+        unit: eV
+        required: true
+        description: The electronic band gap that the model estimates.
+    parameters: []
+    required_conditions: []
+    possible_failures:
+      - the model does not support the composition
+providers:
+  - provider_id: example-band-gap-simulator
+    operation_id: estimate-band-gap
+    evidence_class: simulator
+    endpoint_id: example-band-gap-model
+    facility_ids: [example-compute-facility]
+    availability:
+      available: true
+      observed_at: "2026-08-19T00:00:00Z"
+      availability_ref: https://example.invalid/models/band-gap-model@v1.0.0
+    admission:
+      status: pending
+      authority_id: facility-review-pending
+      authority_kind: facility_operator
+      evidence_refs:
+        - source=https://example.invalid/models/band-gap-model
+        - revision=v1.0.0
+        - owner=Example Laboratory
+        - license=Apache-2.0
+        - sha256=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+    validity_envelope:
+      - subject_kind: input
+        subject_id: composition.formula
+        value_type: string
+        unit: "1"
+        enum: [Si]
+    cost: {currency: USD, fixed: 0.0}
+    duration: {minimum_s: 0.0, typical_s: 1.0, maximum_s: 5.0}
+    failures:
+      - code: outside-model-domain
+        description: The model does not support the composition.
+        recoverable: true
+    policy:
+      permitted: false
+      policy_tags: [proposal-only, calibration-missing]
+      safety_limit_ids: []
+      required_approval_ids: [provider-admission]
+    adapter_links:
+      - adapter_id: example-band-gap-model-adapter
+        adapter_version: v1.0.0
+        endpoint_ref: example-band-gap-model
+        implementation_sha256: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef

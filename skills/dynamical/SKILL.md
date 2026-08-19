@@ -5,6 +5,8 @@ description: Compose and run evidence-bound virtual laboratories from admitted c
 
 # Dynamical
 
+For a first run, start with the [public examples](https://github.com/Dynamical-Systems-Research/dynamical-cli/tree/main/examples).
+
 Use the campaign-planning sections only when starting or continuing a study.
 For a direct interface operation such as capability inspection, compilation,
 validation, or exact replay, perform the requested operation and preserve its

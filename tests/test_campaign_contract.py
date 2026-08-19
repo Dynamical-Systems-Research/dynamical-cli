@@ -28,8 +28,9 @@ from dynamical.campaign import (
 from dynamical.compiler import compile_facility
 
 REPOSITORY = Path(__file__).resolve().parents[1]
-REGISTRY = REPOSITORY / "dynamical" / "bundle" / "registry.yaml"
-MANIFEST = REPOSITORY / "dynamical" / "bundle" / "facility.yaml"
+REFERENCE_LAB = REPOSITORY / "dynamical" / "bundle" / "reference-lab"
+REGISTRY = REFERENCE_LAB / "registry.yaml"
+MANIFEST = REFERENCE_LAB / "facility.yaml"
 
 
 def _identity() -> CampaignIdentity:

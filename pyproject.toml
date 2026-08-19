@@ -60,7 +60,7 @@ only-include = [
 packages = ["dynamical"]
 
 [tool.hatch.build.targets.wheel.force-include]
-"THIRD_PARTY_NOTICES.md" = "dynamical/bundle/THIRD_PARTY_NOTICES.md"
+"THIRD_PARTY_NOTICES.md" = "dynamical/bundle/reference-lab/THIRD_PARTY_NOTICES.md"
 
 [tool.pytest.ini_options]
 addopts = "-ra"

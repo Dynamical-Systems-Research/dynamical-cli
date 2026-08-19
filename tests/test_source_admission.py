@@ -61,7 +61,7 @@ def test_unadmitted_source_is_refused(tmp_path):
 
 
 def test_public_calibration_report_resolves_its_protocol_digest():
-    root = Path("dynamical/bundle/calibration/ampere2-oer")
+    root = Path("dynamical/bundle/reference-lab/calibration/ampere2-oer")
     report = json.loads((root / "calibration_report.json").read_text(encoding="utf-8"))
     digest = hashlib.sha256((root / "frozen_protocol.json").read_bytes()).hexdigest()
 

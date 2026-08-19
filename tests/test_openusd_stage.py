@@ -30,7 +30,7 @@ ISAAC = Path(
     os.environ.get("ISAAC_SIM_ROOT", "/home/jarrodbarnes/.local/share/dynamical/isaac-sim-6.0.1")
 )
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
-SOURCE_LOCK_PATH = REPOSITORY_ROOT / "dynamical" / "bundle" / "source-lock.json"
+SOURCE_LOCK_PATH = REPOSITORY_ROOT / "dynamical" / "bundle" / "reference-lab" / "source-lock.json"
 EXACT_MESH_SOURCE_ID = "assets/vial-rack-v3.usdc"
 EXACT_MESH_BASENAME = "vial-rack-v3.usdc"
 
@@ -163,7 +163,7 @@ requires_usd = pytest.mark.skipif(_isaac_usd_env() is None, reason="no local USD
 
 @requires_usd
 def test_compiled_stage_composes_every_facility_prim(tmp_path):
-    document = load_facility_manifest("dynamical/bundle/facility.yaml")
+    document = load_facility_manifest("dynamical/bundle/reference-lab/facility.yaml")
     world = tmp_path / "world"
     compile_facility(document, "openusd", world)
 
@@ -369,7 +369,7 @@ def test_source_geometry_composes_at_laboratory_scale(tmp_path):
     the referenced layer, so a layer authored in millimetres composes 1000x too
     large. Prim count cannot see that; only world bounds can.
     """
-    document = load_facility_manifest("dynamical/bundle/facility.yaml")
+    document = load_facility_manifest("dynamical/bundle/reference-lab/facility.yaml")
     world = tmp_path / "world"
     compile_facility(document, "openusd", world)
 

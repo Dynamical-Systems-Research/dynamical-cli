@@ -1,7 +1,7 @@
 {
   "adapter_sha256": {
-    "ac_bath.py": "3e122423083dc2cbe106ae293e43d0205f57bc96f7a1bb5ca0745b21cac5b012",
-    "ac_oer_twin.py": "d9d65f5378003f1941474ca209993e0cfb8b5f48dc6fab3a583658ac64db3a1e"
+    "ac_bath.py": "90d8f58cde7a3630680a7356572466093e27fd22b880abc75a22dc112f658787",
+    "ac_oer_twin.py": "2298d5f9ab4f9aa1fe41f9baeb231f29be101a733a192a6bc2e8445fe2e03654"
   },
   "domain": "the frozen prediction table only (72 compositions under the frozen per-pool conditioning); fail-closed outside",
   "evidence_class": "calibrated_twin",

@@ -6,7 +6,7 @@ The response surface is an ordinary-least-squares fit of iR-corrected,
 final-measurement (last-third mean) potentials from physical
 chronopotentiometry at 20 and 50 mA/cm^2 in the AMPERE-2 dataset
 (DOI 10.11583/DTU.27446925), under the frozen protocol recorded in
-``dynamical/bundle/calibration/ampere2-oer/``. Inputs are the deposited film's
+``dynamical/bundle/reference-lab/calibration/ampere2-oer/``. Inputs are the deposited film's
 nominal precursor composition (written onto the sample by the upstream
 electrodeposition from accumulated electrolyte volumes) and the requested
 OER current density.
@@ -24,7 +24,7 @@ import math
 from ..reasons import RuntimeReason
 from . import InstrumentRequest, InstrumentResult, register
 
-# Frozen fit constants from dynamical/bundle/calibration/ampere2-oer/fit.json.
+# Frozen fit constants from dynamical/bundle/reference-lab/calibration/ampere2-oer/fit.json.
 # Fitted once under the frozen protocol; never revised against held-out data.
 INTERCEPT_V = 1.214239114588155
 LOG10_J_COEFFICIENT_V = 0.30187979289520034

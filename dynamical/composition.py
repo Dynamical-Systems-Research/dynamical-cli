@@ -806,6 +806,7 @@ def _topology_bindings(
     registry: CapabilityRegistry,
 ) -> tuple[list[TransportBinding], list[CompositionReason]]:
     inputs = {item.id: item for item in request.inputs}
+    capabilities = {item.operation_id: item for item in registry.capabilities}
     transports: list[TransportBinding] = []
     reasons: list[CompositionReason] = []
     for step in request.steps:
@@ -819,6 +820,19 @@ def _topology_bindings(
                 campaign_input = inputs[binding.source_id]
                 source_facility = campaign_input.facility_id
             if source_facility is None or source_facility == target.facility_id:
+                continue
+            if capabilities[step.operation_id].kind == "transport":
+                if {source_facility, target.facility_id}.issubset(target.provider.facility_ids):
+                    continue
+                reasons.append(
+                    _reason(
+                        "TRANSPORT_UNAVAILABLE",
+                        f"provider {target.provider.provider_id!r} does not span "
+                        f"{source_facility!r} and {target.facility_id!r}",
+                        step_id=step.step_id,
+                        provider_id=target.provider.provider_id,
+                    )
+                )
                 continue
             if binding.transport_operation_id is None:
                 reasons.append(
@@ -995,7 +1009,26 @@ def compose_virtual_sdl(
             if failures:
                 rejected.extend(failures)
                 continue
-            for facility_id in sorted(provider.facility_ids):
+            facility_ids = sorted(provider.facility_ids)
+            if capability.kind == "transport":
+                destination_parameter = next(
+                    (item for item in step.parameters if item.name == "to_station"),
+                    None,
+                )
+                if destination_parameter is not None:
+                    destination = destination_parameter.value
+                    if destination not in provider.facility_ids:
+                        rejected.append(
+                            _reason(
+                                "TRANSPORT_UNAVAILABLE",
+                                f"provider does not serve destination {destination!r}",
+                                step_id=step.step_id,
+                                provider_id=provider.provider_id,
+                            )
+                        )
+                        continue
+                    facility_ids = [destination]
+            for facility_id in facility_ids:
                 valid.append(_Candidate(provider=provider, facility_id=facility_id))
         candidates_by_step[step.step_id] = valid
     if any(not candidates_by_step[item.step_id] for item in ordered_steps):

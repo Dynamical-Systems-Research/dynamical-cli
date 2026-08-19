@@ -152,7 +152,7 @@ providers:
       status: admitted
       authority_id: dynamical-independent-verifier-fastcat-oer-20260811
       authority_kind: independent_verifier
-      evidence_refs: [dynamical/instruments/ac_bath.py, dynamical/bundle/calibration/fastcat-oer/calibration_report.json]
+      evidence_refs: [dynamical/instruments/ac_bath.py, dynamical/bundle/reference-lab/calibration/fastcat-oer/calibration_report.json]
     validity_envelope:
       - {subject_kind: parameter, subject_id: synthesis_time_s, value_type: number, unit: s, minimum: 0.0, maximum: 3600.0}
     cost: {currency: USD, fixed: 0.0}
@@ -171,7 +171,7 @@ providers:
       status: admitted
       authority_id: dynamical-independent-verifier-fastcat-oer-20260811
       authority_kind: independent_verifier
-      evidence_refs: [dynamical/bundle/calibration/fastcat-oer/calibration_report.json, dynamical/bundle/calibration/fastcat-oer/prediction_table.json, dynamical/instruments/ac_oer_twin.py]
+      evidence_refs: [dynamical/bundle/reference-lab/calibration/fastcat-oer/calibration_report.json, dynamical/bundle/reference-lab/calibration/fastcat-oer/prediction_table.json, dynamical/instruments/ac_oer_twin.py]
     validity_envelope:
       - {subject_kind: parameter, subject_id: current_density_a_cm2, value_type: number, unit: A/cm^2, minimum: 0.010, maximum: 0.010}
     cost: {currency: USD, fixed: 0.0}
@@ -349,7 +349,7 @@ providers:
     evidence_class: physical
     endpoint_id: physical-ot2-endpoint
     facility_ids: [ot2-liquid-handling]
-    availability: {available: false, observed_at: "2026-08-09T00:00:00Z", availability_ref: dynamical/bundle/facility.yaml}
+    availability: {available: false, observed_at: "2026-08-09T00:00:00Z", availability_ref: dynamical/bundle/reference-lab/facility.yaml}
     admission: {status: pending, authority_id: facility-operator-pending, authority_kind: facility_operator, evidence_refs: []}
     validity_envelope: []
     cost: {currency: USD, fixed: 0.0}
@@ -362,7 +362,7 @@ providers:
     evidence_class: physical
     endpoint_id: physical-ot2-endpoint
     facility_ids: [ot2-liquid-handling]
-    availability: {available: false, observed_at: "2026-08-09T00:00:00Z", availability_ref: dynamical/bundle/facility.yaml}
+    availability: {available: false, observed_at: "2026-08-09T00:00:00Z", availability_ref: dynamical/bundle/reference-lab/facility.yaml}
     admission: {status: pending, authority_id: facility-operator-pending, authority_kind: facility_operator, evidence_refs: []}
     validity_envelope: []
     cost: {currency: USD, fixed: 0.0}
@@ -375,7 +375,7 @@ providers:
     evidence_class: physical
     endpoint_id: physical-arduino-endpoint
     facility_ids: [arduino-conditioning]
-    availability: {available: false, observed_at: "2026-08-09T00:00:00Z", availability_ref: dynamical/bundle/facility.yaml}
+    availability: {available: false, observed_at: "2026-08-09T00:00:00Z", availability_ref: dynamical/bundle/reference-lab/facility.yaml}
     admission: {status: pending, authority_id: facility-operator-pending, authority_kind: facility_operator, evidence_refs: []}
     validity_envelope: []
     cost: {currency: USD, fixed: 0.0}
@@ -388,7 +388,7 @@ providers:
     evidence_class: physical
     endpoint_id: physical-squidstat-endpoint
     facility_ids: [squidstat-echem]
-    availability: {available: false, observed_at: "2026-08-09T00:00:00Z", availability_ref: dynamical/bundle/facility.yaml}
+    availability: {available: false, observed_at: "2026-08-09T00:00:00Z", availability_ref: dynamical/bundle/reference-lab/facility.yaml}
     admission: {status: pending, authority_id: facility-operator-pending, authority_kind: facility_operator, evidence_refs: []}
     validity_envelope: []
     cost: {currency: USD, fixed: 0.0}
@@ -401,7 +401,7 @@ providers:
     evidence_class: physical
     endpoint_id: physical-squidstat-endpoint
     facility_ids: [squidstat-echem]
-    availability: {available: false, observed_at: "2026-08-09T00:00:00Z", availability_ref: dynamical/bundle/facility.yaml}
+    availability: {available: false, observed_at: "2026-08-09T00:00:00Z", availability_ref: dynamical/bundle/reference-lab/facility.yaml}
     admission: {status: pending, authority_id: facility-operator-pending, authority_kind: facility_operator, evidence_refs: []}
     validity_envelope: []
     cost: {currency: USD, fixed: 0.0}
@@ -414,7 +414,7 @@ providers:
     evidence_class: physical
     endpoint_id: physical-transfer-endpoint
     facility_ids: [ot2-liquid-handling, arduino-conditioning, squidstat-echem]
-    availability: {available: false, observed_at: "2026-08-09T00:00:00Z", availability_ref: dynamical/bundle/facility.yaml}
+    availability: {available: false, observed_at: "2026-08-09T00:00:00Z", availability_ref: dynamical/bundle/reference-lab/facility.yaml}
     admission: {status: pending, authority_id: facility-operator-pending, authority_kind: facility_operator, evidence_refs: []}
     validity_envelope: []
     cost: {currency: USD, fixed: 0.0}
@@ -427,7 +427,7 @@ providers:
     evidence_class: physical
     endpoint_id: physical-cleaning-endpoint
     facility_ids: [ot2-liquid-handling]
-    availability: {available: false, observed_at: "2026-08-10T00:00:00Z", availability_ref: dynamical/bundle/facility.yaml}
+    availability: {available: false, observed_at: "2026-08-10T00:00:00Z", availability_ref: dynamical/bundle/reference-lab/facility.yaml}
     admission: {status: pending, authority_id: facility-operator-pending, authority_kind: facility_operator, evidence_refs: []}
     validity_envelope: []
     cost: {currency: USD, fixed: 0.0}
@@ -440,7 +440,7 @@ providers:
     evidence_class: physical
     endpoint_id: physical-cell-loading-endpoint
     facility_ids: [squidstat-echem]
-    availability: {available: false, observed_at: "2026-08-10T00:00:00Z", availability_ref: dynamical/bundle/facility.yaml}
+    availability: {available: false, observed_at: "2026-08-10T00:00:00Z", availability_ref: dynamical/bundle/reference-lab/facility.yaml}
     admission: {status: pending, authority_id: facility-operator-pending, authority_kind: facility_operator, evidence_refs: []}
     validity_envelope: []
     cost: {currency: USD, fixed: 0.0}

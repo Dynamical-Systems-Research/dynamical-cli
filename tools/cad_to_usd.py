@@ -8,7 +8,7 @@ Output is binary crate (.usdc): a wheel that includes the bundled assets (Task
 .usda text ran ~40x larger than the equivalent .usdc for the same geometry.
 
 The default tolerance (0.05, 0.5) is chosen for execution visualization and
-collision, not metrology -- see dynamical/bundle/source-lock.json
+collision, not metrology -- see dynamical/bundle/reference-lab/source-lock.json
 for the measured tradeoff. Bounding-box dimensions are identical across every
 tolerance tested; only surface tessellation density changes.
 

@@ -85,6 +85,11 @@ The skills use the CLI as their runtime. No MCP server is required.
 
 Download the example requirement and run the complete virtual workflow:
 
+See the [examples index](https://github.com/Dynamical-Systems-Research/dynamical-cli/tree/main/examples)
+for three public examples. It contains a simulator quickstart and a FastCat
+OER reference. It also contains a provider proposal that returns `HOLD`. `HOLD`
+means that Dynamical stopped because required evidence or authority is missing.
+
 ```bash
 curl -fsSLO https://raw.githubusercontent.com/Dynamical-Systems-Research/dynamical-cli/main/examples/quickstart/requirement.yaml
 
@@ -93,6 +98,8 @@ dynamical compose requirement.yaml -o composition.json
 dynamical compile composition.json -o compiled-world
 dynamical run compiled-world -o trace.ndjson
 dynamical validate trace.ndjson --json
+dynamical run trace.ndjson --mode replay -o replay.ndjson
+dynamical validate replay.ndjson --json
 ```
 
 The example transfers one sample into an ultrasonic conditioning station and

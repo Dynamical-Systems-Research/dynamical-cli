@@ -5,6 +5,8 @@ description: Assess source evidence and create the smallest supported pending Dy
 
 # Dynamical Instrument
 
+For a first proposal, start with the [provider-onboarding example](https://github.com/Dynamical-Systems-Research/dynamical-cli/tree/main/examples/provider-onboarding).
+
 Match the requested scope. For an assessment, inventory the evidence, select the
 supported route, and report gaps without editing files. For implementation,
 create the smallest candidate integration that the supplied evidence supports.
