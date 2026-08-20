@@ -11,18 +11,20 @@
   <a href="https://github.com/Dynamical-Systems-Research/dynamical-cli/blob/main/LICENSE"><img src="https://img.shields.io/pypi/l/dynamical-cli.svg" alt="Apache 2.0 license"></a>
 </p>
 
-Dynamical CLI is the open-source execution interface for Dynamical's autonomous
-R&D network. An agent starts with an engineering objective and determines what
-evidence could support the decision. It compiles the admitted instruments and
-models needed for the campaign, runs virtual experiments, and can request the
-physical experiment worth running next. The facility decides what can run.
+Dynamical CLI is the open-source interface for scientific autoresearch. An agent
+starts with a question or engineering objective and decides what evidence could
+resolve it. It composes a virtual laboratory from admitted instruments and
+computational providers. Dynamical compiles and records the campaign. The agent
+runs adaptive virtual experiments and can request the physical experiment worth
+running next.
 
 A virtual laboratory can represent a complete supported laboratory or a
 purpose-built multi-instrument workflow. Agents can explore counterfactual
-experiments, learn instrument behavior and operating limits, and preserve each
-campaign as a hash-bound experiment snapshot. They can replay a campaign or use
-its evidence to branch the study from an earlier decision. Connected facilities
-can then return the physical evidence that virtual environments cannot provide.
+experiments and learn instrument behavior and operating limits. Each recorded
+campaign is hash-bound and can be replayed. A preserved campaign state can also
+start a new experiment as a branch without changing the recorded campaign.
+Connected facilities can then return the physical evidence that virtual
+environments cannot provide.
 
 Dynamical provides two workflows:
 
