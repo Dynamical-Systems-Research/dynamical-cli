@@ -1,5 +1,16 @@
 # FastCat OER reference
 
+Use this example to ask:
+
+> Which catalyst composition should we synthesize and measure next to reduce
+> uncertainty about which candidate has the lowest OER overpotential at
+> 10 mA/cm²?
+
+The checked-in `requirement.yaml` runs one catalyst composition. It does not
+answer the comparison question by itself. An agent must create and validate
+separate candidate arms, compare their virtual evidence, and preserve the
+evidence behind the physical measurement it requests next.
+
 This example deposits one declared catalyst composition. It transfers the same
 sample to an electrochemical station. It then loads the cell. It estimates the
 oxygen evolution reaction (OER) overpotential at `0.010 A/cm^2`.

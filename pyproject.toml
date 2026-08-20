@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "dynamical-cli"
 version = "0.1.14"
-description = "Build verified virtual labs from real facility capabilities for materials R&D."
+description = "Open-source interface for scientific agents to compose virtual laboratories, run adaptive campaigns, and request physical evidence under facility authority."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
