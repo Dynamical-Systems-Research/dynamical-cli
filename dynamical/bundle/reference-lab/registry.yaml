@@ -85,11 +85,11 @@ capabilities:
     possible_failures: [the requested current exceeds the 0.010 A source-verified envelope, the requested duration exceeds 3600 s]
   - operation_id: measure-oer
     kind: scientific
-    description: Estimate OER overpotential from the deposited film's recorded precursor composition and the requested current density, via a response fitted to AMPERE-2 physical chronopotentiometry (frozen held-out calibration gates failed; simulator evidence only).
+    description: Estimate OER overpotential from the deposited film's recorded precursor composition and the requested current density. The selected provider determines the calibration basis, evidence class, and validity envelope.
     input_ports:
-      - {id: sample.state, state_type: sample_state, unit: "1", required: true, description: "The sample this measurement reads from. A pure measurement: it does not transform, relocate, or consume the sample, so no new sample.state is produced. The fitted response requires the deposited film's recorded precursor composition on this state."}
+      - {id: sample.state, state_type: sample_state, unit: "1", required: true, description: "The sample this measurement reads from. A pure measurement: it does not transform, relocate, or consume the sample, so no new sample.state is produced. The selected provider requires the deposited film's recorded precursor composition on this state."}
     output_ports:
-      - {id: overpotential_v, state_type: number, unit: V, required: true, description: "Estimated OER overpotential, with the fit-residual declared uncertainty."}
+      - {id: overpotential_v, state_type: number, unit: V, required: true, description: "Estimated OER overpotential, with the provider-declared uncertainty."}
       - {id: current_density_a_cm2, state_type: number, unit: A/cm^2, required: true, description: Echoed current density the estimate was computed at.}
     parameters:
       - {name: current_density_a_cm2, value_type: number, unit: A/cm^2, required: true, minimum: 0.010, maximum: 0.050}

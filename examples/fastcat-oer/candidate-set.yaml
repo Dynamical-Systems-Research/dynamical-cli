@@ -1,0 +1,41 @@
+candidate_set_id: fastcat-oer-public-01
+question: Which catalyst composition should we synthesize and measure next to reduce uncertainty about which candidate has the lowest OER overpotential at 10 mA/cm^2?
+source:
+  title: FastCat multimetallic oxygen evolution reaction dataset
+  doi: https://doi.org/10.11583/DTU.28494185.v1
+  license: MIT
+  source_archive_sha256: 4238fe558e72c201403972a523e839dec3150bd1052f97ff25632d83ecab46db
+  source_measurements_sha256: ba79782e4d3f0912cda88d8a6ebe25f648a85ea332d5e911ad8363c628f993aa
+fixed_conditions:
+  substrate: Ni foam
+  synthesis: standard chemical-bath deposition
+  synthesis_time_s: 600.0
+  measurement: OER chronopotentiometry
+  electrolyte: 1 M KOH
+  current_density_a_cm2: 0.010
+comparison_contract:
+  arm_template: requirement.yaml
+  changed_input: dopant_fractions only
+  required_arms: one isolated, validated campaign arm for each candidate
+  evidence_rule: Compare only valid measure-oer observations. Keep simulator and calibrated-twin evidence separate.
+  ranking_rule: Lower predicted overpotential_v is better. If uncertainty intervals overlap, identify the lowest point estimate as the current virtual lead but do not claim a confirmed winner.
+  next_evidence_rule: Request physical synthesis and measurement of the valid candidate with the unique lowest point estimate. State that this tests the current virtual lead and does not establish the full pool ordering. Return HOLD if no arm validates or the minimum is not unique.
+candidates:
+  - candidate_id: fastcat-candidate-01
+    dopant_fractions: {Al: 0.308, Co: 0.292, Cr: 0.149, Cu: 0.000, Fe: 0.251, Mn: 0.000, Ni: 0.000, Zn: 0.000}
+  - candidate_id: fastcat-candidate-02
+    dopant_fractions: {Al: 0.280, Co: 0.053, Cr: 0.223, Cu: 0.000, Fe: 0.444, Mn: 0.000, Ni: 0.000, Zn: 0.000}
+  - candidate_id: fastcat-candidate-03
+    dopant_fractions: {Al: 0.250, Co: 0.250, Cr: 0.250, Cu: 0.000, Fe: 0.250, Mn: 0.000, Ni: 0.000, Zn: 0.000}
+  - candidate_id: fastcat-candidate-04
+    dopant_fractions: {Al: 0.050, Co: 0.100, Cr: 0.350, Cu: 0.000, Fe: 0.050, Mn: 0.200, Ni: 0.050, Zn: 0.200}
+  - candidate_id: fastcat-candidate-05
+    dopant_fractions: {Al: 0.294, Co: 0.244, Cr: 0.360, Cu: 0.000, Fe: 0.102, Mn: 0.000, Ni: 0.000, Zn: 0.000}
+  - candidate_id: fastcat-candidate-06
+    dopant_fractions: {Al: 0.100, Co: 0.300, Cr: 0.300, Cu: 0.000, Fe: 0.300, Mn: 0.000, Ni: 0.000, Zn: 0.000}
+  - candidate_id: fastcat-candidate-07
+    dopant_fractions: {Al: 0.300, Co: 0.100, Cr: 0.300, Cu: 0.000, Fe: 0.100, Mn: 0.100, Ni: 0.100, Zn: 0.000}
+  - candidate_id: fastcat-candidate-08
+    dopant_fractions: {Al: 0.167, Co: 0.167, Cr: 0.499, Cu: 0.000, Fe: 0.167, Mn: 0.000, Ni: 0.000, Zn: 0.000}
+  - candidate_id: fastcat-candidate-09
+    dopant_fractions: {Al: 0.500, Co: 0.000, Cr: 0.500, Cu: 0.000, Fe: 0.000, Mn: 0.000, Ni: 0.000, Zn: 0.000}

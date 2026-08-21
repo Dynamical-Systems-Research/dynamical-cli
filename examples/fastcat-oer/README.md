@@ -6,10 +6,13 @@ Use this example to ask:
 > uncertainty about which candidate has the lowest OER overpotential at
 > 10 mA/cm²?
 
-The checked-in `requirement.yaml` runs one catalyst composition. It does not
-answer the comparison question by itself. An agent must create and validate
-separate candidate arms, compare their virtual evidence, and preserve the
-evidence behind the physical measurement it requests next.
+The public [`candidate-set.yaml`](candidate-set.yaml) supplies nine candidate
+compositions, fixed test conditions, and the comparison contract. It contains
+no archived physical outcomes. The checked-in `requirement.yaml` runs one
+catalyst composition. It does not answer the comparison question by itself. An
+agent must create one isolated requirement from that template for each supplied
+candidate, validate every arm, compare only valid virtual evidence, and
+preserve the evidence behind the physical measurement it requests next.
 
 This example deposits one declared catalyst composition. It transfers the same
 sample to an electrochemical station. It then loads the cell. It estimates the
@@ -50,3 +53,7 @@ OER measurement provider. It does not apply to the full laboratory. It does not
 apply to sample handling, geometry, motion, or time. This example does not
 select a physical provider. This example does not authorize hardware. It does
 not operate hardware.
+
+`candidate-set.yaml` is a repository input for this example. It is not bundled
+in the Python package and does not add capabilities or providers to the
+installed authority records.

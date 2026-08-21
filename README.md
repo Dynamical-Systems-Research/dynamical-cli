@@ -26,33 +26,66 @@ start a new experiment as a branch without changing the recorded campaign.
 Connected facilities can then return the physical evidence that virtual
 environments cannot provide.
 
-Dynamical provides two workflows:
+## Give your agent Dynamical
 
-- Use `$dynamical` to compose, run, and validate scientific campaigns.
-- Use `$dynamical-instrument` to propose a computational model, archived
-  dataset, calibrated twin, or physical instrument integration.
+For Codex, add the plugin:
 
-The agent skills provide the operating instructions. The Python package
-supplies the runtime.
+```bash
+codex plugin marketplace add Dynamical-Systems-Research/dynamical-cli --json
+codex plugin add dynamical@dynamical-systems-research --json
+```
+
+For Claude Code, install the primary `$dynamical` skill:
+
+```bash
+npx skills add Dynamical-Systems-Research/dynamical-cli \
+  --skill dynamical --global --copy --yes
+```
+
+Then ask one complete question:
+
+> Which catalyst composition should we synthesize and measure next to reduce
+> uncertainty about which candidate has the lowest OER overpotential at
+> 10 mA/cm²?
+
+The agent first verifies the Dynamical runtime and its capabilities. It uses the
+[supplied candidate set](https://github.com/Dynamical-Systems-Research/dynamical-cli/blob/main/examples/fastcat-oer/candidate-set.yaml)
+and the
+[FastCat campaign template](https://github.com/Dynamical-Systems-Research/dynamical-cli/blob/main/examples/fastcat-oer/requirement.yaml)
+to compose and validate one isolated arm for each candidate. It returns the
+validated campaign record, the evidence boundary, and a proposed physical
+experiment or `HOLD`.
+
+If the campaign needs a model, dataset, simulator, or instrument that is not
+available, use `$dynamical-instrument` as the next step. The Codex plugin
+includes it. For Claude Code, install it directly:
+
+```bash
+npx skills add Dynamical-Systems-Research/dynamical-cli \
+  --skill dynamical-instrument --global --copy --yes
+```
+
+This skill prepares a pending integration for review. It cannot admit its own
+provider or grant physical authority.
 
 ## See the virtual laboratory run
 
-[Watch the recorded agent campaign and synchronized NVIDIA Isaac Sim replay.](https://dynamicalsystems.ai/scientific-autoresearch#see-the-virtual-laboratory-run)
+[Watch four recorded campaigns and their synchronized NVIDIA Isaac Sim replays.](https://dynamicalsystems.ai/scientific-autoresearch#see-the-virtual-laboratory-run)
 
-An AI agent plans and runs experiments in a virtual lab.
-Every result carries its uncertainty and a record of where it came from.
-The agent reads that evidence, changes its plan, and asks for one physical experiment.
-Dynamical holds that request until a real instrument is approved.
+The portfolio covers water electrolysis, additive-alloy qualification,
+critical-mineral recovery, and rare-earth magnet qualification. Each film shows
+an agent compose a virtual laboratory, run experiments, respond to validated
+evidence, and submit a request to facility authority. The compiled OpenUSD
+laboratory runs in NVIDIA Isaac Sim while the recorded agent output remains
+linked to the campaign trace.
 
-This video replays a recorded run. No physical experiment was performed.
-
-The replay visualizes the recorded composition in NVIDIA Isaac Sim. It is not a
-live physical execution or a calibrated twin of the full workstation.
+These are virtual campaign replays. They do not show physical execution, and
+the full workstations are not calibrated twins.
 
 The [Scientific Autoresearch study](https://dynamicalsystems.ai/scientific-autoresearch)
-reports the complete 144-trajectory evaluation.
+reports the matched FastCat outcome study and the later campaign behavior.
 
-## Install Dynamical
+## Manual CLI setup
 
 Install the runtime with Python 3.11 or later:
 
@@ -60,28 +93,7 @@ Install the runtime with Python 3.11 or later:
 python -m pip install dynamical-cli
 ```
 
-Add the Codex plugin:
-
-```bash
-codex plugin marketplace add Dynamical-Systems-Research/dynamical-cli --json
-codex plugin add dynamical@dynamical-systems-research --json
-```
-
-The plugin gives Codex both `$dynamical` for campaigns and
-`$dynamical-instrument` for model and instrument integrations.
-
-Claude Code and other Agent Skills-compatible environments can install either
-portable skill directly:
-
-```bash
-npx skills add Dynamical-Systems-Research/dynamical-cli \
-  --skill dynamical --global --copy --yes
-
-npx skills add Dynamical-Systems-Research/dynamical-cli \
-  --skill dynamical-instrument --global --copy --yes
-```
-
-The skills use the CLI as their runtime. No MCP server is required.
+The skills use this CLI as their runtime. No MCP server is required.
 
 ## Run a virtual campaign
 
@@ -156,18 +168,20 @@ and agent transcript beside these artifacts. Add a trace to the final analysis
 only after its validation result reports `"valid": true`. Keep every `HOLD`
 receipt as a study outcome.
 
-## Run a concurrent autoresearch study
+## Run the FastCat candidate study
 
 Give an agent the scientific decision and comparison rule directly:
 
 ```text
-Use Dynamical to run 16 independent virtual experiment arms over these candidate
-compositions. Keep the processing route fixed. Compare overpotential and
-uncertainty lexicographically. Confirm the study plan before execution. Stop
-when the budget is exhausted or the top candidate is stable across two rounds.
-Validate every arm before comparison. Preserve all promoted, not_promoted, HOLD,
-invalid, and failed arms. Return study-report.json with the supported decision,
-rival candidates, uncertainty, experiment snapshots, and next physical experiment.
+Use Dynamical with examples/fastcat-oer/candidate-set.yaml. Create one isolated
+campaign arm for each of the nine supplied compositions and keep the fixed test
+conditions. Validate every arm before comparison. If uncertainty intervals
+overlap, do not claim a confirmed winner.
+Use a unique lowest point estimate only as the current virtual lead for the next
+physical measurement. Preserve all promoted, not_promoted, HOLD, invalid, and
+failed arms. Return study-report.json with the supported decision, rival
+candidates, uncertainty, experiment snapshots, and next physical experiment or
+HOLD.
 ```
 
 ## How Dynamical works
@@ -187,8 +201,9 @@ calibrated instrument model, a read-only facility connection, or an approved
 physical instrument.
 
 The agent controls the scientific objective, experiment parameters, operation
-order, analysis, and stopping decision. Dynamical controls provider admission,
-evidence types, trace integrity, facility policy, and physical authority.
+order, analysis, and stopping decision. Dynamical enforces provider admission,
+evidence types, trace integrity, and facility policy. The facility retains
+authority over physical execution.
 
 ## Automation contract
 

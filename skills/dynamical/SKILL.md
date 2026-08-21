@@ -12,41 +12,73 @@ For a direct interface operation such as capability inspection, compilation,
 validation, or exact replay, perform the requested operation and preserve its
 receipt without creating a study plan or report.
 
+## Verify or set up the runtime before campaign reasoning
+
+First determine whether an active campaign or preserved campaign state already
+exists. Never install, update, or switch the runtime during an active campaign.
+When continuing, replaying, or branching from a preserved campaign, keep its
+recorded Dynamical version. If that version is unavailable, report the mismatch
+and ask before changing the runtime.
+
+Before planning a new campaign, check the executable and version:
+
+```bash
+command -v dynamical
+dynamical --version
+```
+
+If the executable is present, use it. Do not update a working runtime unless the
+user asks for an update or a required interface is missing.
+
+If the executable is missing, check which supported installer is available:
+
+```bash
+command -v uv
+command -v python3
+python3 --version
+```
+
+Propose one setup command and get separate user approval before changing the
+environment. If `uv` is installed, prefer its isolated tool environment:
+
+```bash
+uv tool install dynamical-cli
+```
+
+If `uv` is not installed and Python 3.11 or later is available, use:
+
+```bash
+python3 -m pip install --user dynamical-cli
+```
+
+After installation, run `command -v dynamical` and `dynamical --version` again.
+Then inspect the required commands and capabilities. If setup fails, return the
+exact failure. Do not choose another installer or version without approval.
+
+Runtime setup approval covers only the setup command. It does not authorize
+external spend, a network change, new provider authority, or physical
+execution.
+
 ## Start from the scientific objective
 
-Use supplied context and capability metadata first. If a missing choice can
-change the campaign, ask one concise intake round before creating a requirement.
-Use the host's structured question tool when available; otherwise ask in chat.
-Ask only for missing items from this list:
+Use supplied context and capability metadata first. Record only assumptions that
+materially affect the objective, evidence boundary, or execution envelope. Ask
+one concise question only when a missing choice would materially change the
+objective or require new authority.
 
-- Scientific question, hypothesis, or decision to resolve.
-- Material, sample, processing, campaign, and service context.
-- Existing computational, archived, and physical evidence.
-- Search variables and safe bounds.
-- Uncertainty that limits progress, rival hypotheses, required evidence, known
-  measurement limits, and the observation that would change the conclusion or
-  decision.
-- Cost and time budget.
-- Selection and stopping rules.
-
-If the user does not supply evidence requirements, selection rules, or stopping
-rules, propose bounded defaults from the objective and capability metadata in
-the campaign brief and label the assumptions. The single confirmation approves
-them.
-
-Return a short campaign brief with the objective, context, limiting uncertainty,
-rival hypotheses, observation that would change the conclusion or decision,
-design space, available providers and evidence classes, budget, selection rule,
-stopping rule, what the available evidence can establish, and what still
-requires physical confirmation. Get one confirmation before execution or spend.
-If the user already supplied and approved this complete contract, restate it and
-continue. Do not request confirmation for each CLI command.
+Begin reversible local virtual work without another confirmation. The agent owns
+the scientific policy: it can choose and revise hypotheses, instruments,
+providers, search variables, concurrency, and stopping as validated evidence
+changes. Continue while the campaign remains within admitted capabilities and
+the approved compute, cost, and network envelope. Ask before changing the
+environment, incurring external spend, seeking new provider authority, or
+executing a physical experiment.
 
 ## Inspect and operate the installed interface
 
-Use a host-supplied Dynamical executable when present. Otherwise confirm the
-installed executable. Do not search for, install, or select another runtime
-during a campaign. Inspect only the needed command and capability help:
+Use the verified executable from the setup step. Do not install, update, or
+select another runtime during a campaign. Inspect only the needed command and
+capability help:
 
 ```bash
 command -v dynamical
@@ -55,8 +87,23 @@ dynamical capabilities
 dynamical capabilities --operation <operation-id> --json
 ```
 
+If an approved requirement or example already names the required operations,
+skip the unfiltered capability list and inspect those operations directly. Use
+plain `dynamical capabilities` only to discover an unknown operation ID. Never
+run `dynamical capabilities --json` without `--operation`.
+
 Use `dynamical compose --schema` only when command help and operation detail do
 not resolve a required field. Inspect only the relevant section.
+
+Capability detail places the operation under `.operation` and provider records
+under `.providers`. The operation ID is `.operation.operation_id`. Provider
+fields include `.provider_id`, `.evidence_class`, `.admission`, `.availability`,
+`.policy`, and `.validity_envelope`. Project only the needed input ports,
+parameters, provider fields, and validity limits. If a projection returns
+`null`, inspect the top-level keys and correct the query; do not fall back to
+printing the complete capability record. Use this documented shape first. Do
+not inspect keys before the first projection or query the same capability twice
+unless the first result is missing a required field.
 
 Use the five commands:
 
@@ -97,25 +144,29 @@ dynamical run trace.ndjson --mode replay -o replay.ndjson
 For an embodied trace, also pass both `--compiled-world` and
 `--runtime-receipt`; one binding without the other is invalid.
 
-## Run sequential, concurrent, or batched adaptive autoresearch
+## Run adaptive autoresearch
 
-Run and validate a declared baseline first when the study has a meaningful
-reference condition. Then use the confirmed plan:
+Treat the first experiments as an initial study, not the complete campaign.
+Choose sequential or concurrent work from the question, current evidence,
+available compute, and provider limits. Revise the laboratory and research
+policy as validated evidence changes.
 
-1. Propose one sequential study or a bounded batch of `N` isolated concurrent
-   arms. Derive `N` from the design space, budget, available compute, provider
-   limits, comparison rule, and stopping rule. State the uncertainty or rival
-   hypothesis each arm tests and how its result could change the conclusion or
-   decision.
-2. Give each arm immutable inputs and a private output directory and process.
-3. Compose, compile, run, and validate each arm with the same Dynamical version
-   and installed authority bundle.
-4. Use an output as evidence only after its command exits and
+For every experiment:
+
+1. Give each arm immutable inputs and a private output directory and process.
+2. Compose, compile, run, and validate it with the same Dynamical version and
+   installed authority bundle.
+3. Use an output as evidence only after its command exits and
    `dynamical validate` passes.
-5. Compare only validated results under the confirmed selection rule.
-6. Preserve every arm, receipt, validation result, and available hash.
-7. Stop on convergence, budget, repeated invalid routes, or need for physical
-   evidence.
+4. Compare only validated results. Check derived rankings and intervals
+   mechanically before writing the report.
+5. Preserve the arm, receipts, validation results, and available hashes.
+
+Continue without renewed approval while the campaign stays inside admitted
+capabilities and its approved compute, cost, network, and authority envelope.
+Pause when the agent's scientific stopping condition is met or when progress
+requires an environment change, external spend, new provider authority, or
+physical execution.
 
 Capture each command's structured stdout in its arm directory on first
 execution; do not rerun or reconstruct a command only to preserve its receipt.
@@ -123,6 +174,10 @@ Use narrow structured queries to inspect only the capability, schema, receipt,
 and trace fields needed. When the host supports it, group each arm's ordered,
 fail-closed pipeline into one tool call. Do not print complete capability
 records, schemas, compositions, receipts, or traces into the agent context.
+Trace files store `observation.channels` as a list of channel records. Select
+records by `name`; do not treat the list as an object keyed by channel name.
+Do not use `head`, `sed`, or `rg` on NDJSON traces, because each line is a
+complete event. Use a structured query that returns only the required fields.
 
 Sequential studies can use a promoted result to propose the next arm, but must
 keep prior arm directories. Concurrent arms must not share mutable sample state
@@ -130,8 +185,8 @@ or result files. Use a host-supplied executor when available. Otherwise, run
 long simulations as background jobs; poll logs and process state, and check
 final exit status before reading outputs.
 
-For adaptive studies, validate and compare the current batch before planning the
-next batch. Preserve the completed batch as a decision-point snapshot.
+Validate completed experiments before they change the next decision. Preserve a
+decision-point snapshot when evidence changes the research policy.
 
 Run counterfactual arms only through admitted executable providers that support
 the changed inputs. Archived replay can return only realized observations; it
@@ -142,7 +197,7 @@ to the same model or provider share its assumptions and evidence class.
 
 Preserve each arm with one of these statuses:
 
-- `promoted`: valid and selected by the confirmed rule.
+- `promoted`: valid and selected by the current documented decision rule.
 - `not_promoted`: valid, including a valid negative result, but not selected.
 - `HOLD`: structured domain-negative capability or authority result.
 - `invalid`: an artifact exists but validation failed.

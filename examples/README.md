@@ -20,7 +20,7 @@ Run each example from its directory:
 | Example | Purpose | Evidence and authority |
 | --- | --- | --- |
 | [Quickstart](quickstart/) | Run the smallest complete campaign. | Simulator evidence only. It has no hardware authority. |
-| [FastCat OER](fastcat-oer/) | Run one virtual campaign with several instruments. | Only the OER result uses the `ac-oer-twin` calibrated twin. The other operations use simulators. It has no hardware authority. |
+| [FastCat OER](fastcat-oer/) | Compare a bounded public set of nine catalyst compositions. | Only the OER result uses the `ac-oer-twin` calibrated twin. The other operations use simulators. It has no hardware authority. |
 | [Provider onboarding](provider-onboarding/) | Inspect a provider proposal. | The proposal stays pending. Composition returns `HOLD`. |
 
 The wheel supplies the runtime and the installed authority records. The
