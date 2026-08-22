@@ -41,6 +41,19 @@ EVENT_KEYS = {
     "constraints",
     "evidence",
 }
+RESTORE_KEYS = frozenset(
+    {
+        "at_event_id",
+        "source_prefix_sha256",
+        "source_world_sha256",
+        "source_registry_sha256",
+        "source_facility_sha256",
+        "source_logical_time_s",
+        "initial_samples",
+        "restored_state_sha256",
+        "source_evidence_classes",
+    }
+)
 
 
 class CampaignValidationError(ValueError):
@@ -743,6 +756,7 @@ class CampaignIdentity:
     world_hash: str
     campaign_hash: str
     provenance: Mapping[str, Any]
+    source_trace_sha256: str | None = None
 
     def __post_init__(self) -> None:
         if not self.campaign_id or not self.run_id or self.seed < 0 or not self.backend_revision:
@@ -751,6 +765,8 @@ class CampaignIdentity:
             value = getattr(self, name)
             if not _is_sha256(value):
                 raise CampaignValidationError(f"{name} must be a SHA-256 value")
+        if self.source_trace_sha256 is not None and not _is_sha256(self.source_trace_sha256):
+            raise CampaignValidationError("source_trace_sha256 must be a SHA-256 value")
 
 
 @dataclass(frozen=True)
@@ -870,6 +886,101 @@ class TraceEvent:
                 for item in value["evidence"]
             ),
         )
+
+
+def _validated_restore(events: Sequence[TraceEvent]) -> tuple[tuple[Sample, ...], list[str]]:
+    start = events[0]
+    restore_raw, binding_raw = (
+        start.provenance.get("restore"),
+        start.provenance.get("restore_binding_sha256"),
+    )
+    if restore_raw is None and binding_raw is None:
+        if any(
+            "restore" in event.provenance or "restore_binding_sha256" in event.provenance
+            for event in events[1:]
+        ):
+            raise CampaignValidationError("restore metadata is allowed only on a restored trace")
+        return (), []
+    if restore_raw is None or binding_raw is None:
+        raise CampaignValidationError("restored trace requires restore metadata and binding")
+    if start.mode is not RunMode.SIMULATE or not start.source_trace_sha256:
+        raise CampaignValidationError("restore metadata is valid only on a bound simulate trace")
+    restore = _require_mapping(restore_raw, "restore")
+    _strict_mapping(restore, RESTORE_KEYS, "restore")
+    if set(restore) != RESTORE_KEYS:
+        raise CampaignValidationError("restore metadata is incomplete")
+    binding = _require_string(binding_raw, "restore binding")
+    if not _is_sha256(binding) or stable_hash(restore) != binding:
+        raise CampaignValidationError("restore binding differs from restore metadata")
+    if any(event.provenance.get("restore_binding_sha256") != binding for event in events):
+        raise CampaignValidationError("restore binding changed within the trace")
+    if any("restore" in event.provenance for event in events[1:]):
+        raise CampaignValidationError("full restore metadata is allowed only on campaign_start")
+    hashes = (
+        "source_prefix_sha256",
+        "source_world_sha256",
+        "source_registry_sha256",
+        "source_facility_sha256",
+        "restored_state_sha256",
+    )
+    for name in hashes:
+        value = _require_string(restore[name], f"restore.{name}")
+        if not _is_sha256(value):
+            raise CampaignValidationError(f"restore.{name} must be a SHA-256 value")
+    _require_string(restore["at_event_id"], "restore.at_event_id")
+    logical_time = _require_number(restore["source_logical_time_s"], "restore logical time")
+    _finite_nonnegative(logical_time, "restore logical time")
+    raw_samples = _require_list(restore["initial_samples"], "restore initial samples")
+    try:
+        samples = tuple(Sample.model_validate(item) for item in raw_samples)
+    except (TypeError, ValueError) as exc:
+        raise CampaignValidationError(f"restore initial samples are invalid: {exc}") from exc
+    ids = [sample.id for sample in samples]
+    if ids != sorted(ids) or len(ids) != len(set(ids)):
+        raise CampaignValidationError("restore initial samples must be unique and sorted by ID")
+    canonical_samples = [sample.model_dump(mode="json") for sample in samples]
+    if canonical_samples != raw_samples:
+        raise CampaignValidationError("restore initial samples are not complete canonical objects")
+    if stable_hash(canonical_samples) != restore["restored_state_sha256"]:
+        raise CampaignValidationError("restored state hash differs from initial samples")
+    raw_classes = _require_list(restore["source_evidence_classes"], "source evidence classes")
+    source_classes = [
+        EvidenceClass(_require_string(item, "source evidence class")).value for item in raw_classes
+    ]
+    if source_classes != sorted(set(source_classes)) or "physical" in source_classes:
+        raise CampaignValidationError("restore source evidence classes are invalid")
+    compiled_pack = _require_mapping(start.provenance.get("compiled_pack"), "compiled pack")
+    if (
+        compiled_pack.get("target") != "openusd"
+        or start.provenance.get("embodied_backend")
+        or start.provenance.get("embodied_evidence_bound")
+        or any(
+            (event.action is not None and event.action.evidence_class is EvidenceClass.PHYSICAL)
+            or (
+                event.observation is not None
+                and event.observation.evidence_class is EvidenceClass.PHYSICAL
+            )
+            or any(item.evidence_class is EvidenceClass.PHYSICAL for item in event.evidence)
+            for event in events
+        )
+    ):
+        raise CampaignValidationError("restored child trace must remain virtual and non-embodied")
+    digest = stable_hash(
+        {
+            "composition_sha256": compiled_pack.get("composition_sha256"),
+            "steps": start.provenance.get("declared_step_ids"),
+            "seed": start.seed,
+            "restore_binding_sha256": binding,
+            "source_trace_sha256": start.source_trace_sha256,
+        }
+    )
+    if (
+        start.campaign_hash != digest
+        or start.campaign_id != f"composed-{digest[:12]}"
+        or start.run_id != f"simulate-{digest[12:24]}"
+    ):
+        raise CampaignValidationError("child campaign identity omits or mismatches restore binding")
+    return samples, source_classes
 
 
 def validate_events(events: Sequence[TraceEvent]) -> dict[str, Any]:
@@ -1188,10 +1299,11 @@ def validate_events(events: Sequence[TraceEvent]) -> dict[str, Any]:
                         "recoverable": False,
                     }
                 )
-    reasons.extend(item.model_dump() for item in check_invariants(events))
+    initial_samples, source_evidence_classes = _validated_restore(events)
+    reasons.extend(item.model_dump() for item in check_invariants(events, initial_samples))
     if reasons:
         execution_status = "failed"
-    return {
+    result = {
         "valid": execution_status != "failed",
         "execution_status": execution_status,
         "validation_reasons": reasons,
@@ -1225,6 +1337,9 @@ def validate_events(events: Sequence[TraceEvent]) -> dict[str, Any]:
         ),
         "authority_anchor": events[0].provenance.get("authority_anchor", "installed_bundle"),
     }
+    if source_evidence_classes:
+        result["source_evidence_classes"] = source_evidence_classes
+    return result
 
 
 def read_trace(path: str | Path) -> list[TraceEvent]:
@@ -1877,6 +1992,7 @@ def _event(
         world_hash=identity.world_hash,
         campaign_hash=identity.campaign_hash,
         provenance=provenance if provenance is not None else identity.provenance,
+        source_trace_sha256=identity.source_trace_sha256,
         **kwargs,
     )
 
@@ -2193,6 +2309,8 @@ def _composed_identity(
     contract: CompiledCampaignContract,
     actions: Sequence[ActionRequest],
     seed: int,
+    restore_binding_sha256: str | None = None,
+    source_trace_sha256: str | None = None,
 ) -> CampaignIdentity:
     bindings_by_step = {
         _require_string(binding.get("step_id"), "operation binding.step_id"): binding
@@ -2219,7 +2337,15 @@ def _composed_identity(
         "steps": [action.action_id for action in actions],
         "seed": seed,
     }
+    if restore_binding_sha256 is not None:
+        campaign_spec["restore_binding_sha256"] = restore_binding_sha256
+        campaign_spec["source_trace_sha256"] = source_trace_sha256
     digest = stable_hash(campaign_spec)
+    restore_provenance = (
+        {"restore_binding_sha256": restore_binding_sha256}
+        if restore_binding_sha256 is not None
+        else {}
+    )
     return CampaignIdentity(
         campaign_id=f"composed-{digest[:12]}",
         run_id=f"simulate-{digest[12:24]}",
@@ -2260,7 +2386,9 @@ def _composed_identity(
                 }
                 for action in actions
             },
+            **restore_provenance,
         },
+        source_trace_sha256=source_trace_sha256,
     )
 
 
@@ -2312,12 +2440,15 @@ def _model_implementation_mismatch(
     )
 
 
-def run_composed_campaign(
+def _execute_composed_campaign(
     contract: CompiledCampaignContract,
-    output_path: Path,
     *,
     seed: int,
-) -> tuple[list[TraceEvent], str]:
+    initial_samples: Sequence[Sample] = (),
+    stop_at_event_id: str | None = None,
+    restore: Mapping[str, Any] | None = None,
+    event_sink: Any | None = None,
+) -> tuple[list[TraceEvent], dict[str, Sample]]:
     """Execute only the ordered providers selected by a compiled composition.
 
     Each step's operation is dispatched through ``dynamical.instruments.resolve``;
@@ -2334,16 +2465,32 @@ def run_composed_campaign(
     """
 
     actions = _composed_actions(contract)
-    identity = _composed_identity(contract, actions, seed)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text("", encoding="utf-8")
+    if restore is not None and (
+        contract.target != "openusd"
+        or any(action.evidence_class is EvidenceClass.PHYSICAL for action in actions)
+    ):
+        raise CampaignValidationError(
+            "restored child campaign must remain virtual and non-embodied"
+        )
+    restore_binding_sha256 = (
+        _require_string(restore.get("restore_binding_sha256"), "restore binding")
+        if restore is not None
+        else None
+    )
+    source_trace_sha256 = (
+        _require_string(restore.get("source_trace_sha256"), "restore source trace hash")
+        if restore is not None
+        else None
+    )
+    identity = _composed_identity(
+        contract, actions, seed, restore_binding_sha256, source_trace_sha256
+    )
     events: list[TraceEvent] = []
 
     def append(event: TraceEvent) -> None:
         events.append(event)
-        with output_path.open("a", encoding="utf-8") as stream:
-            stream.write(canonical_json(event.to_dict()) + "\n")
-            stream.flush()
+        if event_sink is not None:
+            event_sink(event)
 
     start_identity = CampaignIdentity(
         campaign_id=identity.campaign_id,
@@ -2358,12 +2505,14 @@ def run_composed_campaign(
             "declared_step_ids": [action.action_id for action in actions],
             "dataflow_edges": _dataflow_edges(contract),
             "proof_requirements": [dict(item) for item in contract.proof_requirements],
+            **({"restore": dict(restore["restore"])} if restore is not None else {}),
         },
+        source_trace_sha256=identity.source_trace_sha256,
     )
     append(_event(start_identity, 0, 0.0, "campaign_start"))
     prior_outputs: dict[tuple[str, str], Any] = {}
-    samples: dict[str, Sample] = {}
-    last_known_station: dict[str, str] = {}
+    samples = {sample.id: sample for sample in initial_samples}
+    last_known_station = {sample.id: sample.station_id for sample in initial_samples}
     logical_time = 0.0
     failed = False
     reasons: list[RuntimeReason] = []
@@ -2618,19 +2767,24 @@ def run_composed_campaign(
                     instrument_result is not None and instrument_result.sample is not None
                 ),
             }
-        append(
-            _event(
-                identity,
-                len(events),
-                logical_time,
-                "observation",
-                observation=observation,
-                constraints=post_constraints,
-                provenance=observation_provenance,
-            )
+        observation_event = _event(
+            identity,
+            len(events),
+            logical_time,
+            "observation",
+            observation=observation,
+            constraints=post_constraints,
+            provenance=observation_provenance,
         )
+        append(observation_event)
+        if stop_at_event_id == observation_event.event_id:
+            return events, samples
         if failed:
             break
+    if stop_at_event_id is not None:
+        raise CampaignValidationError(
+            f"source re-execution did not reach observation event: {stop_at_event_id}"
+        )
     terminal_identity = CampaignIdentity(
         campaign_id=identity.campaign_id,
         run_id=identity.run_id,
@@ -2646,8 +2800,62 @@ def run_composed_campaign(
             "cost_consumed_usd": consumed_cost_usd,
             "duration_consumed_s": consumed_duration_s,
         },
+        source_trace_sha256=identity.source_trace_sha256,
     )
     append(_event(terminal_identity, len(events), logical_time, "campaign_end"))
+    return events, samples
+
+
+def run_composed_campaign(
+    contract: CompiledCampaignContract,
+    output_path: Path,
+    *,
+    seed: int,
+    initial_samples: Sequence[Sample] = (),
+    restore: Mapping[str, Any] | None = None,
+) -> tuple[list[TraceEvent], str]:
+    """Execute a composed campaign and incrementally write its validated trace."""
+
+    if restore is None:
+        if initial_samples:
+            raise CampaignValidationError("initial samples require restore metadata")
+    else:
+        restore_metadata = _require_mapping(restore.get("restore"), "restore metadata")
+        expected_samples = _require_list(
+            restore_metadata.get("initial_samples"), "restore initial samples"
+        )
+        canonical_samples = [sample.model_dump(mode="json") for sample in initial_samples]
+        if canonical_samples != expected_samples:
+            raise CampaignValidationError(
+                "executed initial samples differ from bound restore metadata"
+            )
+
+    stream: Any | None = None
+
+    def write_event(event: TraceEvent) -> None:
+        nonlocal stream
+        if stream is None:
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                stream = output_path.open("x" if restore is not None else "w", encoding="utf-8")
+            except FileExistsError as exc:
+                raise CampaignValidationError(
+                    f"restore output appeared after preflight; select a new path: {output_path}"
+                ) from exc
+        stream.write(canonical_json(event.to_dict()) + "\n")
+        stream.flush()
+
+    try:
+        events, _ = _execute_composed_campaign(
+            contract,
+            seed=seed,
+            initial_samples=initial_samples,
+            restore=restore,
+            event_sink=write_event,
+        )
+    finally:
+        if stream is not None:
+            stream.close()
     validate_events(events)
     return events, file_sha256(output_path)
 
@@ -2680,7 +2888,63 @@ def run_cli(args: argparse.Namespace) -> int:
     mode = RunMode(str(getattr(args, "mode", RunMode.SIMULATE.value)))
     output_value = getattr(args, "output", None)
     output_path = Path(output_value) if output_value else Path.cwd() / f"run.{mode.value}.ndjson"
-    if mode is RunMode.REPLAY:
+    restore_from = getattr(args, "restore_from", None)
+    if restore_from is not None:
+        from .restore import _prepare_restore
+
+        context = _prepare_restore(
+            source_trace=restore_from,
+            source_world=args.restore_world,
+            child_world=input_path,
+            at_event_id=args.restore_at_event,
+            output=output_value,
+            seed=int(getattr(args, "seed", 0) or 0),
+        )
+        if context.output is not None:
+            output_path = context.output
+        if getattr(args, "dry_run", False):
+            ready = {
+                "status": "ready",
+                "execution_status": "not_executed",
+                "mode": "simulate",
+                "source_trace_sha256": context.source_trace_sha256,
+                "source_prefix_sha256": context.restore["source_prefix_sha256"],
+                "restored_state_sha256": context.restore["restored_state_sha256"],
+                "restored_sample_count": len(context.initial_samples),
+                "expected_run_id": context.expected_run_id,
+                "validation_reasons": [],
+            }
+            print(json.dumps(ready, sort_keys=True, separators=(",", ":")))
+            return 0
+        binding = stable_hash(context.restore)
+        if context.reused is not None:
+            events, trace_hash = context.reused
+        else:
+            execution_binding = {
+                "source_trace_sha256": context.source_trace_sha256,
+                "restore_binding_sha256": binding,
+                "restore": context.restore,
+            }
+            events, trace_hash = run_composed_campaign(
+                context.child_contract,
+                output_path,
+                seed=int(getattr(args, "seed", 0) or 0),
+                initial_samples=context.initial_samples,
+                restore=execution_binding,
+            )
+        result = {"trace_sha256": trace_hash, **validate_events(events)}
+        result.update(
+            {
+                "source_trace_sha256": context.source_trace_sha256,
+                "restored_at_event": context.restore["at_event_id"],
+                "source_prefix_sha256": context.restore["source_prefix_sha256"],
+                "restored_state_sha256": context.restore["restored_state_sha256"],
+                "source_evidence_classes": context.restore["source_evidence_classes"],
+                "restore_binding_sha256": binding,
+                "reused": context.reused is not None,
+            }
+        )
+    elif mode is RunMode.REPLAY:
         from .replay import replay_trace
 
         result = replay_trace(
@@ -2719,6 +2983,12 @@ def run_cli(args: argparse.Namespace) -> int:
                 "output",
                 "trace_sha256",
                 "source_trace_sha256",
+                "restored_at_event",
+                "source_prefix_sha256",
+                "restored_state_sha256",
+                "source_evidence_classes",
+                "restore_binding_sha256",
+                "reused",
                 "event_count",
                 "valid",
                 "execution_status",

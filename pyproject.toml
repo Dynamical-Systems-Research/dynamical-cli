@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "dynamical-cli"
-version = "0.1.14"
+version = "0.1.15"
 description = "Open-source interface for scientific agents to compose virtual laboratories, run adaptive campaigns, and request physical evidence under facility authority."
 readme = "README.md"
 requires-python = ">=3.11"

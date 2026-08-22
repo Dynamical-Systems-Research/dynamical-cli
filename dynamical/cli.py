@@ -18,6 +18,10 @@ from .compiler import compile_facility, validate_path
 REFERENCE_LAB = Path(str(files("dynamical").joinpath("bundle", "reference-lab")))
 DEFAULT_REGISTRY = REFERENCE_LAB / "registry.yaml"
 DEFAULT_FACILITY = REFERENCE_LAB / "facility.yaml"
+RESTORE_EXAMPLE = (
+    "dynamical run child-world --restore-from parent.ndjson --restore-world parent-world "
+    "--restore-at-event simulate-abc123:event:000006 -o child.ndjson"
+)
 
 
 def _print_json(value: object, *, compact: bool = False) -> None:
@@ -149,7 +153,14 @@ def build_parser() -> argparse.ArgumentParser:
         "run",
         help="simulate a compiled world or replay a trace",
         epilog=(
-            "Example: dynamical run compiled-world -o trace.ndjson\n\n"
+            "Examples:\n"
+            "  dynamical run compiled-world -o trace.ndjson\n"
+            "  dynamical run child-world --restore-from parent.ndjson "
+            "--restore-world parent-world --restore-at-event "
+            "simulate-abc123:event:000006 --seed 0 -o child.ndjson\n"
+            "  dynamical run child-world --restore-from parent.ndjson "
+            "--restore-world parent-world --restore-at-event "
+            "simulate-abc123:event:000006 --dry-run\n\n"
             "Scientific values are in observation events under observation.channels. "
             "Validate the completed trace before using them as evidence."
         ),
@@ -159,6 +170,12 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--mode", default="simulate", choices=("simulate", "replay"))
     run_parser.add_argument("-o", "--output", type=Path)
     run_parser.add_argument("--seed", type=int, default=0)
+    run_parser.add_argument("--restore-from", type=Path, help="completed source trace")
+    run_parser.add_argument("--restore-world", type=Path, help="source compiled world")
+    run_parser.add_argument("--restore-at-event", help="source observation event ID")
+    run_parser.add_argument(
+        "--dry-run", action="store_true", help="run restore preflight without child execution"
+    )
     run_parser.add_argument(
         "--compiled-world",
         type=Path,
@@ -582,6 +599,25 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "run":
             from .campaign import run_cli
 
+            restore_values = (args.restore_from, args.restore_world, args.restore_at_event)
+            if any(value is not None for value in restore_values) and not all(
+                value is not None for value in restore_values
+            ):
+                raise ValueError(
+                    f"the three restore flags must appear together\nExample: {RESTORE_EXAMPLE}"
+                )
+            if args.dry_run and not all(value is not None for value in restore_values):
+                raise ValueError(
+                    f"--dry-run requires all three restore flags\nExample: {RESTORE_EXAMPLE}"
+                )
+            if all(value is not None for value in restore_values) and args.mode != "simulate":
+                raise ValueError(f"restore requires --mode simulate\nExample: {RESTORE_EXAMPLE}")
+            if (
+                all(value is not None for value in restore_values)
+                and not args.dry_run
+                and not args.output
+            ):
+                raise ValueError(f"executed restore requires -o\nExample: {RESTORE_EXAMPLE}")
             if not args.input.exists():
                 raise ValueError(f"run input does not exist: {args.input}")
             return int(run_cli(args))
