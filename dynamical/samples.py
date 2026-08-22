@@ -254,7 +254,24 @@ def _embedded_transition(parameters: Mapping[str, Any]) -> SampleTransition | No
     return SampleTransition.model_validate(dict(raw))
 
 
-def check_invariants(events: Sequence[TraceEvent]) -> list[RuntimeReason]:
+def _seed_invariant_state(
+    initial_samples: Sequence[Sample],
+) -> tuple[dict[str, Sample], dict[str, set[str]], dict[str, str]]:
+    samples = {sample.id: sample for sample in initial_samples}
+    station_occupants: dict[str, set[str]] = {}
+    for sample in initial_samples:
+        if sample.custody_state == "held":
+            station_occupants.setdefault(sample.station_id, set()).add(sample.id)
+    return (
+        samples,
+        station_occupants,
+        {sample.id: state_digest(sample.state) for sample in initial_samples},
+    )
+
+
+def check_invariants(
+    events: Sequence[TraceEvent], initial_samples: Sequence[Sample] = ()
+) -> list[RuntimeReason]:
     """Walk one trace and enforce sample identity, custody, and transfer lineage.
 
     Four invariants, one reason code each:
@@ -273,8 +290,7 @@ def check_invariants(events: Sequence[TraceEvent]) -> list[RuntimeReason]:
     """
 
     reasons: list[RuntimeReason] = []
-    samples: dict[str, Sample] = {}
-    station_occupants: dict[str, set[str]] = {}
+    samples, station_occupants, last_state_digest = _seed_invariant_state(initial_samples)
 
     for event in events:
         action = event.action
@@ -389,7 +405,6 @@ def check_invariants(events: Sequence[TraceEvent]) -> list[RuntimeReason]:
     # (``sample_state_written`` false) must carry exactly the state digest the
     # previous writer recorded -- otherwise the measurement claims to have
     # read a state no upstream process produced.
-    last_state_digest: dict[str, str] = {}
     for event in events:
         provenance = event.provenance or {}
         sample_id = provenance.get("sample_id")

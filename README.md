@@ -124,6 +124,33 @@ Use `dynamical compose --schema` to inspect the requirement schema. Use
 `dynamical capabilities --operation <operation-id> --json` to inspect the typed
 contract for one operation.
 
+### Restore a verified virtual state
+
+Start a new virtual campaign from the sample ledger at one observation in a
+completed simulate trace:
+
+```bash
+dynamical run child-world \
+  --restore-from parent.ndjson \
+  --restore-world parent-world \
+  --restore-at-event simulate-abc123:event:000006 \
+  --dry-run
+
+dynamical run child-world \
+  --restore-from parent.ndjson \
+  --restore-world parent-world \
+  --restore-at-event simulate-abc123:event:000006 \
+  -o child.ndjson
+```
+
+Restore re-executes and byte-checks the parent prefix before it derives state.
+It does not alter the parent or copy parent actions into the child campaign.
+Physical and embodied restore are unsupported. The child trace reports source
+and child evidence classes separately. A restored trace cannot be a restore source.
+Repeating the exact child command reuses
+only a matching validated output and returns `"reused": true`; it never
+overwrites a conflicting file. Use `dynamical run --help` for the flag contract.
+
 ## Run many campaigns
 
 Dynamical runs one campaign per process. Codex, Claude Code, or a scheduler can
