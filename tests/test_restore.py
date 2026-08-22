@@ -11,6 +11,7 @@ import pytest
 import yaml
 from test_campaign_contract import _transfer_contract
 
+import dynamical.restore as restore_module
 from dynamical.campaign import (
     CampaignValidationError,
     canonical_json,
@@ -243,7 +244,7 @@ def test_non_restore_simulate_and_replay_bytes_are_stable(tmp_path: Path) -> Non
     )
 
 
-def test_restore_continuation_counterfactual_and_linear_chain(
+def test_restore_continuation_counterfactual_and_rejects_restored_source(
     restore_lab: RestoreLab, tmp_path: Path
 ) -> None:
     control_trace = tmp_path / "control.ndjson"
@@ -294,10 +295,9 @@ def test_restore_continuation_counterfactual_and_linear_chain(
         source_world=restore_lab.control_world,
         at_event_id=control_at,
     )
-    code, stdout, _ = _invoke(chained_args)
-    assert code == 0
-    assert json.loads(stdout)["source_evidence_classes"] == ["calibrated_twin", "simulator"]
-    assert validate_path(chained_trace)["valid"] is True
+    code, _, stderr = _invoke(chained_args)
+    assert code == 2 and "restored traces cannot be restore sources" in stderr
+    assert not chained_trace.exists()
 
 
 def test_dry_run_never_writes_and_preserves_a_matching_output(
@@ -327,6 +327,18 @@ def test_safe_reuse_and_full_child_identity_check(restore_lab: RestoreLab, tmp_p
     code, stdout, _ = _invoke(args)
     assert code == 0 and json.loads(stdout)["reused"] is True
     assert output.read_bytes() == before
+
+    modified_events = [json.loads(line) for line in before.splitlines()]
+    modified_observation = next(
+        event for event in modified_events if event["event_type"] == "observation"
+    )
+    modified_observation["observation"]["channels"][0]["value"] = 987654321
+    _write_trace(output, modified_events)
+    modified = output.read_bytes()
+    assert validate_path(output)["valid"] is True
+    code, _, stderr = _invoke(args)
+    assert code == 2 and "conflicts with the expected run" in stderr
+    assert output.read_bytes() == modified
 
     alternate = tmp_path / "alternate-target.ndjson"
     original_events = [json.loads(line) for line in before.splitlines()]
@@ -372,6 +384,22 @@ def test_embodied_child_is_rejected_before_output(restore_lab: RestoreLab, tmp_p
                 "restore": context.restore,
             },
         )
+    assert not output.exists()
+
+
+def test_restore_rejects_custody_without_complete_sample_state(
+    restore_lab: RestoreLab, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    execute = restore_module._execute_composed_campaign
+
+    def omit_ledger(*args, **kwargs):
+        events, _ = execute(*args, **kwargs)
+        return events, {}
+
+    monkeypatch.setattr(restore_module, "_execute_composed_campaign", omit_ledger)
+    output = tmp_path / "must-not-exist.ndjson"
+    code, _, stderr = _invoke(_restore_args(restore_lab, restore_lab.control_world, output))
+    assert code == 2 and "custody without complete sample state" in stderr
     assert not output.exists()
 
 

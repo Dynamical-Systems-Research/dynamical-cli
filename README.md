@@ -146,7 +146,8 @@ dynamical run child-world \
 Restore re-executes and byte-checks the parent prefix before it derives state.
 It does not alter the parent or copy parent actions into the child campaign.
 Physical and embodied restore are unsupported. The child trace reports source
-and child evidence classes separately. Repeating the exact child command reuses
+and child evidence classes separately. A restored trace cannot be a restore source.
+Repeating the exact child command reuses
 only a matching validated output and returns `"reused": true`; it never
 overwrites a conflicting file. Use `dynamical run --help` for the flag contract.
 

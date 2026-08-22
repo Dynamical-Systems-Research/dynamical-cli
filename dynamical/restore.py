@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Any
 
 from .campaign import (
-    CampaignIdentity,
     CampaignValidationError,
     CompiledCampaignContract,
     EvidenceClass,
@@ -19,7 +18,6 @@ from .campaign import (
     _composed_actions,
     _composed_identity,
     _execute_composed_campaign,
-    _validated_restore,
     canonical_json,
     load_compiled_campaign_contract,
     stable_hash,
@@ -126,38 +124,33 @@ def _validated_authority(world: Path) -> tuple[str, str]:
 
 def _matching_output(
     output: Path | None,
-    expected: CampaignIdentity,
-    binding: str,
-    source_trace_sha256: str,
+    contract: CompiledCampaignContract,
+    initial_samples: tuple[Sample, ...],
+    restore: dict[str, Any],
+    seed: int,
 ) -> tuple[tuple[TraceEvent, ...], str] | None:
     if output is None or not output.exists():
         return None
     try:
         data = output.read_bytes()
-        events, _ = _parse_source(data)
-        result = validate_events(events)
-    except (OSError, ValueError) as exc:
+    except OSError as exc:
         raise CampaignValidationError(
             f"restore output exists but is invalid; select a new path: {output}: {exc}"
         ) from exc
-    start = events[0]
-    if (
-        not result["valid"]
-        or start.run_id != expected.run_id
-        or start.campaign_id != expected.campaign_id
-        or start.seed != expected.seed
-        or start.backend_revision != expected.backend_revision
-        or start.ir_hash != expected.ir_hash
-        or start.world_hash != expected.world_hash
-        or start.campaign_hash != expected.campaign_hash
-        or start.source_trace_sha256 != source_trace_sha256
-        or start.provenance.get("restore_binding_sha256") != binding
-        or any(start.provenance.get(key) != value for key, value in expected.provenance.items())
-    ):
+    expected_events, _ = _execute_composed_campaign(
+        contract,
+        seed=seed,
+        initial_samples=initial_samples,
+        restore=restore,
+    )
+    expected_data = "".join(
+        canonical_json(event.to_dict()) + "\n" for event in expected_events
+    ).encode("utf-8")
+    if data != expected_data or not validate_events(expected_events)["valid"]:
         raise CampaignValidationError(
             f"restore output conflicts with the expected run; select a new path: {output}"
         )
-    return tuple(events), hashlib.sha256(data).hexdigest()
+    return tuple(expected_events), hashlib.sha256(data).hexdigest()
 
 
 def _prepare_restore(
@@ -184,6 +177,8 @@ def _prepare_restore(
             "restore source trace did not complete with passed validation"
         )
     start = source_events[0]
+    if start.source_trace_sha256 is not None or start.provenance.get("restore") is not None:
+        raise CampaignValidationError("restored traces cannot be restore sources")
     physical = EvidenceClass.PHYSICAL.value
     if (
         start.mode is not RunMode.SIMULATE
@@ -214,20 +209,10 @@ def _prepare_restore(
     if observation.event_type != "observation":
         raise CampaignValidationError(f"restore event is not an observation: {at_event_id}")
 
-    source_initial_samples, inherited_classes = _validated_restore(source_events)
-    source_restore = None
-    if start.provenance.get("restore") is not None:
-        source_restore = {
-            "source_trace_sha256": start.source_trace_sha256,
-            "restore_binding_sha256": start.provenance["restore_binding_sha256"],
-            "restore": start.provenance["restore"],
-        }
     reproduced, ledger = _execute_composed_campaign(
         source_contract,
         seed=start.seed,
-        initial_samples=source_initial_samples,
         stop_at_event_id=at_event_id,
-        restore=source_restore,
     )
     recorded_prefix = b"".join(source_lines[: observation.sequence + 1])
     reproduced_prefix = "".join(
@@ -236,11 +221,20 @@ def _prepare_restore(
     if reproduced_prefix != recorded_prefix:
         raise CampaignValidationError("source prefix differs from exact current re-execution")
 
+    referenced_samples = {
+        event.action.sample_id
+        for event in reproduced
+        if event.action is not None and event.action.sample_id is not None
+    }
+    incomplete_samples = sorted(referenced_samples - ledger.keys())
+    if incomplete_samples:
+        raise CampaignValidationError(
+            f"restore source has custody without complete sample state: {incomplete_samples}"
+        )
     initial_samples = tuple(ledger[key] for key in sorted(ledger))
     canonical_samples = [sample.model_dump(mode="json") for sample in initial_samples]
     source_classes = sorted(
-        set(inherited_classes)
-        | {event.action.evidence_class.value for event in reproduced if event.action is not None}
+        {event.action.evidence_class.value for event in reproduced if event.action is not None}
         | {item.evidence_class.value for event in reproduced for item in event.evidence}
     )
     source_prefix_sha256 = hashlib.sha256(recorded_prefix).hexdigest()
@@ -259,7 +253,12 @@ def _prepare_restore(
     identity = _composed_identity(
         child_contract, _composed_actions(child_contract), seed, binding, source_trace_sha256
     )
-    reused = _matching_output(output_path, identity, binding, source_trace_sha256)
+    execution_binding = {
+        "source_trace_sha256": source_trace_sha256,
+        "restore_binding_sha256": binding,
+        "restore": restore,
+    }
+    reused = _matching_output(output_path, child_contract, initial_samples, execution_binding, seed)
     return _RestoreContext(
         output_path,
         child_contract,
