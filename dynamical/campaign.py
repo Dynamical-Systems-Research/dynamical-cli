@@ -903,8 +903,10 @@ def _validated_restore(events: Sequence[TraceEvent]) -> tuple[tuple[Sample, ...]
         return (), []
     if restore_raw is None or binding_raw is None:
         raise CampaignValidationError("restored trace requires restore metadata and binding")
-    if start.mode is not RunMode.SIMULATE or not start.source_trace_sha256:
-        raise CampaignValidationError("restore metadata is valid only on a bound simulate trace")
+    if start.mode not in {RunMode.SIMULATE, RunMode.REPLAY} or not start.source_trace_sha256:
+        raise CampaignValidationError(
+            "restore metadata is valid only on a bound simulate or replay trace"
+        )
     restore = _require_mapping(restore_raw, "restore")
     _strict_mapping(restore, RESTORE_KEYS, "restore")
     if set(restore) != RESTORE_KEYS:
@@ -965,21 +967,24 @@ def _validated_restore(events: Sequence[TraceEvent]) -> tuple[tuple[Sample, ...]
         )
     ):
         raise CampaignValidationError("restored child trace must remain virtual and non-embodied")
-    digest = stable_hash(
-        {
-            "composition_sha256": compiled_pack.get("composition_sha256"),
-            "steps": start.provenance.get("declared_step_ids"),
-            "seed": start.seed,
-            "restore_binding_sha256": binding,
-            "source_trace_sha256": start.source_trace_sha256,
-        }
-    )
-    if (
-        start.campaign_hash != digest
-        or start.campaign_id != f"composed-{digest[:12]}"
-        or start.run_id != f"simulate-{digest[12:24]}"
-    ):
-        raise CampaignValidationError("child campaign identity omits or mismatches restore binding")
+    if start.mode is RunMode.SIMULATE:
+        digest = stable_hash(
+            {
+                "composition_sha256": compiled_pack.get("composition_sha256"),
+                "steps": start.provenance.get("declared_step_ids"),
+                "seed": start.seed,
+                "restore_binding_sha256": binding,
+                "source_trace_sha256": start.source_trace_sha256,
+            }
+        )
+        if (
+            start.campaign_hash != digest
+            or start.campaign_id != f"composed-{digest[:12]}"
+            or start.run_id != f"simulate-{digest[12:24]}"
+        ):
+            raise CampaignValidationError(
+                "child campaign identity omits or mismatches restore binding"
+            )
     return samples, source_classes
 
 
@@ -1085,8 +1090,8 @@ def validate_events(events: Sequence[TraceEvent]) -> dict[str, Any]:
             raise CampaignValidationError(
                 f"{event.event_type} cannot carry action, observation, or constraint records"
             )
-    if not 1 <= action_count <= 32:
-        raise CampaignValidationError("campaign must contain 1 to 32 action requests")
+    if action_count < 1:
+        raise CampaignValidationError("campaign must contain at least 1 action request")
     provider_contract = events[0].provenance.get("provider_contract")
     if provider_contract is not None:
         providers = _require_mapping(provider_contract, "provider contract")

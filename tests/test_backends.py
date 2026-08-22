@@ -4,6 +4,7 @@ import copy
 import hashlib
 import importlib.util
 import json
+import shutil
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -296,6 +297,43 @@ def test_trace_validator_and_writer_reject_shortened_campaign(
     with pytest.raises(runtime.RuntimeContractError, match="complete compiled campaign"):
         writer.write(tmp_path / "shortened.ndjson")
     assert not (tmp_path / "shortened.ndjson").exists()
+
+
+def test_runtime_and_trace_validators_accept_33_actions(
+    backend_packs: dict[str, Path], tmp_path: Path
+) -> None:
+    output = tmp_path / "33-actions"
+    shutil.copytree(backend_packs["isaac"], output)
+    campaign_path = output / "runtime_campaign.json"
+    campaign = _json(campaign_path)
+    actions = campaign["actions"]
+    assert isinstance(actions, list)
+    campaign["actions"] = [copy.deepcopy(actions[0])] + [copy.deepcopy(actions[1])] * 32
+    campaign_path.write_text(
+        json.dumps(campaign, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8"
+    )
+
+    manifest_path = output / "compile_manifest.json"
+    manifest = _json(manifest_path)
+    for artifact in manifest["artifacts"]:
+        if artifact["path"] == "runtime_campaign.json":
+            artifact["sha256"] = hashlib.sha256(campaign_path.read_bytes()).hexdigest()
+    manifest["world_sha256"] = canonical_sha256(
+        {item["path"]: item["sha256"] for item in manifest["artifacts"]}
+    )
+    manifest_path.write_text(
+        json.dumps(manifest, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8"
+    )
+
+    runtime = _load_runtime_contract(output)
+    pack = runtime.verify_compiled_pack(output)
+    evidence = tmp_path / "evidence-33"
+    evidence.mkdir()
+    writer = _canonical_writer(runtime, pack, evidence, run_id="33-actions")
+    trace = tmp_path / "33-actions.ndjson"
+    writer.write(trace)
+    result = replay_trace(trace, tmp_path / "33-actions-replay.ndjson")
+    assert result["action_count"] == 33
 
 
 def test_trace_validator_rejects_longer_campaign(

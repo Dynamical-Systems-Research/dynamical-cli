@@ -300,6 +300,33 @@ def test_restore_continuation_counterfactual_and_rejects_restored_source(
     assert not chained_trace.exists()
 
 
+def test_replay_of_restored_child_preserves_restore_provenance(
+    restore_lab: RestoreLab, tmp_path: Path
+) -> None:
+    child_trace = tmp_path / "restored-child.ndjson"
+    assert _invoke(_restore_args(restore_lab, restore_lab.control_world, child_trace))[0] == 0
+    child_hash = _sha256(child_trace)
+
+    replayed_trace = tmp_path / "restored-child-replay.ndjson"
+    code, stdout, _ = _invoke(
+        ["run", str(child_trace), "--mode", "replay", "-o", str(replayed_trace)]
+    )
+    receipt = json.loads(stdout)
+    assert code == 0 and receipt["source_trace_sha256"] == child_hash
+    assert validate_path(replayed_trace)["valid"] is True
+
+    child_start = json.loads(child_trace.read_text().splitlines()[0])
+    replayed_events = [json.loads(line) for line in replayed_trace.read_text().splitlines()]
+    replayed_start = replayed_events[0]
+    assert {event["source_trace_sha256"] for event in replayed_events} == {child_hash}
+    assert child_hash != _sha256(restore_lab.parent_trace)
+    assert replayed_start["provenance"]["restore"] == child_start["provenance"]["restore"]
+    assert (
+        replayed_start["provenance"]["restore_binding_sha256"]
+        == child_start["provenance"]["restore_binding_sha256"]
+    )
+
+
 def test_dry_run_never_writes_and_preserves_a_matching_output(
     restore_lab: RestoreLab, tmp_path: Path
 ) -> None:

@@ -529,10 +529,8 @@ def verify_compiled_pack(compiled_world: str | Path) -> dict[str, Any]:
         raise RuntimeContractError("compiled runtime campaign actions are invalid")
     for action in actions:
         validate_action(action, pack)
-    if campaign.get("execution_status") == "requires_external_runtime_gate" and not (
-        1 <= len(actions) <= 32
-    ):
-        raise RuntimeContractError("executable runtime campaign needs 1 to 32 actions")
+    if campaign.get("execution_status") == "requires_external_runtime_gate" and not actions:
+        raise RuntimeContractError("executable runtime campaign needs at least 1 action")
     return pack
 
 
