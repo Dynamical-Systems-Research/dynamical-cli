@@ -13,18 +13,18 @@
 
 Dynamical CLI is the open-source interface for scientific autoresearch. An agent
 starts with a question or engineering objective and decides what evidence could
-resolve it. It composes a virtual laboratory from admitted instruments and
-computational providers. Dynamical compiles and records the campaign. The agent
-runs adaptive virtual experiments and can request the physical experiment worth
-running next.
+resolve it. It selects the instruments and scientific models that can provide
+that evidence. Dynamical checks that the facility has approved them, then builds
+and records the campaign. The agent runs virtual experiments, changes its plan
+as results arrive, and can request the physical experiment worth running next.
 
 A virtual laboratory can represent a complete supported laboratory or a
-purpose-built multi-instrument workflow. Agents can explore counterfactual
-experiments and learn instrument behavior and operating limits. Each recorded
-campaign is hash-bound and can be replayed. A preserved campaign state can also
-start a new experiment as a branch without changing the recorded campaign.
-Connected facilities can then return the physical evidence that virtual
-environments cannot provide.
+smaller workflow with only the instruments needed. Agents can compare
+alternative experiments and learn how instruments behave within declared
+limits. Each campaign record includes hashes that reveal later changes and can
+be replayed. An agent can start a new branch from saved state without changing
+the parent campaign. Connected facilities can then return the physical evidence
+that virtual environments cannot provide.
 
 ## Give your agent Dynamical
 
@@ -42,19 +42,22 @@ npx skills add Dynamical-Systems-Research/dynamical-cli \
   --skill dynamical --global --copy --yes
 ```
 
-Then ask one complete question:
+Then ask a complete scientific question. The agent can decide whether it needs
+literature, data, models, or instrument capabilities before it plans
+experiments. For example:
 
 > Which catalyst composition should we synthesize and measure next to reduce
 > uncertainty about which candidate has the lowest OER overpotential at
 > 10 mA/cm²?
 
-The agent first verifies the Dynamical runtime and its capabilities. It uses the
-[supplied candidate set](https://github.com/Dynamical-Systems-Research/dynamical-cli/blob/main/examples/fastcat-oer/candidate-set.yaml)
-and the
-[FastCat campaign template](https://github.com/Dynamical-Systems-Research/dynamical-cli/blob/main/examples/fastcat-oer/requirement.yaml)
-to compose and validate one isolated arm for each candidate. It returns the
-validated campaign record, the evidence boundary, and a proposed physical
-experiment or `HOLD`.
+This question does not define a candidate pool. To run the public FastCat study,
+also give the agent the
+[candidate set](https://github.com/Dynamical-Systems-Research/dynamical-cli/blob/main/examples/fastcat-oer/candidate-set.yaml)
+and
+[campaign template](https://github.com/Dynamical-Systems-Research/dynamical-cli/blob/main/examples/fastcat-oer/requirement.yaml).
+The agent then composes and validates one isolated arm for each candidate. It
+returns the validated campaign record, the limits of its evidence, and a
+proposed physical experiment or `HOLD`.
 
 If the campaign needs a model, dataset, simulator, or instrument that is not
 available, use `$dynamical-instrument` as the next step. The Codex plugin
@@ -65,8 +68,8 @@ npx skills add Dynamical-Systems-Research/dynamical-cli \
   --skill dynamical-instrument --global --copy --yes
 ```
 
-This skill prepares a pending integration for review. It cannot admit its own
-provider or grant physical authority.
+This skill prepares an integration for facility review. It cannot approve its
+own provider or authorize physical work.
 
 ## See the virtual laboratory run
 
@@ -75,12 +78,13 @@ provider or grant physical authority.
 The portfolio covers water electrolysis, additive-alloy qualification,
 critical-mineral recovery, and rare-earth magnet qualification. Each film shows
 an agent compose a virtual laboratory, run experiments, respond to validated
-evidence, and submit a request to facility authority. The compiled OpenUSD
-laboratory runs in NVIDIA Isaac Sim while the recorded agent output remains
-linked to the campaign trace.
+evidence, and submit a physical experiment request for facility review. The
+compiled OpenUSD laboratory runs in NVIDIA Isaac Sim while the recorded agent
+output remains linked to the campaign trace.
 
 These are virtual campaign replays. They do not show physical execution, and
-the full workstations are not calibrated twins.
+they do not show that the full virtual workstations match physical laboratory
+behavior.
 
 The [Scientific Autoresearch study](https://dynamicalsystems.ai/scientific-autoresearch)
 reports the matched FastCat outcome study and the later campaign behavior.
@@ -107,7 +111,7 @@ means that Dynamical stopped because required evidence or authority is missing.
 ```bash
 curl -fsSLO https://raw.githubusercontent.com/Dynamical-Systems-Research/dynamical-cli/main/examples/quickstart/requirement.yaml
 
-dynamical capabilities --json
+dynamical capabilities
 dynamical compose requirement.yaml -o composition.json
 dynamical compile composition.json -o compiled-world
 dynamical run compiled-world -o trace.ndjson
@@ -126,8 +130,8 @@ contract for one operation.
 
 ### Restore a verified virtual state
 
-Start a new virtual campaign from the sample ledger at one observation in a
-completed simulate trace:
+Start a new virtual campaign from the sample state recorded at one observation
+in a completed simulation trace:
 
 ```bash
 dynamical run child-world \
@@ -143,13 +147,16 @@ dynamical run child-world \
   -o child.ndjson
 ```
 
-Restore re-executes and byte-checks the parent prefix before it derives state.
-It does not alter the parent or copy parent actions into the child campaign.
-Physical and embodied restore are unsupported. The child trace reports source
-and child evidence classes separately. A restored trace cannot be a restore source.
-Repeating the exact child command reuses
-only a matching validated output and returns `"reused": true`; it never
-overwrites a conflicting file. Use `dynamical run --help` for the flag contract.
+Restore validates and reruns the parent up to the selected observation. The
+rerun must match the recorded trace bytes before Dynamical reads the sample
+state. Restore does not change the parent or copy parent actions into the child
+campaign. It does not support physical runs, runs from the 3D execution layer,
+`HOLD` results, or state supplied directly by a user. The child trace reports
+source and child evidence classes separately. A restored child trace can be
+replayed, but it cannot be a restore source. Repeating the exact child command
+reuses only a matching validated output and returns `"reused": true`; it never
+overwrites a conflicting file. Use `dynamical run --help` for the full flag
+list.
 
 ## Run many campaigns
 
@@ -215,65 +222,65 @@ HOLD.
 
 Dynamical exposes five commands:
 
-- `capabilities` lists operations, providers, and admission states.
-- `compose` binds a research requirement to compatible admitted providers.
-- `compile` creates a target-specific virtual laboratory and execution contract.
-- `run` executes a simulation or replays a recorded campaign.
-- `validate` checks structure, provenance, evidence, and authority.
+- `capabilities` lists operations and the providers that can perform them.
+- `compose` matches a research requirement to approved providers.
+- `compile` builds the virtual laboratory and its execution rules.
+- `run` starts a simulation, replay, or restored virtual campaign.
+- `validate` checks structure, source records, evidence labels, and authority.
 
-The reusable unit is a scientific capability. Each capability declares typed
-inputs, outputs, units, limits, uncertainty, failure states, provenance, and
-execution authority. A provider can bind that contract to a simulator, a
-calibrated instrument model, a read-only facility connection, or an approved
-physical instrument.
+The reusable unit is a scientific capability. Each capability states its inputs,
+outputs, units, limits, uncertainty, failure states, source records, and
+execution authority. A provider performs that capability through a simulator,
+calibrated instrument model, read-only facility connection, or approved physical
+instrument.
 
 The agent controls the scientific objective, experiment parameters, operation
-order, analysis, and stopping decision. Dynamical enforces provider admission,
-evidence types, trace integrity, and facility policy. The facility retains
-authority over physical execution.
+order, analysis, and stopping decision. Dynamical checks provider approval,
+evidence labels, trace integrity, and facility rules. The facility controls
+physical execution.
 
 ## Automation contract
 
 Dynamical uses these process exit codes:
 
 - Exit `0`: the command produced an executable or valid result.
-- Exit `1`: the command produced a structured domain-negative result, such as
-  `HOLD` or failed validation.
+- Exit `1`: the command completed with a result that does not permit execution,
+  such as `HOLD` or failed validation.
 - Exit `2`: the invocation is invalid or the input is malformed.
 
 Automation must inspect a structured result that returns exit `1`. It must not
 treat the result as an ordinary crash.
 
-Default receipts use public evidence and authority facts: `evidence_classes`,
+Receipts include fields that state what evidence exists and what authority
+allowed the command: `evidence_classes`,
 `execution_status`, `embodied_evidence_bound`, `claim_boundary`,
-`authority_anchor`, and `validation_reasons`. Internal maturity rubrics are not
-part of the CLI protocol.
+`authority_anchor`, and `validation_reasons`.
 
 Custom `--registry` and `--facility` inputs are proposals. They cannot grant
-themselves authority. In v0.1, the installed bundle is the local authority
-anchor.
+themselves approval. In v0.1, the installed bundle is the source of approved
+records.
 
 `capabilities --registry <path>` inspects a proposal without activating it. Its
-receipt reports effective admission after comparison with the installed
-authority and preserves any self-declared admission as `proposed_admission`.
-Direct manifest compilation creates a validation-only world with no campaign
-execution route; its `next_command` is `validate`, not `run`.
+receipt reports whether each provider is approved after comparison with the
+installed records. It preserves any self-declared approval as
+`proposed_admission`. Compiling a facility manifest directly creates a world for
+validation only. It cannot run a campaign, so its `next_command` is `validate`.
 
-## Portable worlds and trace-bound execution
+## Compiled worlds and verified traces
 
 [OpenUSD](https://openusd.org/release/index.html) carries the portable compiled
 world, including the scene, instrument assets, and campaign composition.
-[NVIDIA Isaac Sim](https://developer.nvidia.com/isaac/sim) supplies the embodied
-visualization layer. Dynamical can compile the same campaign composition for
-each target while preserving the bindings needed to compare and replay it.
+[NVIDIA Isaac Sim](https://developer.nvidia.com/isaac/sim) supplies the 3D
+execution and visualization layer. Dynamical can compile the same campaign for
+each target while keeping the records needed to compare and replay it.
 
-Instrument models produce scientific observations. Each model declares its
+Instrument models produce scientific observations. Each model states its
 inputs, outputs, units, operating range, uncertainty, and evidence class. One
-hash-bound trace connects campaign actions, scene state, observations, sample
-lineage, validation, and replay.
+trace connects campaign actions, scene state, observations, sample history,
+validation, and replay. Its hashes reveal later changes.
 
 Virtual output remains separate from physical evidence. A physical observation
-can only come from a facility-authorized execution.
+can only come after a facility approves and runs the request.
 
 ## Add your own model or instrument
 
@@ -297,32 +304,33 @@ Then ask:
 
 > Use `$dynamical-instrument` to create the smallest pending Dynamical
 > integration that these sources support. Return the candidate files, source
-> evidence, capability operations, conformance commands, admission status, and
+> evidence, capability operations, validation commands, approval status, and
 > missing review items.
 
 A supported contribution can include:
 
-1. Provider-independent capability definitions with typed inputs and outputs.
+1. Capability definitions with typed inputs and outputs that do not depend on
+   one provider.
 2. An adapter for a documented simulator or instrument interface.
 3. A pending provider and, when supported, candidate facility records.
-4. Calibration, provenance, license, and asset bindings.
-5. A minimal example and targeted conformance tests.
+4. Calibration, source, license, and asset records.
+5. A minimal example and targeted validation tests.
 
 The skill reports the exact files and validation commands for the contribution.
-Every new provider remains `pending` until the installed facility authority
-admits it. Missing calibration, licensing, safety review, or physical authority
-keeps the route pending or returns `HOLD`.
+Every new provider remains `pending` until the facility approves it. Missing
+calibration, licensing, safety review, or physical authority keeps the route
+pending or returns `HOLD`.
 
 ## Evidence and authority
 
 Simulation, calibrated-model output, replay, and physical measurements are
 different evidence classes. Dynamical preserves that distinction in the
-capability registry and campaign trace.
+capability records and campaign trace.
 
-Validation confirms that an artifact follows its declared contract. It does not
-establish scientific truth or optimality. Physical execution requires an
-admitted provider, facility policy, and independent approval. A missing route or
-authority record returns a structured `HOLD` receipt.
+Validation confirms that a file follows its declared structure and source
+rules. It does not establish scientific truth or optimality. Physical execution
+requires an approved provider, facility rules, and independent approval. A
+missing route or authority record returns `HOLD` with reason codes.
 
 ## Source and licensing
 
@@ -333,9 +341,9 @@ attribution. See
 [THIRD_PARTY_NOTICES.md](https://github.com/Dynamical-Systems-Research/dynamical-cli/blob/main/THIRD_PARTY_NOTICES.md)
 for details.
 
-Machine-readable source records bind derived artifacts to source hashes,
-provenance, license evidence, and known limits. A derived asset does not replace
-its source or grant new rights.
+Machine-readable records link derived files to source hashes, source history,
+license evidence, and known limits. A derived file does not replace its source
+or grant new rights.
 
 ## Development
 

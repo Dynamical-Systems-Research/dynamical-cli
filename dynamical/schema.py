@@ -981,6 +981,11 @@ def load_facility_manifest(path: str | Path) -> FacilityDocument:
         raise ValueError("facility manifest must use .json, .yaml, or .yml")
     if not isinstance(raw, dict):
         raise ValueError("facility manifest root must be an object")
+    if raw.get("document_type") == "dynamical.campaign-requirement":
+        raise ValueError(
+            f"campaign requirement is a compose input, not a facility manifest: {source}\n"
+            f"Example: dynamical compose {source} -o composition.json"
+        )
     return FacilityDocument.model_validate(raw)
 
 
@@ -1012,7 +1017,13 @@ def load_capability_registry(path: str | Path) -> CapabilityRegistry:
 def load_campaign_requirement(path: str | Path) -> CampaignRequirement:
     """Load a strict engineering objective and campaign capability request."""
 
-    return CampaignRequirement.model_validate(_load_versioned_document(path))
+    raw = _load_versioned_document(path)
+    if raw.get("document_type") == "dynamical.facility":
+        raise ValueError(
+            f"facility manifest is a compile input, not a campaign requirement: {path}\n"
+            f"Example: dynamical compile {path} --target openusd -o compiled-world"
+        )
+    return CampaignRequirement.model_validate(raw)
 
 
 def safe_usd_identifier(value: str) -> str:

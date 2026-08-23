@@ -1,11 +1,9 @@
 ---
 name: dynamical
-description: Compose and run evidence-bound virtual laboratories from admitted capabilities for materials research. Use when an agent must use Dynamical to investigate a question, hypothesis, or decision; compose a complete supported virtual laboratory or a purpose-built multi-instrument workflow; run sequential, high-concurrency, or batched adaptive counterfactual campaigns; replay or branch from hash-bound experiment snapshots; prepare validated trajectories for evaluation or post-training; compare matched virtual and physical evidence; request the next physical experiment; or preserve a HOLD result.
+description: Compose and run evidence-bound virtual laboratories from admitted capabilities for experimental science. Use when an agent must use Dynamical to investigate a question, hypothesis, or decision; compose a complete supported virtual laboratory or a purpose-built multi-instrument workflow; run sequential, high-concurrency, or batched adaptive counterfactual campaigns; replay or branch from hash-bound experiment snapshots; prepare validated trajectories for evaluation or post-training; compare matched virtual and physical evidence; request the next physical experiment; or preserve a HOLD result.
 ---
 
 # Dynamical
-
-For a first run, start with the [public examples](https://github.com/Dynamical-Systems-Research/dynamical-cli/tree/main/examples).
 
 Use the campaign-planning sections only when starting or continuing a study.
 For a direct interface operation such as capability inspection, compilation,
@@ -61,10 +59,16 @@ execution.
 
 ## Start from the scientific objective
 
-Use supplied context and capability metadata first. Record only assumptions that
-materially affect the objective, evidence boundary, or execution envelope. Ask
-one concise question only when a missing choice would materially change the
-objective or require new authority.
+Start from the scientist's objective and use supplied context when available.
+Decide whether the work needs capability inspection, literature, datasets,
+protocols, or experiments. When needed and permitted, search for and download
+relevant sources within approved network and cost limits. Record the source,
+version, and license, and hash downloaded data used in a campaign. External
+sources can inform research policy and campaign inputs; they do not grant
+provider admission, change evidence class, or authorize physical execution.
+Record only assumptions that materially affect the objective, evidence
+boundary, or execution envelope. Ask one concise question only when a missing
+choice would materially change the objective or require new authority.
 
 Begin reversible local virtual work without another confirmation. The agent owns
 the scientific policy: it can choose and revise hypotheses, instruments,
@@ -99,11 +103,14 @@ Capability detail places the operation under `.operation` and provider records
 under `.providers`. The operation ID is `.operation.operation_id`. Provider
 fields include `.provider_id`, `.evidence_class`, `.admission`, `.availability`,
 `.policy`, and `.validity_envelope`. Project only the needed input ports,
-parameters, provider fields, and validity limits. If a projection returns
-`null`, inspect the top-level keys and correct the query; do not fall back to
-printing the complete capability record. Use this documented shape first. Do
-not inspect keys before the first projection or query the same capability twice
-unless the first result is missing a required field.
+parameters, provider fields, and validity limits. Unless authority provenance is
+the question, reduce providers to ID, evidence class, admission status,
+availability, permission, and validity limits. Reduce ports and parameters to
+their ID or name, type, unit, required state, and numeric limits. If a
+projection returns `null`, inspect the top-level keys and correct the query; do
+not fall back to printing the complete capability record. Use this documented
+shape first. Do not inspect keys before the first projection or query the same
+capability twice unless the first result is missing a required field.
 
 Use the five commands:
 
@@ -118,7 +125,8 @@ purpose-built multi-instrument workflow. Select the composition from the
 scientific objective and available evidence. Keep each provider's evidence
 class; the full composition is not itself a `calibrated_twin`.
 
-Inspect the relevant command with `--help` before use. The agent controls
+Use a receipt's exact `next_command` when present. Inspect `--help` only when no
+receipt or supplied example resolves the required syntax. The agent controls
 research policy. Dynamical controls admission, safety, evidence, cost, and
 authority. Do not bypass rejected providers, constraints, budgets, or approval
 rules.
@@ -196,12 +204,14 @@ Pause when the agent's scientific stopping condition is met or when progress
 requires an environment change, external spend, new provider authority, or
 physical execution.
 
-Capture each command's structured stdout in its arm directory on first
-execution; do not rerun or reconstruct a command only to preserve its receipt.
-Use narrow structured queries to inspect only the capability, schema, receipt,
-and trace fields needed. When the host supports it, group each arm's ordered,
-fail-closed pipeline into one tool call. Do not print complete capability
-records, schemas, compositions, receipts, or traces into the agent context.
+Redirect each command's structured stdout to its receipt file on first
+execution; do not use `tee`, which prints the complete receipt into context.
+Do not rerun or reconstruct a command only to preserve its receipt. After the
+command exits, use narrow structured queries to inspect only the capability,
+schema, receipt, and trace fields needed. When the host supports it, group each
+arm's ordered, fail-closed pipeline into one tool call. Do not print complete
+capability records, schemas, compositions, receipts, or traces into the agent
+context.
 Trace files store `observation.channels` as a list of channel records. Select
 records by `name`; do not treat the list as an object keyed by channel name.
 Do not use `head`, `sed`, or `rg` on NDJSON traces, because each line is a
@@ -232,11 +242,13 @@ Preserve each arm with one of these statuses:
 - `failed`: execution ended before it produced a valid artifact.
 
 Record `HOLD`, invalid, and failed arms, but do not use them as scientific
-evidence. Validate each `HOLD` receipt with `dynamical validate` and preserve the
-validation result. If `HOLD` identifies an incomplete requirement, author a
-corrected requirement without changing admission or authority. If no admitted
-route exists, continue only after the missing evidence, provider, policy,
-budget, safety condition, or authority changes.
+evidence. Preserve every `HOLD` receipt. If the receipt names a saved output,
+validate that output with `dynamical validate` and preserve the validation
+result. Do not pass the command receipt itself to `dynamical validate`. If
+`HOLD` identifies an incomplete requirement, author a corrected requirement
+without changing admission or authority. If no admitted route exists, continue
+only after the missing evidence, provider, policy, budget, safety condition, or
+authority changes.
 
 If `HOLD` identifies a missing capability and source material is available, use
 `$dynamical-instrument` with the requirement and `HOLD` receipt to assess or
