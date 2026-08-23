@@ -13,18 +13,20 @@
 
 Dynamical CLI is the open-source interface for scientific autoresearch. An agent
 starts with a question or engineering objective and decides what evidence could
-resolve it. It selects the instruments and scientific models that can provide
-that evidence. Dynamical checks that the facility has approved them, then builds
-and records the campaign. The agent runs virtual experiments, changes its plan
-as results arrive, and can request the physical experiment worth running next.
+resolve it. It composes a virtual laboratory from admitted instruments and
+computational providers. Dynamical compiles and records the campaign. The agent
+runs adaptive virtual experiments and can request the physical experiment worth
+running next.
 
 A virtual laboratory can represent a complete supported laboratory or a
-smaller workflow with only the instruments needed. Agents can compare
-alternative experiments and learn how instruments behave within declared
-limits. Each campaign record includes hashes that reveal later changes and can
-be replayed. An agent can start a new branch from saved state without changing
-the parent campaign. Connected facilities can then return the physical evidence
-that virtual environments cannot provide.
+purpose-built multi-instrument workflow. Agents can explore counterfactual
+experiments and learn instrument behavior and operating limits. Each recorded
+campaign is hash-bound and can be replayed. A preserved campaign state can also
+start a new experiment as a branch without changing the recorded campaign.
+The same virtual laboratories can support agent evaluation, data generation,
+and training.
+Connected facilities can then return the physical evidence that virtual
+environments cannot provide.
 
 ## Give your agent Dynamical
 
@@ -321,7 +323,7 @@ Every new provider remains `pending` until the facility approves it. Missing
 calibration, licensing, safety review, or physical authority keeps the route
 pending or returns `HOLD`.
 
-## Evidence and authority
+## What the results mean
 
 Simulation, calibrated-model output, replay, and physical measurements are
 different evidence classes. Dynamical preserves that distinction in the
