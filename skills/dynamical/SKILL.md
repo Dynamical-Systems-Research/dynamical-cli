@@ -1,11 +1,9 @@
 ---
 name: dynamical
-description: Compose and run evidence-bound virtual laboratories from admitted capabilities for materials research. Use when an agent must use Dynamical to investigate a question, hypothesis, or decision; compose a complete supported virtual laboratory or a purpose-built multi-instrument workflow; run sequential, high-concurrency, or batched adaptive counterfactual campaigns; replay or branch from hash-bound experiment snapshots; prepare validated trajectories for evaluation or post-training; compare matched virtual and physical evidence; request the next physical experiment; or preserve a HOLD result.
+description: Compose and run evidence-bound virtual laboratories from admitted capabilities for experimental science. Use when an agent must use Dynamical to investigate a question, hypothesis, or decision; compose a complete supported virtual laboratory or a purpose-built multi-instrument workflow; run sequential, high-concurrency, or batched adaptive counterfactual campaigns; replay or branch from hash-bound experiment snapshots; prepare validated trajectories for evaluation or post-training; compare matched virtual and physical evidence; request the next physical experiment; or preserve a HOLD result.
 ---
 
 # Dynamical
-
-For a first run, start with the [public examples](https://github.com/Dynamical-Systems-Research/dynamical-cli/tree/main/examples).
 
 Use the campaign-planning sections only when starting or continuing a study.
 For a direct interface operation such as capability inspection, compilation,
@@ -61,10 +59,16 @@ execution.
 
 ## Start from the scientific objective
 
-Use supplied context and capability metadata first. Record only assumptions that
-materially affect the objective, evidence boundary, or execution envelope. Ask
-one concise question only when a missing choice would materially change the
-objective or require new authority.
+Start from the scientist's objective and use supplied context when available.
+Decide whether the work needs capability inspection, literature, datasets,
+protocols, or experiments. When needed and permitted, search for and download
+relevant sources within approved network and cost limits. Record the source,
+version, and license, and hash downloaded data used in a campaign. External
+sources can inform research policy and campaign inputs; they do not grant
+provider admission, change evidence class, or authorize physical execution.
+Record only assumptions that materially affect the objective, evidence
+boundary, or execution envelope. Ask one concise question only when a missing
+choice would materially change the objective or require new authority.
 
 Begin reversible local virtual work without another confirmation. The agent owns
 the scientific policy: it can choose and revise hypotheses, instruments,
@@ -238,11 +242,13 @@ Preserve each arm with one of these statuses:
 - `failed`: execution ended before it produced a valid artifact.
 
 Record `HOLD`, invalid, and failed arms, but do not use them as scientific
-evidence. Validate each `HOLD` receipt with `dynamical validate` and preserve the
-validation result. If `HOLD` identifies an incomplete requirement, author a
-corrected requirement without changing admission or authority. If no admitted
-route exists, continue only after the missing evidence, provider, policy,
-budget, safety condition, or authority changes.
+evidence. Preserve every `HOLD` receipt. If the receipt names a saved output,
+validate that output with `dynamical validate` and preserve the validation
+result. Do not pass the command receipt itself to `dynamical validate`. If
+`HOLD` identifies an incomplete requirement, author a corrected requirement
+without changing admission or authority. If no admitted route exists, continue
+only after the missing evidence, provider, policy, budget, safety condition, or
+authority changes.
 
 If `HOLD` identifies a missing capability and source material is available, use
 `$dynamical-instrument` with the requirement and `HOLD` receipt to assess or
