@@ -95,6 +95,7 @@ def test_public_help_has_exactly_five_agent_commands() -> None:
 
 
 def test_each_command_has_one_copyable_example() -> None:
+    help_by_command = {}
     for command in ("capabilities", "compose", "compile", "run", "validate"):
         completed = subprocess.run(
             [sys.executable, "-m", "dynamical.cli", command, "--help"],
@@ -105,6 +106,16 @@ def test_each_command_has_one_copyable_example() -> None:
         )
         assert completed.returncode == 0
         assert f"dynamical {command}" in completed.stdout
+        help_by_command[command] = completed.stdout
+
+    assert "dynamical capabilities --json" not in help_by_command["capabilities"]
+    assert (
+        "dynamical capabilities --operation <operation-id> --json"
+        in help_by_command["capabilities"]
+    )
+    assert "dynamical compose --schema" in help_by_command["compose"]
+    assert "requirement_id: example-requirement" not in help_by_command["compose"]
+    assert "Campaign requirements are compose inputs" in help_by_command["validate"]
 
 
 def test_capability_index_is_compact_and_detail_is_complete(capsys) -> None:
@@ -187,6 +198,11 @@ def test_hold_receipt_has_reasons_and_no_compile_instruction(tmp_path: Path, cap
     validation = json.loads(capsys.readouterr().out)
     assert validation["execution_status"] == "blocked"
     assert validation["validation_reasons"] == receipt["validation_reasons"]
+
+    assert main(["validate", str(composition)]) == 0
+    assert capsys.readouterr().out == (
+        f"VALID: {composition} [kind=composition_result status=HOLD execution_status=blocked]\n"
+    )
 
 
 def test_saved_composition_compiles_runs_and_validates_without_extra_flags(
@@ -705,6 +721,30 @@ def test_missing_cli_inputs_name_the_absent_path(tmp_path: Path, capsys) -> None
         error = capsys.readouterr().err
         assert "malformed YAML" in error
         assert "Traceback" not in error
+
+
+def test_known_document_types_name_the_correct_command(tmp_path: Path, capsys) -> None:
+    requirement = write_reference_requirement(tmp_path / "requirement.yaml")
+    cases = (
+        (
+            ["validate", str(requirement), "--json"],
+            f"Example: dynamical compose {requirement} -o composition.json",
+        ),
+        (
+            ["compile", str(requirement), "--target", "openusd"],
+            f"Example: dynamical compose {requirement} -o composition.json",
+        ),
+        (
+            ["compose", str(MANIFEST)],
+            f"Example: dynamical compile {MANIFEST} --target openusd -o compiled-world",
+        ),
+    )
+    for arguments, expected in cases:
+        assert main(arguments) == 2
+        error = capsys.readouterr().err
+        assert expected in error
+        assert len(error.splitlines()) == 2
+        assert "validation errors for" not in error
 
 
 def test_registry_sha256_is_recomputable_from_the_emitted_bytes(capsys):

@@ -99,11 +99,14 @@ Capability detail places the operation under `.operation` and provider records
 under `.providers`. The operation ID is `.operation.operation_id`. Provider
 fields include `.provider_id`, `.evidence_class`, `.admission`, `.availability`,
 `.policy`, and `.validity_envelope`. Project only the needed input ports,
-parameters, provider fields, and validity limits. If a projection returns
-`null`, inspect the top-level keys and correct the query; do not fall back to
-printing the complete capability record. Use this documented shape first. Do
-not inspect keys before the first projection or query the same capability twice
-unless the first result is missing a required field.
+parameters, provider fields, and validity limits. Unless authority provenance is
+the question, reduce providers to ID, evidence class, admission status,
+availability, permission, and validity limits. Reduce ports and parameters to
+their ID or name, type, unit, required state, and numeric limits. If a
+projection returns `null`, inspect the top-level keys and correct the query; do
+not fall back to printing the complete capability record. Use this documented
+shape first. Do not inspect keys before the first projection or query the same
+capability twice unless the first result is missing a required field.
 
 Use the five commands:
 
@@ -118,7 +121,8 @@ purpose-built multi-instrument workflow. Select the composition from the
 scientific objective and available evidence. Keep each provider's evidence
 class; the full composition is not itself a `calibrated_twin`.
 
-Inspect the relevant command with `--help` before use. The agent controls
+Use a receipt's exact `next_command` when present. Inspect `--help` only when no
+receipt or supplied example resolves the required syntax. The agent controls
 research policy. Dynamical controls admission, safety, evidence, cost, and
 authority. Do not bypass rejected providers, constraints, budgets, or approval
 rules.
@@ -196,12 +200,14 @@ Pause when the agent's scientific stopping condition is met or when progress
 requires an environment change, external spend, new provider authority, or
 physical execution.
 
-Capture each command's structured stdout in its arm directory on first
-execution; do not rerun or reconstruct a command only to preserve its receipt.
-Use narrow structured queries to inspect only the capability, schema, receipt,
-and trace fields needed. When the host supports it, group each arm's ordered,
-fail-closed pipeline into one tool call. Do not print complete capability
-records, schemas, compositions, receipts, or traces into the agent context.
+Redirect each command's structured stdout to its receipt file on first
+execution; do not use `tee`, which prints the complete receipt into context.
+Do not rerun or reconstruct a command only to preserve its receipt. After the
+command exits, use narrow structured queries to inspect only the capability,
+schema, receipt, and trace fields needed. When the host supports it, group each
+arm's ordered, fail-closed pipeline into one tool call. Do not print complete
+capability records, schemas, compositions, receipts, or traces into the agent
+context.
 Trace files store `observation.channels` as a list of channel records. Select
 records by `name`; do not treat the list as an object keyed by channel name.
 Do not use `head`, `sed`, or `rg` on NDJSON traces, because each line is a

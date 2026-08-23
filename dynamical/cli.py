@@ -57,7 +57,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="list operations or inspect one operation",
         epilog=(
             "Examples:\n"
-            "  dynamical capabilities --json\n"
+            "  dynamical capabilities\n"
             "  dynamical capabilities --operation <operation-id> --json"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -95,37 +95,11 @@ def build_parser() -> argparse.ArgumentParser:
         "compose",
         help="select admitted providers for a requirement",
         epilog=(
-            "Example: dynamical compose requirement.yaml -o composition.json\n\n"
-            "Non-executable multi-step requirement shape. Replace each operation and port "
-            "with values from `dynamical capabilities --operation <operation-id> --json`:\n"
-            "  document_type: dynamical.campaign-requirement\n"
-            "  schema_version: 0.1.0\n"
-            "  requirement_id: example-requirement\n"
-            "  objective:\n"
-            "    id: example-objective\n"
-            "    statement: Process an input through two operations.\n"
-            "    decision: Decide if the resulting evidence meets the stated rule.\n"
-            "    proof_requirements:\n"
-            "      - {id: result-proof, operation_id: operation-b, "
-            "output_port_ids: [result.value], minimum_evidence_class: simulator, "
-            "acceptance_rule: Apply the stated result rule., "
-            "independent_verification_required: true}\n"
-            "  inputs:\n"
-            "    - {id: input.value, state_type: number, unit: '1', value: 1}\n"
-            "  steps:\n"
-            "    - step_id: step-a\n"
-            "      operation_id: operation-a\n"
-            "      input_bindings:\n"
-            "        - {target_port_id: input.value, source_kind: campaign_input, "
-            "source_id: input.value}\n"
-            "    - step_id: step-b\n"
-            "      operation_id: operation-b\n"
-            "      input_bindings:\n"
-            "        - {target_port_id: intermediate.value, source_kind: step_output, "
-            "source_id: step-a, source_port_id: intermediate.value}\n"
-            "      depends_on: [step-a]\n"
-            "  max_cost_usd: 0\n"
-            "  max_duration_s: 60"
+            "Examples:\n"
+            "  dynamical compose requirement.yaml -o composition.json\n"
+            "  dynamical compose --schema\n\n"
+            "Use capability detail for operation ports and parameters. "
+            "Use --schema for requirement fields."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -193,7 +167,9 @@ def build_parser() -> argparse.ArgumentParser:
         epilog=(
             "Examples:\n"
             "  dynamical validate compiled-world --json\n"
-            "  dynamical validate trace.ndjson --json"
+            "  dynamical validate trace.ndjson --json\n\n"
+            "Campaign requirements are compose inputs:\n"
+            "  dynamical compose requirement.yaml -o composition.json"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -637,7 +613,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             if args.as_json:
                 print(json.dumps(report, indent=2, sort_keys=True))
             elif report.get("valid"):
-                print(f"PASSED: {args.path}")
+                summary = " ".join(
+                    f"{key}={report[key]}"
+                    for key in ("kind", "status", "execution_status")
+                    if key in report
+                )
+                print(f"VALID: {args.path} [{summary}]")
             else:
                 print(f"FAILED: {args.path}")
                 for failure in report.get("failures", []):
