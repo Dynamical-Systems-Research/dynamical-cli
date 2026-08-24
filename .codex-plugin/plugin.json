@@ -1,7 +1,7 @@
 {
   "name": "dynamical",
-  "version": "0.1.15",
-  "description": "Compose and run evidence-bound virtual laboratories from admitted capabilities for materials research.",
+  "version": "0.1.16",
+  "description": "A programmable interface for agents to build virtual laboratories, run adaptive experiments, and make evidence-grounded scientific decisions.",
   "author": {
     "name": "Dynamical Systems Research",
     "url": "https://github.com/Dynamical-Systems-Research"
@@ -18,8 +18,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Dynamical",
-    "shortDescription": "Investigate materials decisions with validated evidence",
-    "longDescription": "Use Dynamical to plan, run, validate, and compare bounded virtual experiments while preserving evidence and physical authority boundaries.",
+    "shortDescription": "Build virtual labs for evidence-grounded scientific research",
+    "longDescription": "Use Dynamical when a scientific question needs evidence from models, simulators, datasets, or instruments. It lets an agent compose available capabilities into a virtual laboratory, run and adapt experiments, and preserve validated campaign records for scientific decisions. Facilities retain control of physical execution.",
     "developerName": "Dynamical Systems Research",
     "category": "Research",
     "capabilities": [
@@ -28,7 +28,7 @@
       "Write"
     ],
     "defaultPrompt": [
-      "Use Dynamical to investigate a materials decision: confirm, run, and validate experiments; report evidence and uncertainty."
+      "Use Dynamical to investigate this scientific question. Decide what evidence could resolve it, inspect the available capabilities, compose the virtual laboratory you need, and run an adaptive campaign. Validate the campaign record, explain how the evidence changed your conclusion, and recommend the most useful next experiment. Keep virtual and physical evidence separate. Leave physical execution to the facility."
     ]
   }
 }
