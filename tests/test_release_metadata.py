@@ -12,3 +12,11 @@ def test_plugin_version_matches_package_version() -> None:
     plugin = json.loads((REPOSITORY / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8"))
 
     assert plugin["version"] == project["project"]["version"]
+
+
+def test_plugin_default_prompts_fit_manifest_limit() -> None:
+    plugin = json.loads((REPOSITORY / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8"))
+    prompts = plugin["interface"]["defaultPrompt"]
+
+    assert prompts
+    assert all(isinstance(prompt, str) and len(prompt) <= 128 for prompt in prompts)
