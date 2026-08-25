@@ -1,6 +1,6 @@
 {
   "name": "dynamical",
-  "version": "0.1.16",
+  "version": "0.1.17",
   "description": "A programmable interface for agents to build virtual laboratories, run adaptive experiments, and make evidence-grounded scientific decisions.",
   "author": {
     "name": "Dynamical Systems Research",
