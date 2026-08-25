@@ -11,51 +11,46 @@
   <a href="https://github.com/Dynamical-Systems-Research/dynamical-cli/blob/main/LICENSE"><img src="https://img.shields.io/pypi/l/dynamical-cli.svg" alt="Apache 2.0 license"></a>
 </p>
 
-Dynamical CLI is the open-source interface for scientific autoresearch. An agent
+Dynamical CLI is an open-source interface for scientific autoresearch. An agent
 starts with a question or engineering objective and decides what evidence could
-resolve it. It composes a virtual laboratory from admitted instruments and
+resolve it. It composes a virtual laboratory from approved instruments and
 computational providers. Dynamical compiles and records the campaign. The agent
-runs adaptive virtual experiments and can request the physical experiment worth
-running next.
+runs adaptive virtual experiments and can request the next physical experiment.
 
-A virtual laboratory can represent a complete supported laboratory or a
-purpose-built multi-instrument workflow. Agents can explore counterfactual
-experiments and learn instrument behavior and operating limits. Each recorded
-campaign is hash-bound and can be replayed. A preserved campaign state can also
-start a new experiment as a branch without changing the recorded campaign.
-The same virtual laboratories can support agent evaluation, data generation,
-and training.
-Connected facilities can then return the physical evidence that virtual
-environments cannot provide.
+A virtual laboratory can represent a complete supported laboratory or a small
+set of connected instruments. Agents can explore counterfactual experiments and
+learn instrument behavior and operating limits. Each recorded
+campaign is hashed and can be replayed. An agent can snapshot a campaign and
+branch it without changing the record. The same virtual laboratories support
+agent evaluation, data generation, and training. Connected facilities can then
+return the physical evidence that virtual environments cannot provide.
 
-## Give your agent Dynamical
+## Install Dynamical
 
-For Codex, add the plugin:
+Install the Codex plugin:
 
 ```bash
 codex plugin marketplace add Dynamical-Systems-Research/dynamical-cli --json
 codex plugin add dynamical@dynamical-systems-research --json
 ```
 
-For Claude Code, add the plugin:
+Install the Claude Code plugin:
 
 ```bash
 claude plugin marketplace add Dynamical-Systems-Research/dynamical-cli
 claude plugin install dynamical@dynamical-systems-research
 ```
 
-Each plugin ships both skills. If you added them earlier with `npx skills add`,
-delete the copied `dynamical` and `dynamical-instrument` directories from
-`~/.claude/skills/` or `~/.codex/skills/` first, so the agent does not load two
-copies of the same skill.
+Install the skills in a different agent. Replace `<name>` with the agent name:
 
-The plugins ship the skills, not the runtime. On first use the agent checks for
-the `dynamical` executable and asks before it installs anything. You can also
-install the runtime yourself first.
+```bash
+npx skills add Dynamical-Systems-Research/dynamical-cli \
+  --skill '*' --agent <name> --global --yes
+```
 
-Then ask a complete scientific question. The agent can decide whether it needs
-literature, data, models, or instrument capabilities before it plans
-experiments. For example:
+Then ask a complete scientific question. The agent uses the `dynamical` skill to
+plan and run the campaign. It first decides whether it needs literature, data,
+models, or instrument capabilities. For example:
 
 > Which catalyst composition should we synthesize and measure next to reduce
 > uncertainty about which candidate has the lowest OER overpotential at
@@ -71,9 +66,9 @@ returns the validated campaign record, the limits of its evidence, and a
 proposed physical experiment or `HOLD`.
 
 If the campaign needs a model, dataset, simulator, or instrument that is not
-available, use `$dynamical-instrument` as the next step. Both plugins include
-it. This skill prepares an integration for facility review. It cannot approve
-its own provider or authorize physical work.
+available, use the `dynamical-instrument` skill next. Each install method
+includes it. This skill prepares an integration for facility review. It cannot
+approve its own provider. It cannot authorize physical work.
 
 ## See the virtual laboratory run
 
@@ -81,8 +76,8 @@ its own provider or authorize physical work.
 
 The portfolio covers water electrolysis, additive-alloy qualification,
 critical-mineral recovery, and rare-earth magnet qualification. Each film shows
-an agent compose a virtual laboratory, run experiments, respond to validated
-evidence, and submit a physical experiment request for facility review. The
+how an agent composes a virtual laboratory, runs experiments, responds to
+validated evidence, and submits a physical experiment request for review. The
 compiled OpenUSD laboratory runs in NVIDIA Isaac Sim while the recorded agent
 output remains linked to the campaign trace.
 
@@ -95,8 +90,7 @@ reports the matched FastCat outcome study and the later campaign behavior.
 
 ## Manual CLI setup
 
-The agent installs this runtime on first use if it is missing. To install it
-yourself, prefer an isolated tool environment:
+To install the runtime yourself, prefer an isolated tool environment:
 
 ```bash
 uv tool install dynamical-cli
@@ -112,12 +106,12 @@ The skills use this CLI as their runtime. No MCP server is required.
 
 ## Run a virtual campaign
 
-Download the example requirement and run the complete virtual workflow:
-
 See the [examples index](https://github.com/Dynamical-Systems-Research/dynamical-cli/tree/main/examples)
 for three public examples. It contains a simulator quickstart and a FastCat
 OER reference. It also contains a provider proposal that returns `HOLD`. `HOLD`
 means that Dynamical stopped because required evidence or authority is missing.
+
+Download the example requirement and run the complete virtual workflow:
 
 ```bash
 curl -fsSLO https://raw.githubusercontent.com/Dynamical-Systems-Research/dynamical-cli/main/examples/quickstart/requirement.yaml
@@ -132,17 +126,17 @@ dynamical validate replay.ndjson --json
 ```
 
 The example transfers one sample into an ultrasonic conditioning station and
-runs a bounded virtual process. The trace records each action, observation,
-constraint, sample-state change, cost, and duration.
+runs a virtual process with fixed limits. The trace records each action,
+observation, constraint, sample-state change, cost, and duration.
 
 Use `dynamical compose --schema` to inspect the requirement schema. Use
 `dynamical capabilities --operation <operation-id> --json` to inspect the typed
 contract for one operation.
 
-### Restore a verified virtual state
+### Snapshot and branch a campaign
 
-Start a new virtual campaign from the sample state recorded at one observation
-in a completed simulation trace:
+Branch a new campaign from the sample state recorded at one observation in a
+completed simulation trace:
 
 ```bash
 dynamical run child-world \
@@ -236,8 +230,12 @@ Dynamical exposes five commands:
 - `capabilities` lists operations and the providers that can perform them.
 - `compose` matches a research requirement to approved providers.
 - `compile` builds the virtual laboratory and its execution rules.
-- `run` starts a simulation, replay, or restored virtual campaign.
+- `run` starts a simulation, replay, or branched virtual campaign.
 - `validate` checks structure, source records, evidence labels, and authority.
+
+Simulation, calibrated-model output, replay, and physical measurement are
+different evidence classes. Validation checks structure and source records. It
+does not establish scientific truth.
 
 The reusable unit is a scientific capability. Each capability states its inputs,
 outputs, units, limits, uncertainty, failure states, source records, and
@@ -313,7 +311,7 @@ Give the agent:
 
 Then ask:
 
-> Use `$dynamical-instrument` to create the smallest pending Dynamical
+> Use the `dynamical-instrument` skill to create the smallest pending Dynamical
 > integration that these sources support. Return the candidate files, source
 > evidence, capability operations, validation commands, approval status, and
 > missing review items.
@@ -331,17 +329,6 @@ The skill reports the exact files and validation commands for the contribution.
 Every new provider remains `pending` until the facility approves it. Missing
 calibration, licensing, safety review, or physical authority keeps the route
 pending or returns `HOLD`.
-
-## What the results mean
-
-Simulation, calibrated-model output, replay, and physical measurements are
-different evidence classes. Dynamical preserves that distinction in the
-capability records and campaign trace.
-
-Validation confirms that a file follows its declared structure and source
-rules. It does not establish scientific truth or optimality. Physical execution
-requires an approved provider, facility rules, and independent approval. A
-missing route or authority record returns `HOLD` with reason codes.
 
 ## Source and licensing
 
