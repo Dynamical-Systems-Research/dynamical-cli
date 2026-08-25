@@ -37,12 +37,21 @@ codex plugin marketplace add Dynamical-Systems-Research/dynamical-cli --json
 codex plugin add dynamical@dynamical-systems-research --json
 ```
 
-For Claude Code, install the primary `$dynamical` skill:
+For Claude Code, add the plugin:
 
 ```bash
-npx skills add Dynamical-Systems-Research/dynamical-cli \
-  --skill dynamical --global --copy --yes
+claude plugin marketplace add Dynamical-Systems-Research/dynamical-cli
+claude plugin install dynamical@dynamical-systems-research
 ```
+
+Each plugin ships both skills. If you added them earlier with `npx skills add`,
+delete the copied `dynamical` and `dynamical-instrument` directories from
+`~/.claude/skills/` or `~/.codex/skills/` first, so the agent does not load two
+copies of the same skill.
+
+The plugins ship the skills, not the runtime. On first use the agent checks for
+the `dynamical` executable and asks before it installs anything. You can also
+install the runtime yourself first.
 
 Then ask a complete scientific question. The agent can decide whether it needs
 literature, data, models, or instrument capabilities before it plans
@@ -62,16 +71,9 @@ returns the validated campaign record, the limits of its evidence, and a
 proposed physical experiment or `HOLD`.
 
 If the campaign needs a model, dataset, simulator, or instrument that is not
-available, use `$dynamical-instrument` as the next step. The Codex plugin
-includes it. For Claude Code, install it directly:
-
-```bash
-npx skills add Dynamical-Systems-Research/dynamical-cli \
-  --skill dynamical-instrument --global --copy --yes
-```
-
-This skill prepares an integration for facility review. It cannot approve its
-own provider or authorize physical work.
+available, use `$dynamical-instrument` as the next step. Both plugins include
+it. This skill prepares an integration for facility review. It cannot approve
+its own provider or authorize physical work.
 
 ## See the virtual laboratory run
 
@@ -93,10 +95,17 @@ reports the matched FastCat outcome study and the later campaign behavior.
 
 ## Manual CLI setup
 
-Install the runtime with Python 3.11 or later:
+The agent installs this runtime on first use if it is missing. To install it
+yourself, prefer an isolated tool environment:
 
 ```bash
-python -m pip install dynamical-cli
+uv tool install dynamical-cli
+```
+
+Without `uv`, install with Python 3.11 or later:
+
+```bash
+python3 -m pip install --user dynamical-cli
 ```
 
 The skills use this CLI as their runtime. No MCP server is required.

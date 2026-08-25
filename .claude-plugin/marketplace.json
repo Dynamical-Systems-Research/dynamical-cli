@@ -1,0 +1,15 @@
+{
+  "name": "dynamical-systems-research",
+  "owner": {
+    "name": "Dynamical Systems Research",
+    "url": "https://github.com/Dynamical-Systems-Research"
+  },
+  "description": "Build virtual labs for evidence-grounded scientific research.",
+  "plugins": [
+    {
+      "name": "dynamical",
+      "source": "./skills",
+      "category": "research"
+    }
+  ]
+}

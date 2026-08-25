@@ -6,12 +6,19 @@ from pathlib import Path
 
 REPOSITORY = Path(__file__).resolve().parents[1]
 
+PLUGIN_MANIFESTS = (
+    Path(".codex-plugin") / "plugin.json",
+    Path("skills") / ".claude-plugin" / "plugin.json",
+)
+
 
 def test_plugin_version_matches_package_version() -> None:
     project = tomllib.loads((REPOSITORY / "pyproject.toml").read_text(encoding="utf-8"))
-    plugin = json.loads((REPOSITORY / ".codex-plugin" / "plugin.json").read_text(encoding="utf-8"))
 
-    assert plugin["version"] == project["project"]["version"]
+    for manifest in PLUGIN_MANIFESTS:
+        plugin = json.loads((REPOSITORY / manifest).read_text(encoding="utf-8"))
+
+        assert plugin["version"] == project["project"]["version"], str(manifest)
 
 
 def test_plugin_default_prompts_fit_manifest_limit() -> None:

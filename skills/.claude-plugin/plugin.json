@@ -1,0 +1,19 @@
+{
+  "name": "dynamical",
+  "version": "0.1.16",
+  "description": "A programmable interface for agents to build virtual laboratories, run adaptive experiments, and make evidence-grounded scientific decisions.",
+  "author": {
+    "name": "Dynamical Systems Research",
+    "url": "https://github.com/Dynamical-Systems-Research"
+  },
+  "homepage": "https://github.com/Dynamical-Systems-Research/dynamical-cli",
+  "repository": "https://github.com/Dynamical-Systems-Research/dynamical-cli",
+  "license": "Apache-2.0",
+  "keywords": [
+    "dynamical",
+    "materials-research",
+    "virtual-laboratories",
+    "research"
+  ],
+  "skills": "./"
+}
