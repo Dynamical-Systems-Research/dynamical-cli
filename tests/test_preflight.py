@@ -15,6 +15,7 @@ from dynamical.composition import (
     load_preflight_binding,
     preflight_state_sha256,
     validate_composition_result,
+    write_composition_result,
 )
 from dynamical.schema import load_capability_registry
 
@@ -331,7 +332,7 @@ def test_loader_recomputes_ready_invariants(tmp_path: Path) -> None:
         )
 
 
-def test_preflight_binds_supplied_registry_before_trusted_demotion(tmp_path: Path) -> None:
+def test_preflight_binds_supplied_registry_before_trusted_demotion(tmp_path: Path, capsys) -> None:
     registry = yaml.safe_load(DEFAULT_REGISTRY.read_text(encoding="utf-8"))
     proposal = copy.deepcopy(registry["providers"][0])
     proposal["provider_id"] = f"proposal-{proposal['provider_id']}"
@@ -367,12 +368,36 @@ def test_preflight_binds_supplied_registry_before_trusted_demotion(tmp_path: Pat
     assert result.status == "COMPILED"
     assert result.sources is not None
     assert result.sources.registry_sha256 != binding.registry_sha256
+    assert result.sources.preflight is not None
+    assert result.sources.preflight.supplied_registry_sha256 == binding.registry_sha256
+    assert result.sources.preflight.registry_sha256 == result.sources.registry_sha256
+    validate_composition_result(result)
     demoted = next(
         item
         for item in result.sources.registry.providers
         if item.provider_id.startswith("proposal-")
     )
     assert demoted.admission.status == "pending"
+
+    composition_path = tmp_path / "composition.json"
+    write_composition_result(composition_path, result)
+    assert main(["compile", str(composition_path), "-o", str(tmp_path / "compiled")]) == 0
+    capsys.readouterr()
+
+
+def test_loader_rejects_receipt_without_evidence_sources(tmp_path: Path) -> None:
+    _, receipt_path = _write_case(tmp_path)
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["sources"] = []
+    receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="unresolved sources"):
+        load_preflight_binding(
+            receipt_path,
+            REQUIREMENT,
+            DEFAULT_REGISTRY,
+            DEFAULT_FACILITY,
+        )
 
 
 def test_ready_receipt_binds_to_composition_and_stale_source_fails(tmp_path: Path) -> None:

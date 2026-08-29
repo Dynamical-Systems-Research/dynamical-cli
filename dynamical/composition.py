@@ -153,6 +153,7 @@ class PreflightBinding(StrictModel):
     state_sha256: Sha256
     evidence_cutoff: str = Field(min_length=1)
     requirement_sha256: Sha256
+    supplied_registry_sha256: Sha256 | None = None
     registry_sha256: Sha256
     facility_sha256: Sha256
 
@@ -330,10 +331,79 @@ def load_preflight_binding(
     sources = receipt.get("sources")
     if not isinstance(sources, list):
         raise ValueError("preflight sources must be a list")
+    source_index: dict[str, dict[str, Any]] = {}
     for record in sources:
         if not isinstance(record, dict):
             raise ValueError("preflight source must be an object")
-        if record.get("disposition") != "state" or "path" not in record:
+        source_id = record.get("source_id")
+        payload = {key: value for key, value in record.items() if key != "source_id"}
+        expected_id = (
+            "source-"
+            + hashlib.sha256(
+                json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+            ).hexdigest()[:16]
+        )
+        if source_id != expected_id or source_id in source_index:
+            raise ValueError("preflight source identity does not match its content")
+        source_index[source_id] = record
+
+    required_source_ids: set[str] = set()
+
+    def evidence_ids(record: dict[str, Any], *, allow_context: bool = False) -> set[str]:
+        refs = record.get("evidence_refs")
+        if not isinstance(refs, list):
+            raise ValueError("preflight evidence references are invalid")
+        identifiers: set[str] = set()
+        for ref in refs:
+            source_id = ref.get("source_id") if isinstance(ref, dict) else None
+            if source_id not in source_index:
+                raise ValueError("preflight evidence has unresolved sources")
+            disposition = source_index[source_id].get("disposition")
+            if (allow_context and disposition == "excluded") or (
+                not allow_context and disposition != "state"
+            ):
+                raise ValueError("preflight evidence has invalid source disposition")
+            identifiers.add(source_id)
+        required_source_ids.update(identifiers)
+        return identifiers
+
+    sourced = {fact_id for fact_id in closure if evidence_ids(fact_index[fact_id])}
+    while unresolved := closure - sourced:
+        resolved = {
+            fact_id
+            for fact_id in unresolved
+            if fact_index[fact_id]["input_ids"] and set(fact_index[fact_id]["input_ids"]) <= sourced
+        }
+        if not resolved:
+            raise ValueError("preflight state derivation has no source evidence")
+        sourced.update(resolved)
+
+    relations = receipt.get("relations")
+    if not isinstance(relations, list) or any(not isinstance(item, dict) for item in relations):
+        raise ValueError("preflight relations are invalid")
+    relation_index = {item.get("relation_id"): item for item in relations}
+    selected_relations = [relation_index[item] for item in state.get("relation_ids", [])]
+    if any(not evidence_ids(item) for item in selected_relations):
+        raise ValueError("preflight state relation has no source evidence")
+
+    entities = receipt.get("entities")
+    if not isinstance(entities, list) or any(not isinstance(item, dict) for item in entities):
+        raise ValueError("preflight entities are invalid")
+    entity_index = {item.get("entity_id"): item for item in entities}
+    selected_entity_ids = {fact_index[item].get("subject_id") for item in closure}
+    for relation in selected_relations:
+        selected_entity_ids.update((relation.get("subject_id"), relation.get("object_id")))
+    if None in selected_entity_ids or selected_entity_ids - set(entity_index):
+        raise ValueError("preflight state has unresolved entities")
+    if any(
+        not evidence_ids(entity_index[item], allow_context=True) for item in selected_entity_ids
+    ):
+        raise ValueError("preflight state entity has no source evidence")
+
+    for source_id, record in source_index.items():
+        if "path" not in record or (
+            record.get("disposition") != "state" and source_id not in required_source_ids
+        ):
             continue
         path = Path(record["path"])
         if not path.is_file() or file_sha256(path) != record.get("sha256"):
@@ -348,6 +418,7 @@ def load_preflight_binding(
         state_sha256=digest,
         evidence_cutoff=state["evidence_cutoff"],
         requirement_sha256=hashes["requirement"],
+        supplied_registry_sha256=hashes["registry"],
         registry_sha256=hashes["registry"],
         facility_sha256=hashes["facility"],
     )
@@ -1527,13 +1598,19 @@ def compose_files(
         }
         expected = {
             "requirement": preflight_binding.requirement_sha256,
-            "registry": preflight_binding.registry_sha256,
+            "registry": (
+                preflight_binding.supplied_registry_sha256 or preflight_binding.registry_sha256
+            ),
             "facility": preflight_binding.facility_sha256,
         }
         if supplied != expected:
             raise ValueError("preflight binding differs from supplied compose inputs")
     if installed_registry is not None:
         registry, _ = demote_untrusted_admissions(registry, installed_registry)
+    if preflight_binding is not None:
+        preflight_binding = preflight_binding.model_copy(
+            update={"registry_sha256": canonical_sha256(registry.model_dump(mode="json"))}
+        )
     result = compose_virtual_sdl(requirement, registry)
     sources = CompositionSources(
         requirement=requirement,
