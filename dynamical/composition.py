@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import itertools
 import json
 import math
@@ -29,6 +30,7 @@ from .schema import (
     ProviderPolicy,
     RequestedParameter,
     Scalar,
+    Sha256,
     StrictModel,
     ValidityEnvelopeEntry,
     canonical_sha256,
@@ -142,6 +144,19 @@ class VirtualSDL(StrictModel):
     virtual_sdl_sha256: str
 
 
+class PreflightBinding(StrictModel):
+    """Compact binding to one frozen starting state."""
+
+    receipt_source: str = Field(min_length=1)
+    receipt_sha256: Sha256
+    state_id: str = Field(pattern=r"^state-[0-9a-f]{16}$")
+    state_sha256: Sha256
+    evidence_cutoff: str = Field(min_length=1)
+    requirement_sha256: Sha256
+    registry_sha256: Sha256
+    facility_sha256: Sha256
+
+
 class CompositionSources(StrictModel):
     """Protected source snapshots needed to compile a saved composition."""
 
@@ -154,6 +169,7 @@ class CompositionSources(StrictModel):
     requirement_sha256: str
     registry_sha256: str
     facility_sha256: str
+    preflight: PreflightBinding | None = None
     # Not "isaac": openusd never calls a live embodied backend, so it is the target
     # that compiles fastest and needs nothing installed beyond this package -- the
     # right default for a save that mostly exists to record what was composed, not to
@@ -194,6 +210,115 @@ class CompositionResult(StrictModel):
 class _Candidate:
     provider: CapabilityProvider
     facility_id: str
+
+
+def preflight_state_payload(receipt: dict[str, Any]) -> dict[str, Any]:
+    """Return the canonical scientific state without evidence-layout details."""
+
+    state = receipt.get("state")
+    if not isinstance(state, dict):
+        raise ValueError("preflight state must be an object")
+
+    def selected(name: str, key: str) -> list[dict[str, Any]]:
+        records = receipt.get(name, [])
+        identifiers = state.get(f"{name[:-1]}_ids", [])
+        if not isinstance(records, list) or not isinstance(identifiers, list):
+            raise ValueError(f"preflight {name} selection is invalid")
+        indexed = {item.get(key): item for item in records if isinstance(item, dict)}
+        if len(indexed) != len(records) or set(identifiers) - set(indexed):
+            raise ValueError(f"preflight state has unresolved {name}")
+        return sorted(
+            (
+                {k: v for k, v in indexed[item].items() if k not in {key, "evidence_refs"}}
+                for item in identifiers
+            ),
+            key=lambda value: json.dumps(value, sort_keys=True, separators=(",", ":")),
+        )
+
+    return {
+        "facts": selected("facts", "fact_id"),
+        "relations": selected("relations", "relation_id"),
+        "evidence_cutoff": state.get("evidence_cutoff"),
+        "parent": state.get("parent"),
+    }
+
+
+def preflight_state_sha256(receipt: dict[str, Any]) -> str:
+    from .campaign import canonical_json
+
+    return hashlib.sha256(canonical_json(preflight_state_payload(receipt)).encode()).hexdigest()
+
+
+def load_preflight_binding(
+    receipt_path: str | Path,
+    requirement_path: str | Path,
+    registry_path: str | Path,
+    facility_path: str | Path,
+) -> PreflightBinding:
+    """Bind a READY receipt to unchanged compose inputs and state evidence."""
+
+    source = Path(receipt_path)
+    receipt = json.loads(source.read_text(encoding="utf-8"))
+    if (
+        not isinstance(receipt, dict)
+        or receipt.get("document_type") != "dynamical.preflight-receipt"
+    ):
+        raise ValueError("preflight receipt has an invalid document type")
+    if receipt.get("status") != "READY":
+        raise ValueError("preflight receipt is not READY")
+    state = receipt.get("state")
+    if not isinstance(state, dict):
+        raise ValueError("preflight receipt has no state")
+    digest = preflight_state_sha256(receipt)
+    if state.get("state_sha256") != digest or state.get("state_id") != f"state-{digest[:16]}":
+        raise ValueError("preflight state identity does not match its content")
+
+    from .campaign import file_sha256
+    from .schema import load_facility_manifest
+
+    documents = {
+        "requirement": load_campaign_requirement(requirement_path),
+        "registry": load_capability_registry(registry_path),
+        "facility": load_facility_manifest(facility_path),
+    }
+    handoff = receipt.get("handoff")
+    if not isinstance(handoff, dict):
+        raise ValueError("preflight handoff must be an object")
+    hashes = {
+        role: canonical_sha256(document.model_dump(mode="json"))
+        for role, document in documents.items()
+    }
+    if any(
+        not isinstance(handoff.get(role), dict)
+        or handoff[role].get("canonical_sha256") != hashes[role]
+        for role in hashes
+    ):
+        raise ValueError("preflight handoff differs from the compose inputs")
+
+    sources = receipt.get("sources")
+    if not isinstance(sources, list):
+        raise ValueError("preflight sources must be a list")
+    for record in sources:
+        if not isinstance(record, dict):
+            raise ValueError("preflight source must be an object")
+        if record.get("disposition") != "state" or "path" not in record:
+            continue
+        path = Path(record["path"])
+        if not path.is_file() or file_sha256(path) != record.get("sha256"):
+            raise ValueError(f"preflight state source changed: {path}")
+        if path.stat().st_size != record.get("size_bytes"):
+            raise ValueError(f"preflight state source size changed: {path}")
+
+    return PreflightBinding(
+        receipt_source=str(source),
+        receipt_sha256=file_sha256(source),
+        state_id=state["state_id"],
+        state_sha256=digest,
+        evidence_cutoff=state["evidence_cutoff"],
+        requirement_sha256=hashes["requirement"],
+        registry_sha256=hashes["registry"],
+        facility_sha256=hashes["facility"],
+    )
 
 
 def _reason(
@@ -1338,6 +1463,7 @@ def compose_files(
     facility_path: str | Path,
     *,
     installed_registry: CapabilityRegistry | None = None,
+    preflight_binding: PreflightBinding | None = None,
 ) -> CompositionResult:
     """Compose a requirement against files an agent supplies.
 
@@ -1363,6 +1489,19 @@ def compose_files(
     facility = load_facility_manifest(facility_path)
     if installed_registry is not None:
         registry, _ = demote_untrusted_admissions(registry, installed_registry)
+    if preflight_binding is not None:
+        protected = {
+            "requirement": canonical_sha256(requirement.model_dump(mode="json")),
+            "registry": canonical_sha256(registry.model_dump(mode="json")),
+            "facility": canonical_sha256(facility.model_dump(mode="json")),
+        }
+        expected = {
+            "requirement": preflight_binding.requirement_sha256,
+            "registry": preflight_binding.registry_sha256,
+            "facility": preflight_binding.facility_sha256,
+        }
+        if protected != expected:
+            raise ValueError("preflight binding differs from protected compose inputs")
     result = compose_virtual_sdl(requirement, registry)
     sources = CompositionSources(
         requirement=requirement,
@@ -1374,6 +1513,7 @@ def compose_files(
         requirement_sha256=canonical_sha256(requirement.model_dump(mode="json")),
         registry_sha256=canonical_sha256(registry.model_dump(mode="json")),
         facility_sha256=canonical_sha256(facility.model_dump(mode="json")),
+        preflight=preflight_binding,
     )
     payload = result.model_dump(mode="json", exclude_none=True)
     payload["sources"] = sources.model_dump(mode="json", exclude_none=True)
@@ -1427,6 +1567,19 @@ def validate_composition_result(value: dict[str, Any] | CompositionResult) -> Co
             raise ValueError("composition request hash does not match its source")
         if result.registry_sha256 != sources.registry_sha256:
             raise ValueError("composition registry hash does not match its source")
+        if sources.preflight is not None:
+            expected = {
+                "requirement": sources.preflight.requirement_sha256,
+                "registry": sources.preflight.registry_sha256,
+                "facility": sources.preflight.facility_sha256,
+            }
+            protected = {
+                "requirement": sources.requirement_sha256,
+                "registry": sources.registry_sha256,
+                "facility": sources.facility_sha256,
+            }
+            if expected != protected:
+                raise ValueError("preflight hashes differ from protected composition sources")
         _require_source_composition_match(result, sources.requirement, sources.registry)
     return result
 

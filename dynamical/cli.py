@@ -97,6 +97,8 @@ def build_parser() -> argparse.ArgumentParser:
         epilog=(
             "Examples:\n"
             "  dynamical compose requirement.yaml -o composition.json\n"
+            "  dynamical compose requirement.yaml --preflight preflight.json "
+            "-o composition.json\n"
             "  dynamical compose --schema\n\n"
             "Use capability detail for operation ports and parameters. "
             "Use --schema for requirement fields."
@@ -105,6 +107,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     compose_parser.add_argument("requirement", nargs="?", type=Path)
     compose_parser.add_argument("-o", "--output", type=Path)
+    compose_parser.add_argument(
+        "--preflight",
+        type=Path,
+        help="READY preflight receipt to bind by digest; requires --output",
+    )
     compose_parser.add_argument(
         "--schema",
         action="store_true",
@@ -445,6 +452,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 authority_hold_reasons,
                 compose_files,
                 demote_untrusted_admissions,
+                load_preflight_binding,
                 write_composition_result,
             )
             from .schema import (
@@ -454,9 +462,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
 
             if args.schema:
-                if args.requirement is not None or args.output is not None:
+                if args.requirement is not None or args.output is not None or args.preflight:
                     raise ValueError(
-                        "--schema does not accept a requirement or --output\n"
+                        "--schema does not accept a requirement, --output, or --preflight\n"
                         "Example: dynamical compose --schema"
                     )
                 print(json.dumps(CampaignRequirement.model_json_schema(), indent=2, sort_keys=True))
@@ -468,6 +476,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
             if not args.requirement.is_file():
                 raise ValueError(f"campaign requirement does not exist: {args.requirement}")
+            if args.preflight is not None and args.output is None:
+                raise ValueError(
+                    "--preflight requires --output so the receipt stays out of agent context\n"
+                    "Example: dynamical compose campaign.yaml --preflight preflight.json "
+                    "-o composition.json"
+                )
+            if args.preflight is not None and not args.preflight.is_file():
+                raise ValueError(f"preflight receipt does not exist: {args.preflight}")
 
             # Proposing a candidate --registry is legitimate; granting it authority is
             # not. installed_registry is always the packaged/installed one (never the
@@ -514,11 +530,22 @@ def main(argv: Sequence[str] | None = None) -> int:
             _, self_admission_reasons = demote_untrusted_admissions(
                 supplied_registry, installed_registry
             )
+            preflight_binding = (
+                load_preflight_binding(
+                    args.preflight,
+                    args.requirement,
+                    args.registry,
+                    args.facility,
+                )
+                if args.preflight is not None
+                else None
+            )
             result = compose_files(
                 args.requirement,
                 args.registry,
                 args.facility,
                 installed_registry=installed_registry,
+                preflight_binding=preflight_binding,
             )
             untrusted_admissions = [
                 item.model_dump(mode="json", exclude_none=True) for item in self_admission_reasons
@@ -553,6 +580,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 }
                 if untrusted_admissions:
                     receipt["untrusted_admissions"] = untrusted_admissions
+                if preflight_binding is not None:
+                    receipt["preflight"] = {
+                        "receipt_sha256": preflight_binding.receipt_sha256,
+                        "state_id": preflight_binding.state_id,
+                        "state_sha256": preflight_binding.state_sha256,
+                        "evidence_cutoff": preflight_binding.evidence_cutoff,
+                    }
                 if result.status == "COMPILED":
                     receipt["next_command"] = f"dynamical compile {args.output} -o compiled-world"
                 _print_json(receipt, compact=True)

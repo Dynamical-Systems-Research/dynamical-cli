@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dynamical Preflight"
+  short_description: "Freeze source-bound campaign baseline state"
+  default_prompt: "Use $dynamical-preflight to map the source-bound scientific environment once, freeze it with the deterministic finalizer, and return a compose handoff or a material HOLD without changing provider, physical, or qualification authority."

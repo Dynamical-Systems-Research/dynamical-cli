@@ -78,6 +78,21 @@ the approved compute, cost, and network envelope. Ask before changing the
 environment, incurring external spend, seeking new provider authority, or
 executing a physical experiment.
 
+## Start from a verified root
+
+When a new campaign starts from raw laboratory records and has no verified root
+state, use `$dynamical-preflight` first. Consume a `READY` handoff without
+printing the receipt:
+
+```bash
+dynamical compose <requirement> --preflight <receipt> -o <composition>
+```
+
+`dynamical compose` selects admitted providers. The existing composition,
+world, and trace hash chain carries the compact preflight binding. For a normal
+branch from a validated Dynamical snapshot, do not rerun preflight unless an
+external sample, calibration, facility, or evidence-cutoff fact changed.
+
 ## Inspect and operate the installed interface
 
 Use the verified executable from the setup step. Do not install, update, or
