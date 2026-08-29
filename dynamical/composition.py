@@ -273,6 +273,38 @@ def load_preflight_binding(
     if state.get("state_sha256") != digest or state.get("state_id") != f"state-{digest[:16]}":
         raise ValueError("preflight state identity does not match its content")
 
+    gaps = receipt.get("gaps")
+    if not isinstance(gaps, list) or any(
+        not isinstance(item, dict) or not isinstance(item.get("material"), bool) for item in gaps
+    ):
+        raise ValueError("preflight gaps are invalid")
+    if any(item["material"] for item in gaps):
+        raise ValueError("preflight READY receipt has a material gap")
+
+    facts = receipt.get("facts")
+    if not isinstance(facts, list) or any(not isinstance(item, dict) for item in facts):
+        raise ValueError("preflight facts are invalid")
+    fact_index = {item.get("fact_id"): item for item in facts}
+    pending = list(state.get("fact_ids", []))
+    closure: set[str] = set()
+    while pending:
+        fact_id = pending.pop()
+        if fact_id in closure:
+            continue
+        fact = fact_index.get(fact_id)
+        if fact is None:
+            raise ValueError("preflight state has unresolved facts")
+        inputs = fact.get("input_ids", [])
+        if not isinstance(inputs, list) or any(item not in fact_index for item in inputs):
+            raise ValueError("preflight fact has unresolved inputs")
+        closure.add(fact_id)
+        pending.extend(inputs)
+    if any(fact_index[fact_id].get("kind") == "assumption" for fact_id in closure):
+        raise ValueError("preflight READY receipt contains a state assumption")
+    next_action = receipt.get("next_action")
+    if not isinstance(next_action, dict) or next_action.get("action") != "compose":
+        raise ValueError("preflight READY receipt must route to compose")
+
     from .campaign import file_sha256
     from .schema import load_facility_manifest
 
@@ -1487,10 +1519,8 @@ def compose_files(
     requirement = load_campaign_requirement(requirement_path)
     registry = load_capability_registry(registry_path)
     facility = load_facility_manifest(facility_path)
-    if installed_registry is not None:
-        registry, _ = demote_untrusted_admissions(registry, installed_registry)
     if preflight_binding is not None:
-        protected = {
+        supplied = {
             "requirement": canonical_sha256(requirement.model_dump(mode="json")),
             "registry": canonical_sha256(registry.model_dump(mode="json")),
             "facility": canonical_sha256(facility.model_dump(mode="json")),
@@ -1500,8 +1530,10 @@ def compose_files(
             "registry": preflight_binding.registry_sha256,
             "facility": preflight_binding.facility_sha256,
         }
-        if protected != expected:
-            raise ValueError("preflight binding differs from protected compose inputs")
+        if supplied != expected:
+            raise ValueError("preflight binding differs from supplied compose inputs")
+    if installed_registry is not None:
+        registry, _ = demote_untrusted_admissions(registry, installed_registry)
     result = compose_virtual_sdl(requirement, registry)
     sources = CompositionSources(
         requirement=requirement,

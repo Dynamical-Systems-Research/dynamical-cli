@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import copy
 import importlib.util
 import json
 from argparse import Namespace
 from pathlib import Path
 
 import pytest
+import yaml
 
 from dynamical.cli import DEFAULT_FACILITY, DEFAULT_REGISTRY, main
 from dynamical.composition import (
@@ -239,6 +241,100 @@ def test_finalizer_rejects_ambiguous_or_unsourced_state(tmp_path: Path) -> None:
     mapping["facts"][0]["evidence_refs"] = []
     with pytest.raises(ValueError, match="need evidence"):
         _finalize(mapping, tmp_path / "mapping.json")
+
+
+def test_finalizer_rejects_unsourced_frozen_entity(tmp_path: Path) -> None:
+    source = tmp_path / "records.json"
+    source.write_text("{}", encoding="utf-8")
+    mapping = _mapping(source)
+    mapping["entities"][0]["evidence_refs"] = []
+
+    with pytest.raises(ValueError, match="entities need evidence"):
+        _finalize(mapping, tmp_path / "mapping.json")
+
+
+def test_loader_recomputes_ready_invariants(tmp_path: Path) -> None:
+    source = tmp_path / "records.json"
+    source.write_text("{}", encoding="utf-8")
+    mapping = _mapping(source)
+    mapping["gaps"] = [
+        {
+            "ref": "calibration-gap",
+            "material": True,
+            "available_at": "2026-08-29T11:00:00Z",
+            "release_condition": "supply the calibration record",
+        }
+    ]
+    receipt = _finalize(mapping, tmp_path / "mapping.json")
+    receipt.update(status="READY", next_action={"action": "compose"})
+    receipt_path = tmp_path / "preflight.json"
+    receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="material gap"):
+        load_preflight_binding(
+            receipt_path,
+            REQUIREMENT,
+            DEFAULT_REGISTRY,
+            DEFAULT_FACILITY,
+        )
+
+    assumption = _mapping(source)
+    assumption["facts"][0]["kind"] = "assumption"
+    receipt = _finalize(assumption, tmp_path / "mapping.json")
+    receipt.update(status="READY", next_action={"action": "compose"})
+    receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="state assumption"):
+        load_preflight_binding(
+            receipt_path,
+            REQUIREMENT,
+            DEFAULT_REGISTRY,
+            DEFAULT_FACILITY,
+        )
+
+
+def test_preflight_binds_supplied_registry_before_trusted_demotion(tmp_path: Path) -> None:
+    registry = yaml.safe_load(DEFAULT_REGISTRY.read_text(encoding="utf-8"))
+    proposal = copy.deepcopy(registry["providers"][0])
+    proposal["provider_id"] = f"proposal-{proposal['provider_id']}"
+    registry["providers"].append(proposal)
+    registry_path = tmp_path / "registry.yaml"
+    registry_path.write_text(yaml.safe_dump(registry, sort_keys=False), encoding="utf-8")
+
+    source = tmp_path / "records.json"
+    source.write_text("{}", encoding="utf-8")
+    args = Namespace(
+        requirement=REQUIREMENT,
+        registry=registry_path,
+        facility=DEFAULT_FACILITY,
+    )
+    receipt = FINALIZER.finalize(_mapping(source), tmp_path / "mapping.json", args)
+    receipt_path = tmp_path / "preflight.json"
+    receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+    binding = load_preflight_binding(
+        receipt_path,
+        REQUIREMENT,
+        registry_path,
+        DEFAULT_FACILITY,
+    )
+
+    result = compose_files(
+        REQUIREMENT,
+        registry_path,
+        DEFAULT_FACILITY,
+        installed_registry=load_capability_registry(DEFAULT_REGISTRY),
+        preflight_binding=binding,
+    )
+
+    assert result.status == "COMPILED"
+    assert result.sources is not None
+    assert result.sources.registry_sha256 != binding.registry_sha256
+    demoted = next(
+        item
+        for item in result.sources.registry.providers
+        if item.provider_id.startswith("proposal-")
+    )
+    assert demoted.admission.status == "pending"
 
 
 def test_ready_receipt_binds_to_composition_and_stale_source_fails(tmp_path: Path) -> None:

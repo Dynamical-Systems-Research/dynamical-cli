@@ -166,6 +166,12 @@ def finalize(data: dict[str, Any], mapping_path: Path, args: argparse.Namespace)
     selected = [item for item in facts + relations if item.get("fact_id") in closure or item.get("relation_id") in state_relations]
     if any(not item.get("evidence_refs") and not item.get("input_ids") for item in selected):
         raise ValueError("frozen state records need evidence or a sourced derivation")
+    entity_index = {item["entity_id"]: item for item in entities}
+    selected_entity_ids = {item["subject_id"] for item in selected}
+    selected_entity_ids.update(item["object_id"] for item in selected if item.get("object_id"))
+    selected_entities = [entity_index[entity_id] for entity_id in sorted(selected_entity_ids)]
+    if any(not item["evidence_refs"] for item in selected_entities):
+        raise ValueError("frozen state entities need evidence")
     times = [item["available_at"] for item in selected]
     cutoff = _time(data["requested_cutoff"], "requested_cutoff") if data.get("requested_cutoff") else max(times, default=created)
     if any(value > cutoff for value in times):
@@ -176,6 +182,11 @@ def finalize(data: dict[str, Any], mapping_path: Path, args: argparse.Namespace)
             source = source_index[evidence["source_id"]]
             if source["disposition"] != "state" or source["available_at"] > cutoff:
                 raise ValueError("frozen state uses non-state or later evidence")
+    for entity in selected_entities:
+        for evidence in entity["evidence_refs"]:
+            source = source_index[evidence["source_id"]]
+            if source["disposition"] == "excluded" or source["available_at"] > cutoff:
+                raise ValueError("frozen state entity uses excluded or later evidence")
 
     documents = {"requirement": load_campaign_requirement(args.requirement), "registry": load_capability_registry(args.registry), "facility": load_facility_manifest(args.facility)}
     material_gaps = [item for item in gaps if item["material"]]
