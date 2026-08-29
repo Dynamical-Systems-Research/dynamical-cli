@@ -253,6 +253,44 @@ def test_finalizer_rejects_unsourced_frozen_entity(tmp_path: Path) -> None:
         _finalize(mapping, tmp_path / "mapping.json")
 
 
+def test_finalizer_rejects_unsourced_derivation_cycle(tmp_path: Path) -> None:
+    source = tmp_path / "records.json"
+    source.write_text("{}", encoding="utf-8")
+    mapping = _mapping(source)
+    mapping["facts"] = [
+        {
+            **mapping["facts"][0],
+            "ref": "derived-a",
+            "kind": "derived",
+            "evidence_refs": [],
+            "input_refs": ["derived-b"],
+        },
+        {
+            **mapping["facts"][0],
+            "ref": "derived-b",
+            "field": "derived_b",
+            "kind": "derived",
+            "state_path": None,
+            "evidence_refs": [],
+            "input_refs": ["derived-a"],
+        },
+    ]
+
+    with pytest.raises(ValueError, match="cyclic or unsourced"):
+        _finalize(mapping, tmp_path / "mapping.json")
+
+
+def test_finalizer_compares_cutoff_as_an_instant(tmp_path: Path) -> None:
+    source = tmp_path / "records.json"
+    source.write_text("{}", encoding="utf-8")
+    mapping = _mapping(source)
+    mapping["requested_cutoff"] = "2026-08-29T11:00:00Z"
+    mapping["facts"][0]["available_at"] = "2026-08-29T11:00:00.500000Z"
+
+    with pytest.raises(ValueError, match="later evidence"):
+        _finalize(mapping, tmp_path / "mapping.json")
+
+
 def test_loader_recomputes_ready_invariants(tmp_path: Path) -> None:
     source = tmp_path / "records.json"
     source.write_text("{}", encoding="utf-8")

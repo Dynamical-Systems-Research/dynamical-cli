@@ -41,6 +41,9 @@ def _time(value: Any, label: str) -> str:
         raise ValueError(f"{label} must use UTC")
     return parsed.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
+def _instant(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
 def _records(data: dict[str, Any], name: str) -> list[dict[str, Any]]:
     records = data.get(name, [])
     if not isinstance(records, list) or any(not isinstance(item, dict) for item in records):
@@ -163,6 +166,12 @@ def finalize(data: dict[str, Any], mapping_path: Path, args: argparse.Namespace)
             if input_id not in closure:
                 closure.add(input_id)
                 pending.append(input_id)
+    sourced = {item["fact_id"] for item in facts if item["evidence_refs"]}
+    while unresolved := closure - sourced:
+        resolved = {fact_id for fact_id in unresolved if fact_index[fact_id]["input_ids"] and set(fact_index[fact_id]["input_ids"]) <= sourced}
+        if not resolved:
+            raise ValueError("frozen state records need evidence; derivation is cyclic or unsourced")
+        sourced.update(resolved)
     selected = [item for item in facts + relations if item.get("fact_id") in closure or item.get("relation_id") in state_relations]
     if any(not item.get("evidence_refs") and not item.get("input_ids") for item in selected):
         raise ValueError("frozen state records need evidence or a sourced derivation")
@@ -173,19 +182,19 @@ def finalize(data: dict[str, Any], mapping_path: Path, args: argparse.Namespace)
     if any(not item["evidence_refs"] for item in selected_entities):
         raise ValueError("frozen state entities need evidence")
     times = [item["available_at"] for item in selected]
-    cutoff = _time(data["requested_cutoff"], "requested_cutoff") if data.get("requested_cutoff") else max(times, default=created)
-    if any(value > cutoff for value in times):
+    cutoff = _time(data["requested_cutoff"], "requested_cutoff") if data.get("requested_cutoff") else max(times, default=created, key=_instant)
+    if any(_instant(value) > _instant(cutoff) for value in times):
         raise ValueError("frozen state contains later evidence")
     source_index = {item["source_id"]: item for item in sources}
     for record in selected:
         for evidence in record["evidence_refs"]:
             source = source_index[evidence["source_id"]]
-            if source["disposition"] != "state" or source["available_at"] > cutoff:
+            if source["disposition"] != "state" or _instant(source["available_at"]) > _instant(cutoff):
                 raise ValueError("frozen state uses non-state or later evidence")
     for entity in selected_entities:
         for evidence in entity["evidence_refs"]:
             source = source_index[evidence["source_id"]]
-            if source["disposition"] == "excluded" or source["available_at"] > cutoff:
+            if source["disposition"] == "excluded" or _instant(source["available_at"]) > _instant(cutoff):
                 raise ValueError("frozen state entity uses excluded or later evidence")
 
     documents = {"requirement": load_campaign_requirement(args.requirement), "registry": load_capability_registry(args.registry), "facility": load_facility_manifest(args.facility)}
