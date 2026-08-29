@@ -1,6 +1,6 @@
 ---
 name: dynamical
-description: Compose and run evidence-bound virtual laboratories from admitted capabilities for experimental science. Use when an agent must use Dynamical to investigate a question, hypothesis, or decision; compose a complete supported virtual laboratory or a purpose-built multi-instrument workflow; run sequential, high-concurrency, or batched adaptive counterfactual campaigns; replay or branch from hash-bound experiment snapshots; prepare validated trajectories for evaluation or post-training; compare matched virtual and physical evidence; request the next physical experiment; or preserve a HOLD result.
+description: Use Dynamical for autonomous research in materials and other physical systems. Start from a scientific question or engineering objective, construct and revise the required research environment, run adaptive virtual and approved physical experiments, preserve reproducible studies and branches, and use the resulting evidence for scientific decisions, model improvement, evaluation, and training.
 ---
 
 # Dynamical
@@ -78,23 +78,46 @@ the approved compute, cost, and network envelope. Ask before changing the
 environment, incurring external spend, seeking new provider authority, or
 executing a physical experiment.
 
+## Establish the campaign root
+
+For each new experimental campaign, use `$dynamical-preflight` after the
+scientific objective and target decision are clear. Discover available
+experimental records, calibration reports, model records, campaign artifacts,
+registries, and facility metadata. Do not ask the user to find or manage
+metadata that is available from these sources.
+
+Use the preflight receipt as the campaign starting state. Compose only when it
+returns `READY`. If it reports a missing capability or unsupported calibration
+evidence, use `$dynamical-instrument` to assess the smallest pending proposal.
+Do not ask the user to call another Dynamical skill.
+
+```bash
+dynamical compose <requirement> --preflight <receipt> -o <composition>
+```
+
+Do not rerun preflight for a direct interface operation or an unchanged
+continuation, replay, or branch. Run it again when the sample, process,
+instrument, calibration, model, facility, or evidence cutoff changes.
+
 ## Inspect and operate the installed interface
 
 Use the verified executable from the setup step. Do not install, update, or
-select another runtime during a campaign. Inspect only the needed command and
-capability help:
+select another runtime during a campaign. Select each command in this order:
+
+1. An exact `next_command` from a receipt.
+2. An exact command from a supplied example.
+3. An exact command in this skill.
+4. Targeted subcommand help only when the required syntax is still unknown.
+
+Do not run top-level `dynamical --help` before the first valid attempt. If a
+requirement or example names an operation, inspect it directly:
 
 ```bash
-command -v dynamical
-dynamical --help
-dynamical capabilities
 dynamical capabilities --operation <operation-id> --json
 ```
 
-If an approved requirement or example already names the required operations,
-skip the unfiltered capability list and inspect those operations directly. Use
-plain `dynamical capabilities` only to discover an unknown operation ID. Never
-run `dynamical capabilities --json` without `--operation`.
+Use plain `dynamical capabilities` only to discover an unknown operation ID.
+Never run `dynamical capabilities --json` without `--operation`.
 
 Use `dynamical compose --schema` only when command help and operation detail do
 not resolve a required field. Inspect only the relevant section.
@@ -120,16 +143,24 @@ Use the five commands:
 - `dynamical run` runs simulation or replay.
 - `dynamical validate` validates a composition, world, trace, or replay.
 
+For a normal new campaign, use this direct path:
+
+```bash
+dynamical capabilities --operation <operation-id> --json
+dynamical compose <requirement> --preflight <receipt> -o <composition>
+dynamical compile <composition> -o <compiled-world>
+dynamical run <compiled-world> -o <trace>
+dynamical validate <trace> --json
+```
+
 Compose admitted capabilities as a complete supported virtual laboratory or a
 purpose-built multi-instrument workflow. Select the composition from the
 scientific objective and available evidence. Keep each provider's evidence
 class; the full composition is not itself a `calibrated_twin`.
 
-Use a receipt's exact `next_command` when present. Inspect `--help` only when no
-receipt or supplied example resolves the required syntax. The agent controls
-research policy. Dynamical controls admission, safety, evidence, cost, and
-authority. Do not bypass rejected providers, constraints, budgets, or approval
-rules.
+The agent controls research policy. Dynamical controls admission, safety,
+evidence, cost, and authority. Do not bypass rejected providers, constraints,
+budgets, or approval rules.
 
 For one mobile sample, declare one `sample_state` campaign input with a stable
 sample ID. Materialize it with an initial `transfer-sample` step, bind later
@@ -155,7 +186,9 @@ For an embodied trace, also pass both `--compiled-world` and
 ### Continue from verified virtual state
 
 Use restore only for a completed, validated simulate trace and admitted virtual
-source and child worlds. First run preflight, then execute with the same inputs:
+source and child worlds. Preserve the parent's frozen preflight state. Run
+preflight again only when a state-defining input changed, then execute with the
+same inputs:
 
 ```bash
 dynamical run child-world \

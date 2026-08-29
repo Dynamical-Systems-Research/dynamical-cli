@@ -50,8 +50,16 @@ jobs:
             "$validator_dir/codex-rs/skills/src/assets/samples/skill-creator/scripts/quick_validate.py" \
             skills/dynamical
           uv run python \
+            "$validator_dir/codex-rs/skills/src/assets/samples/skill-creator/scripts/quick_validate.py" \
+            skills/dynamical-instrument
+          uv run python \
+            "$validator_dir/codex-rs/skills/src/assets/samples/skill-creator/scripts/quick_validate.py" \
+            skills/dynamical-preflight
+          uv run python \
             "$validator_dir/codex-rs/skills/src/assets/samples/plugin-creator/scripts/validate_plugin.py" \
             .
+          uv run python -c "import pathlib,yaml; data=yaml.safe_load(pathlib.Path('skills/dynamical-preflight/agents/openai.yaml').read_text()); assert data['interface']['display_name'] == 'Dynamical Preflight'"
+          uv run python skills/dynamical-preflight/scripts/validate_receipt.py --self-test
           uv run python -m json.tool .agents/plugins/marketplace.json >/dev/null
 
       - name: Build and inspect the wheel and sdist
@@ -74,7 +82,11 @@ jobs:
               ".step", ".stl", ".mp4", ".ndjson", "artifacts/", "uv.lock",
               "requirement.yaml", "api-log", "api_log", ".env",
           )
-          bad = [m for m in members for f in forbidden if f in m.lower()]
+          allowed = ("skills/dynamical-preflight/scripts/validate_receipt.py",)
+          bad = [
+              m for m in members for f in forbidden
+              if f in m.lower() and not any(m.lower().endswith(item) for item in allowed)
+          ]
           if bad:
               raise SystemExit(f"forbidden members in built packages: {bad}")
           print(f"package inspection passed: {len(members)} members")

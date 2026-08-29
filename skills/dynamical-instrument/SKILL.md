@@ -20,13 +20,32 @@ prove that the source can provide that capability.
 
 For implementation, work in a disposable branch or worktree. Preserve unrelated changes. Inspect the public interface first, then read only the contract files needed for this instrument:
 
-- `dynamical capabilities --json` and `dynamical compose --schema` for the installed public interface.
+- Use `dynamical capabilities --operation <operation-id> --json` for each known required operation and `dynamical compose --schema` only for unresolved composition fields. Use plain `dynamical capabilities` only to discover an unknown operation ID. Never run unfiltered `dynamical capabilities --json`.
 - `dynamical/instruments/` for `InstrumentRequest`, `InstrumentResult`, registration, and one similar adapter.
 - The relevant models in `dynamical/schema.py` and `dynamical/sources.py`.
 - One relevant registry, manifest, and conformance test.
 - The package allowlist in `pyproject.toml`.
 
 Use these contracts. Do not create a second registry, plugin system, provider ABI, onboarding wizard, or restricted tool wrapper.
+
+## Reuse device standards
+
+Treat an existing hardware standard, driver, or protocol as an upstream interface.
+
+When a source provides a Model Hardware Standard driver or another supported
+programmable interface, use it for device discovery, transport, commands, and
+source-declared operating limits. Do not recreate its driver, device descriptor,
+command vocabulary, or safety schema.
+
+Map only the required source-backed information into Dynamical's
+provider-independent capability, typed observations, sample-state changes,
+evidence, calibration, and authority contracts. Preserve the upstream standard,
+version, driver identity, and digest.
+
+Support for a transport or hardware standard does not prove scientific
+calibration, provider admission, safe physical operation, or facility
+authority. If the standard or its conformance endpoint is unavailable, keep the
+route pending and do not guess its contract.
 
 ## Establish the evidence boundary
 
@@ -50,7 +69,7 @@ Choose the smallest route that the supplied evidence supports:
 | Executable computational model | `simulator` provider proposal | Repeated calls share model assumptions and are not independent evidence. |
 | Historical experiments | Archived replay | Reproduce realized evidence only; do not invent unseen outcomes. |
 | Model plus independent held-out validation | `calibrated_twin` candidate | Require uncertainty checks and a declared validity envelope. |
-| Hardware API or driver | Physical provider proposal | Keep admission, safety review, approval, and execution authority with the facility. |
+| Hardware API, standard driver, or protocol | Physical provider proposal | Reuse the supplied interface. Transport support does not prove calibration, admission, safety, or physical authority. |
 
 All routes are proposals until the installed authority accepts their complete
 records. Historical data alone does not support a counterfactual twin, and a
@@ -91,6 +110,7 @@ Report:
 - Scientific questions the candidate can and cannot answer within its declared envelope.
 - The supplied campaign gap it may address and the smallest bounded campaign that could test it.
 - Capability operations and, when supported, the adapter entry point, provider ID, evidence class, and declared operating range. Mark omitted layers as absent.
+- External hardware standard, driver version, interface digest, and conformance evidence when applicable.
 - Exact example and conformance commands with results.
 - Admission status: `pending` or `HOLD`.
 - Missing independent verification, calibration gates, license evidence, facility approval, safety review, or physical authority.
