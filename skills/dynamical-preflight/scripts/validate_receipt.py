@@ -114,6 +114,8 @@ def finalize(data: dict[str, Any], mapping_path: Path, args: argparse.Namespace)
     for item in raw_facts:
         if item.get("subject_ref") not in entity_ids or item.get("kind") not in KINDS:
             raise ValueError(f"fact {item['ref']} has invalid subject or kind")
+        if not isinstance(item.get("field"), str) or not item["field"].strip() or item.get("value") is None:
+            raise ValueError(f"fact {item['ref']} needs field and value")
         semantic = {key: value for key, value in item.items() if key not in {"ref", "subject_ref", "evidence_refs", "input_refs"}}
         semantic.update(subject_id=entity_ids[item["subject_ref"]], available_at=_time(item.get("available_at"), f"fact {item['ref']}"))
         if (path := semantic.get("state_path")) and (not isinstance(path, str) or path.strip("/").split("/", 1)[0] not in ROOTS):
@@ -134,6 +136,8 @@ def finalize(data: dict[str, Any], mapping_path: Path, args: argparse.Namespace)
     for item in _records(data, "relations"):
         if item.get("subject_ref") not in entity_ids or item.get("object_ref") not in entity_ids:
             raise ValueError(f"relation {item['ref']} has unresolved entities")
+        if not isinstance(item.get("predicate"), str) or not item["predicate"].strip():
+            raise ValueError(f"relation {item['ref']} needs predicate")
         semantic = {key: value for key, value in item.items() if key not in {"ref", "subject_ref", "object_ref", "evidence_refs"}}
         semantic.update(subject_id=entity_ids[item["subject_ref"]], object_id=entity_ids[item["object_ref"]], available_at=_time(item.get("available_at"), f"relation {item['ref']}"))
         relations.append({"relation_id": _id("relation", semantic), **semantic, "evidence_refs": _evidence(item.get("evidence_refs", []), source_ids)})
@@ -188,8 +192,8 @@ def finalize(data: dict[str, Any], mapping_path: Path, args: argparse.Namespace)
     }
     digest = preflight_state_sha256(receipt)
     receipt["state"].update(state_sha256=digest, state_id=f"state-{digest[:16]}")
-    route = material_gaps[0].get("next_route") if material_gaps else "HOLD"
-    receipt["next_action"] = {"action": "compose" if receipt["status"] == "READY" else route}
+    route = material_gaps[0].get("next_route") if material_gaps else None
+    receipt["next_action"] = {"action": "compose" if receipt["status"] == "READY" else (route or "HOLD")}
     return receipt
 
 def _self_test() -> None:

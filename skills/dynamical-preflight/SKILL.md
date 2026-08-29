@@ -90,7 +90,8 @@ python skills/dynamical-preflight/scripts/validate_receipt.py mapping.json \
 The finalizer hashes sources, assigns IDs, resolves links, checks cutoff closure,
 selects state facts and relations, derives `READY` or `HOLD`, binds the existing
 registry and facility digests, and calculates the state identity. It does not decide
-scientific meaning. Do not edit or repair its receipt by hand.
+scientific meaning. Run it as documented. Read its implementation only if it reports
+an unexpected failure. Do not edit or repair its receipt by hand.
 
 For `READY`, return the receipt path, state ID, digest, cutoff, and:
 

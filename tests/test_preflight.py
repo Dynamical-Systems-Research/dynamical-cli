@@ -188,6 +188,45 @@ def test_material_gap_holds_and_preserves_known_state(tmp_path: Path) -> None:
     assert receipt["next_action"] == {"action": "HOLD"}
 
 
+def test_material_gap_without_route_returns_hold(tmp_path: Path) -> None:
+    source = tmp_path / "records.json"
+    source.write_text("{}", encoding="utf-8")
+    mapping = _mapping(source)
+    mapping["gaps"] = [
+        {
+            "ref": "calibration-gap",
+            "material": True,
+            "available_at": "2026-08-29T11:00:00Z",
+            "release_condition": "supply the calibration record",
+        }
+    ]
+
+    receipt = _finalize(mapping, tmp_path / "mapping.json")
+
+    assert receipt["status"] == "HOLD"
+    assert receipt["next_action"] == {"action": "HOLD"}
+
+
+@pytest.mark.parametrize(
+    ("section", "key", "message"),
+    [
+        ("facts", "field", "needs field and value"),
+        ("facts", "value", "needs field and value"),
+        ("relations", "predicate", "needs predicate"),
+    ],
+)
+def test_incomplete_semantic_records_cannot_produce_ready(
+    tmp_path: Path, section: str, key: str, message: str
+) -> None:
+    source = tmp_path / "records.json"
+    source.write_text("{}", encoding="utf-8")
+    mapping = _mapping(source)
+    mapping[section][0].pop(key)
+
+    with pytest.raises(ValueError, match=message):
+        _finalize(mapping, tmp_path / "mapping.json")
+
+
 def test_finalizer_rejects_ambiguous_or_unsourced_state(tmp_path: Path) -> None:
     source = tmp_path / "records.json"
     source.write_text("{}", encoding="utf-8")
