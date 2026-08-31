@@ -42,6 +42,9 @@ Keep raw data outside the plugin. Reference it by path or URI. Do not modify, co
 impute, or silently normalize it. Treat MHS, drivers, workbenches, notebooks, and
 sensor systems as upstream sources. Do not recreate their interfaces.
 
+Keep setpoints, readbacks, and observations separate. An observation does not
+become an applied command value.
+
 ## Write one small map
 
 The transient JSON map contains only:

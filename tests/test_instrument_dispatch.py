@@ -3,6 +3,7 @@
 import pytest
 
 from dynamical import instruments
+from dynamical.reasons import RuntimeReason
 
 
 def test_unregistered_operation_resolves_to_none():
@@ -20,6 +21,27 @@ def test_registered_model_is_resolvable():
     assert resolved is not None
     result = resolved(instruments.InstrumentRequest(parameters={}, inputs={}, sample=None))
     assert result.outputs["x"] == 1.0
+    assert result.applied_parameters == {}
+
+
+def test_instrument_result_preserves_existing_positional_arguments():
+    reason = RuntimeReason(
+        code="TEST_REASON",
+        detail="positional compatibility",
+        recoverable=True,
+    )
+    result = instruments.InstrumentResult(
+        {"x": 1.0},
+        {"x": 0.1},
+        0.0,
+        1.0,
+        [reason],
+        None,
+    )
+
+    assert result.reasons == [reason]
+    assert result.sample is None
+    assert result.applied_parameters == {}
 
 
 def test_duplicate_registration_is_refused():

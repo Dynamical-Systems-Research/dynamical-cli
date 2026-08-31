@@ -1108,7 +1108,7 @@ model_bindings:
   calibration_evidence_ids: [fastcat-oer-e10]
 - id: ac-opentron-model
   implementation_ref: dynamical/instruments/ac_opentron.py
-  implementation_sha256: 6104fe14d30cfa5a67be5d367338caa39f9397930bff75ac634f966ff99e403a
+  implementation_sha256: 938b52c5b4943e0650eafbc615bc234c41919f33b3f9fbb4740b8655656b18e2
   input_channel_map: {}
   output_channel_map: {}
   parameter_map:

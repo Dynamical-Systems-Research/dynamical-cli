@@ -2151,22 +2151,6 @@ def _dataflow_edges(contract: CompiledCampaignContract) -> list[dict[str, str]]:
     return edges
 
 
-def _capability_parameter_units(
-    capability: Mapping[str, Any], *, numeric_only: bool
-) -> dict[str, str]:
-    units: dict[str, str] = {}
-    for raw_spec in _require_list(capability.get("parameters"), "capability.parameters"):
-        spec = _require_mapping(raw_spec, "capability parameter")
-        name = _require_string(spec.get("name"), "capability parameter.name")
-        unit = spec.get("unit")
-        if not isinstance(unit, str) or not unit:
-            continue
-        if numeric_only and spec.get("value_type") not in {"number", "duration"}:
-            continue
-        units[name] = unit
-    return units
-
-
 def _envelope_in_force(capability: Mapping[str, Any]) -> dict[str, Any]:
     """Each declared parameter's admitted bounds for this action.
 
@@ -2234,46 +2218,6 @@ def _parameter_channel_values(
         if name in action.parameters:
             measured[channel_id] = (action.parameters[name], unit)
     return measured
-
-
-def _applied_parameter_values(
-    capability: Mapping[str, Any],
-    output_ports: Mapping[str, str],
-    result: Mapping[str, Any],
-    instrument_result: InstrumentResult,
-) -> dict[str, Any]:
-    """Best-effort applied value per numeric declared parameter.
-
-    Derived from the instrument's own declared output units, not a
-    per-operation name list: a numeric parameter's applied value is the
-    instrument's own output when exactly one declared output port shares
-    that parameter's unit and carries a genuine numeric reading. Clamping,
-    like the OT-2 pump's quantized time step, shows up here as requested !=
-    applied. When a unit collision leaves more than one numeric candidate,
-    the one carrying a declared measurement uncertainty is preferred -- an
-    echoed request typically has none. Anything still ambiguous, or with no
-    matching output at all, is left equal to the requested value: an honest
-    "the instrument did not report a distinct applied value", not an
-    invented one.
-    """
-
-    param_units = _capability_parameter_units(capability, numeric_only=True)
-    applied: dict[str, Any] = {}
-    for name, unit in param_units.items():
-        candidates = [
-            port_id
-            for port_id, port_unit in output_ports.items()
-            if port_unit == unit
-            and isinstance(result.get(port_id), (int, float))
-            and not isinstance(result.get(port_id), bool)
-        ]
-        if len(candidates) > 1:
-            with_uncertainty = [pid for pid in candidates if pid in instrument_result.uncertainty]
-            if len(with_uncertainty) == 1:
-                candidates = with_uncertainty
-        if len(candidates) == 1:
-            applied[name] = result[candidates[0]]
-    return applied
 
 
 def _channel_uncertainty(
@@ -2606,6 +2550,14 @@ def _execute_composed_campaign(
                         sample=current_sample,
                     )
                 )
+                unknown_applied_parameters = set(instrument_result.applied_parameters) - set(
+                    action.parameters
+                )
+                if unknown_applied_parameters:
+                    raise CampaignValidationError(
+                        f"operation {action.action_id} reported applied parameters that were "
+                        f"not commanded: {sorted(unknown_applied_parameters)}"
+                    )
                 result = instrument_result.outputs
                 if set(result) != set(output_ports):
                     raise CampaignValidationError(
@@ -2690,9 +2642,7 @@ def _execute_composed_campaign(
         # the "sample_transition" key Task 8's check_invariants reads is
         # left untouched rather than wrapped.
         applied_values = (
-            _applied_parameter_values(capability, output_ports, result, instrument_result)
-            if instrument_result is not None
-            else {}
+            instrument_result.applied_parameters if instrument_result is not None else {}
         )
         trace_action = replace(
             action,
@@ -2858,6 +2808,12 @@ def run_composed_campaign(
             restore=restore,
             event_sink=write_event,
         )
+    except Exception:
+        if stream is not None:
+            stream.close()
+            stream = None
+            output_path.unlink(missing_ok=True)
+        raise
     finally:
         if stream is not None:
             stream.close()

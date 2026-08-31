@@ -80,7 +80,7 @@ working hardware API does not grant physical authority.
 Author only the layers that the inventory supports. Omit unsupported layers and list their missing evidence. Do not write a simulator to replace a missing interface or test endpoint.
 
 1. Define one provider-independent `Capability` for each supported scientific operation. Give every port and parameter an explicit type and unit. Record required conditions and possible failures.
-2. Implement the smallest adapter only when the supplied evidence defines an executable interface or simulator endpoint. Return typed observations, uncertainty when supported, cost, duration, failure reasons, and sample-state changes. Refuse inputs outside the documented envelope; do not clamp them.
+2. Implement the smallest adapter only when the supplied evidence defines an executable interface or simulator endpoint. Return typed observations, uncertainty when supported, cost, duration, failure reasons, and sample-state changes. Report `applied_parameters` only from a delivered value, instrument readback, or simulator-defined effective command. Observations never supply applied command values. Refuse inputs outside the documented envelope; do not clamp them.
 3. Add a `CapabilityProvider` proposal with `admission.status: pending` only when the evidence supports every required provider field. Otherwise omit the provider and report the missing fields.
 4. Add facility records only when the evidence identifies the endpoint and bindings. Authority-bearing facility records remain proposals until an independent installed authority accepts them.
 5. Bind each external artifact by digest and license. Mark unresolved assets `pending` or `unlicensed`. Do not generate substitute CAD or claim source geometry from a URI alone.
@@ -94,6 +94,7 @@ Run the repository's targeted formatting, tests, package checks, and the relevan
 
 - Candidate records pass the relevant schema and package checks.
 - An implemented adapter accepts and returns the declared types and units, and documented limits fail closed.
+- Same-unit conformance tests prove that observations cannot become applied parameters without an explicit provider value.
 - The proposal returns a structured `HOLD` when no admitted provider exists. If the CLI writes a composition artifact, it passes `dynamical validate`; otherwise preserve the direct HOLD receipt.
 - A proposed provider cannot survive as admitted unless its complete authority-bearing record matches the installed authority bundle.
 - Missing calibration, verification, licensing, facility approval, or physical authority remains explicit.

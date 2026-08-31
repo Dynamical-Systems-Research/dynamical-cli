@@ -7,7 +7,9 @@ from typing import Any
 
 import pytest
 
+from dynamical import instruments
 from dynamical.campaign import (
+    CampaignValidationError,
     CompiledCampaignContract,
     read_trace,
     run_composed_campaign,
@@ -355,6 +357,64 @@ def _coverage_contract() -> CompiledCampaignContract:
     )
 
 
+def _same_unit_contract(
+    parameter_name: str,
+    requested: float,
+    observation_name: str,
+) -> tuple[CompiledCampaignContract, str, str]:
+    operation_id = f"test-{parameter_name.replace('_', '-')}"
+    provider_id = f"{operation_id}-provider"
+    digest = stable_hash(
+        {
+            "test": "same-unit-command-provenance",
+            "parameter": parameter_name,
+            "observation": observation_name,
+        }
+    )
+    capability = _capability(
+        operation_id,
+        [
+            {
+                "name": parameter_name,
+                "value_type": "number",
+                "unit": "K",
+                "required": True,
+            }
+        ],
+        [{"id": observation_name, "unit": "K"}],
+    )
+    binding = {
+        "step_id": operation_id,
+        "operation_id": operation_id,
+        "provider_id": provider_id,
+        "evidence_class": "simulator",
+        "endpoint_id": f"{operation_id}-model",
+        "parameters": [{"name": parameter_name, "value": requested}],
+        "inputs": [],
+        "capability_contract": capability,
+        "duration": {"typical_s": 1.0},
+        "policy": {"safety_limit_ids": []},
+    }
+    contract = CompiledCampaignContract(
+        target="openusd",
+        manifest_sha256=digest,
+        core_ir_sha256=digest,
+        world_sha256=digest,
+        adapter_pack_sha256=digest,
+        facility_ir_sha256=digest,
+        action_schema_sha256=digest,
+        observation_schema_sha256=digest,
+        action_kinds=frozenset({operation_id}),
+        observation_channels=frozenset({observation_name}),
+        channel_units={observation_name: "K"},
+        capability_by_action={operation_id: {**capability, "provider_id": provider_id}},
+        constraint_by_id={},
+        composition_sha256=digest,
+        operation_bindings=(binding,),
+    )
+    return contract, operation_id, provider_id
+
+
 @pytest.fixture
 def completed_trace_path(tmp_path: Path) -> Path:
     output = tmp_path / "telemetry-run.ndjson"
@@ -377,6 +437,91 @@ def test_requested_and_applied_parameters_are_distinguishable(completed_trace_pa
     dispense = next(a for a in actions if a.kind == "dispense-electrolyte")
     assert dispense.parameters["volume_ml"]["requested"] is not None
     assert dispense.parameters["volume_ml"]["applied"] is not None
+    assert (
+        dispense.parameters["volume_ml"]["requested"] != dispense.parameters["volume_ml"]["applied"]
+    )
+
+
+@pytest.mark.parametrize(
+    ("parameter_name", "requested", "observation_name", "observed"),
+    [
+        ("preheat_k", 353.0, "peak_temperature_k", 1840.6339285714287),
+        ("noise_sigma_k", 0.0, "apparent_temperature_k", 1712.9028777567585),
+    ],
+)
+def test_same_unit_observations_do_not_supply_applied_parameters(
+    monkeypatch,
+    tmp_path,
+    parameter_name,
+    requested,
+    observation_name,
+    observed,
+):
+    contract, operation_id, provider_id = _same_unit_contract(
+        parameter_name,
+        requested,
+        observation_name,
+    )
+
+    def observation_model(request):
+        assert request.parameters[parameter_name] == requested
+        return instruments.InstrumentResult(
+            outputs={observation_name: observed},
+            uncertainty={observation_name: 1.0},
+            cost_usd=0.0,
+            duration_s=1.0,
+        )
+
+    monkeypatch.setitem(
+        instruments._MODELS,
+        (operation_id, provider_id),
+        observation_model,
+    )
+    events, _ = run_composed_campaign(
+        contract,
+        tmp_path / f"{parameter_name}.ndjson",
+        seed=11,
+    )
+
+    action = next(event.action for event in events if event.action is not None)
+    assert action.parameters[parameter_name] == {
+        "requested": requested,
+        "applied": requested,
+    }
+    observation = next(event.observation for event in events if event.observation is not None)
+    channels = {channel.name: channel.value for channel in observation.channels}
+    assert channels[observation_name] == observed
+    assert observation_name not in action.parameters
+
+
+def test_unknown_explicit_applied_parameter_fails_before_trace_creation(
+    monkeypatch,
+    tmp_path,
+):
+    model = instruments.resolve("dispense-electrolyte", "ac-ot2-simulator")
+    assert model is not None
+
+    def reports_unknown_applied_parameter(request):
+        result = model(request)
+        return instruments.InstrumentResult(
+            outputs=result.outputs,
+            uncertainty=result.uncertainty,
+            cost_usd=result.cost_usd,
+            duration_s=result.duration_s,
+            reasons=result.reasons,
+            sample=result.sample,
+            applied_parameters={"not_commanded": 1.0},
+        )
+
+    monkeypatch.setitem(
+        instruments._MODELS,
+        ("dispense-electrolyte", "ac-ot2-simulator"),
+        reports_unknown_applied_parameter,
+    )
+    output = tmp_path / "unknown-applied.ndjson"
+    with pytest.raises(CampaignValidationError, match="not commanded.*not_commanded"):
+        run_composed_campaign(_coverage_contract(), output, seed=11)
+    assert not output.exists()
 
 
 def test_constraints_record_their_margin(completed_trace_path):

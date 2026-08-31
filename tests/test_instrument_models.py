@@ -182,6 +182,7 @@ def test_dispense_reports_requested_and_applied_volume():
     result = model(_request(volume_ml=3.8951234))
     assert result.outputs["volume_requested_ml"] == pytest.approx(3.8951234)
     assert result.outputs["volume_applied_ml"] != result.outputs["volume_requested_ml"]
+    assert result.applied_parameters == {"volume_ml": result.outputs["volume_applied_ml"]}
     assert result.uncertainty["volume_applied_ml"] > 0.0
 
 
@@ -195,6 +196,7 @@ def test_aliquot_reports_requested_and_applied_volume():
     model = instruments.resolve("aliquot-to-well", "ac-ot2-simulator")
     result = model(_request(volume_ml=3.895))
     assert result.outputs["volume_requested_ml"] == pytest.approx(3.895)
+    assert result.applied_parameters == {"volume_ml": result.outputs["volume_applied_ml"]}
     assert result.uncertainty["volume_applied_ml"] > 0.0
 
 

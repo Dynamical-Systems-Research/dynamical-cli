@@ -162,6 +162,11 @@ The agent controls research policy. Dynamical controls admission, safety,
 evidence, cost, and authority. Do not bypass rejected providers, constraints,
 budgets, or approval rules.
 
+Treat action parameters as command provenance. Record the exact commanded value
+as `requested`. Observations never supply an `applied` command value. Use a
+different `applied` value only when the provider explicitly reports the value it
+delivered; otherwise keep it equal to `requested`.
+
 For one mobile sample, declare one `sample_state` campaign input with a stable
 sample ID. Materialize it with an initial `transfer-sample` step, bind later
 `sample.state` inputs to the original campaign input, and express chronology

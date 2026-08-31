@@ -34,6 +34,7 @@ class InstrumentResult:
     duration_s: float
     reasons: list[RuntimeReason] = field(default_factory=list)
     sample: Sample | None = None
+    applied_parameters: dict[str, float] = field(default_factory=dict)
 
 
 InstrumentModel = Callable[[InstrumentRequest], InstrumentResult]

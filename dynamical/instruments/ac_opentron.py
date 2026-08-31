@@ -121,6 +121,7 @@ def _dispense(request: InstrumentRequest, reasons: list[RuntimeReason]) -> Instr
         uncertainty={"volume_applied_ml": uncertainty_ml},
         cost_usd=0.0,
         duration_s=max(0.0, PUMP_TIME_SLOPE_S_PER_ML * volume_ml + PUMP_TIME_INTERCEPT_S),
+        applied_parameters={"volume_ml": applied_ml},
         reasons=reasons,
         sample=sample,
     )
