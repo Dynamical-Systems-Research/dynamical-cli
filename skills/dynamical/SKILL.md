@@ -367,10 +367,16 @@ not a CLI-validated schema or authority record.
   "out_of_domain_results": [],
   "raw_evidence_references": [],
   "stopping_reason": "...",
-  "next_physical_experiment": "...",
+  "next_physical_experiment": "... or \"none\"",
+  "no_request_reason": "required when next_physical_experiment is none",
   "physical_execution_status": "HOLD"
 }
 ```
+
+`next_physical_experiment` is either the next physical request or `"none"`.
+When it is `"none"`, `no_request_reason` states why no physical measurement
+would change the decision. Ending without a physical request is a valid
+outcome of the study, not a failure.
 
 Use `decision_impact` to state what the arm tested and whether its validated
 result changed, confirmed, narrowed, or left the conclusion or decision
