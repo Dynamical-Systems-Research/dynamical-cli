@@ -284,7 +284,9 @@ evidence. Preserve every `HOLD` receipt. If the receipt names a saved output,
 validate that output with `dynamical validate` and preserve the validation
 result. Do not pass the command receipt itself to `dynamical validate`. If
 `HOLD` identifies an incomplete requirement, author a corrected requirement
-without changing admission or authority. If no admitted route exists, continue
+without changing admission or authority. Do not resubmit the same requirement
+unchanged; a repeated `HOLD` means the requirement must change or the campaign
+must stop. If no admitted route exists, continue
 only after the missing evidence, provider, policy, budget, safety condition, or
 authority changes.
 

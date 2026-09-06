@@ -216,11 +216,12 @@ Use Dynamical with examples/fastcat-oer/candidate-set.yaml. Create one isolated
 campaign arm for each of the nine supplied compositions and keep the fixed test
 conditions. Validate every arm before comparison. If uncertainty intervals
 overlap, do not claim a confirmed winner.
-Use a unique lowest point estimate only as the current virtual lead for the next
-physical measurement. Preserve all promoted, not_promoted, HOLD, invalid, and
-failed arms. Return study-report.json with the supported decision, rival
-candidates, uncertainty, experiment snapshots, and next physical experiment or
-HOLD.
+Treat the lowest point estimate as the current virtual lead, not the decision.
+Before requesting a physical measurement, state the prediction it tests and
+the result that would change the decision. Preserve all promoted,
+not_promoted, HOLD, invalid, and failed arms. Return study-report.json with the
+supported decision, rival candidates, uncertainty, experiment snapshots, and
+the next physical experiment, a no-request decision with its reason, or HOLD.
 ```
 
 ## How Dynamical works

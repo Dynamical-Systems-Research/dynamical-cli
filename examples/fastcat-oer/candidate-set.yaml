@@ -19,7 +19,7 @@ comparison_contract:
   required_arms: one isolated, validated campaign arm for each candidate
   evidence_rule: Compare only valid measure-oer observations. Keep simulator and calibrated-twin evidence separate.
   ranking_rule: Lower predicted overpotential_v is better. If uncertainty intervals overlap, identify the lowest point estimate as the current virtual lead but do not claim a confirmed winner.
-  next_evidence_rule: Request physical synthesis and measurement of the valid candidate with the unique lowest point estimate. State that this tests the current virtual lead and does not establish the full pool ordering. Return HOLD if no arm validates or the minimum is not unique.
+  next_evidence_rule: Request physical synthesis and measurement of the valid candidate whose measured result would most change the decision, and state the prediction that measurement tests. The lowest point estimate is the current virtual lead, not the decision. Return HOLD if no arm validates. Return a no-request decision with its reason if no measurement would change the decision.
 candidates:
   - candidate_id: fastcat-candidate-01
     dopant_fractions: {Al: 0.308, Co: 0.292, Cr: 0.149, Cu: 0.000, Fe: 0.251, Mn: 0.000, Ni: 0.000, Zn: 0.000}
