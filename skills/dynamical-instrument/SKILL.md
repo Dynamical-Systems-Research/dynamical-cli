@@ -66,7 +66,7 @@ Choose the smallest route that the supplied evidence supports:
 
 | Supplied evidence | Candidate route | Boundary |
 | --- | --- | --- |
-| Executable computational model | `simulator` provider proposal | Repeated calls share model assumptions and are not independent evidence. |
+| Executable computational model | `simulator` provider proposal | Repeated calls share model assumptions and are not independent evidence. A model the agent wrote, evaluated at its own fitted points, returns its inputs and does not show physical learning. |
 | Historical experiments | Archived replay | Reproduce realized evidence only; do not invent unseen outcomes. |
 | Model plus independent held-out validation | `calibrated_twin` candidate | Require uncertainty checks and a declared validity envelope. |
 | Hardware API, standard driver, or protocol | Physical provider proposal | Reuse the supplied interface. Transport support does not prove calibration, admission, safety, or physical authority. |
