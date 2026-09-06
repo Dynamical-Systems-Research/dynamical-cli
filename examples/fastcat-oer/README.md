@@ -12,7 +12,8 @@ no archived physical outcomes. The checked-in `requirement.yaml` runs one
 catalyst composition. It does not answer the comparison question by itself. An
 agent must create one isolated requirement from that template for each supplied
 candidate, validate every arm, compare only valid virtual evidence, and
-preserve the evidence behind the physical measurement it requests next.
+preserve the evidence behind the physical measurement it requests next, or its
+reason for requesting none.
 
 This example deposits one declared catalyst composition. It transfers the same
 sample to an electrochemical station. It then loads the cell. It estimates the
