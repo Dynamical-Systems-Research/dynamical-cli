@@ -564,6 +564,20 @@ class CampaignStepRequirement(StrictModel):
         return self
 
 
+class ProspectiveRef(StrictModel):
+    """Pointer to the agent's prospective record for this requirement.
+
+    The record itself (the prediction the arm tests, the result that would
+    change the decision) lives in the agent's trace capture, not in Dynamical.
+    Dynamical carries only its digest and label so a receipt can be joined to
+    the prediction made before the arm ran. No field here is evaluated.
+    """
+
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    label: str = Field(min_length=1)
+    path: str | None = None
+
+
 class CampaignRequirement(StrictModel):
     document_type: Literal["dynamical.campaign-requirement"] = "dynamical.campaign-requirement"
     schema_version: Literal["0.1.0"] = SCHEMA_VERSION
@@ -574,6 +588,15 @@ class CampaignRequirement(StrictModel):
     max_cost_usd: Annotated[FiniteFloat, Field(ge=0.0)]
     max_duration_s: Annotated[FiniteFloat, Field(ge=0.0)]
     provider_preference: ProviderPreference = "prefer_lowest_evidence_class"
+    prospective_ref: ProspectiveRef | None = None
+
+    def model_dump(self, **kwargs: Any) -> dict[str, Any]:
+        # An absent reference is absent, not null: requirements written before
+        # this field existed keep their request hash, saved form and receipts.
+        payload = super().model_dump(**kwargs)
+        if payload.get("prospective_ref") is None:
+            payload.pop("prospective_ref", None)
+        return payload
 
     @model_validator(mode="after")
     def unique_requirement_records(self) -> CampaignRequirement:

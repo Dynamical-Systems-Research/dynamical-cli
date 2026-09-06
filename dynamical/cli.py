@@ -580,6 +580,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                 }
                 if untrusted_admissions:
                     receipt["untrusted_admissions"] = untrusted_admissions
+                if result.sources is not None and result.sources.requirement.prospective_ref:
+                    # the agent's prospective record for this arm, repeated so the
+                    # receipt joins to the prediction made before composing
+                    receipt["prospective_ref"] = (
+                        result.sources.requirement.prospective_ref.model_dump(mode="json")
+                    )
                 if preflight_binding is not None:
                     receipt["preflight"] = {
                         "receipt_sha256": preflight_binding.receipt_sha256,
