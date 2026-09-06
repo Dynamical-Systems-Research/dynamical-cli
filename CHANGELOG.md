@@ -13,14 +13,9 @@ the agent decides.
   `composition_sha256`, so the prediction made before the arm ran joins to the
   composed artifact and, through it, to the trace. The composed artifact and
   its hash do not change. Dynamical never evaluates the record.
-- Skill text: record the prediction and the decision-changing result before
-  each arm; run an arm only when its outcome can change the decision; a
-  calibrated provider's output is evidence, not the decision; read the
-  provider's calibration report (`evidence_refs`) before using its interval as
-  a noise floor; ending without a physical request is a valid outcome; a
-  repeated `HOLD` means change or stop.
-- Instrument skill: an agent-authored model evaluated at its own fitted points
-  returns its inputs and is not physical learning.
+- Campaign skill, one sentence at the `HOLD` guidance: do not resubmit the same
+  requirement unchanged; a repeated `HOLD` means the requirement must change
+  or the campaign must stop.
 - FastCat example and README: the next physical measurement is the one whose
   result would most change the decision, with the prediction it tests stated;
   the lowest point estimate is the virtual lead, not the decision.

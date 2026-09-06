@@ -236,18 +236,6 @@ For every experiment:
    mechanically before writing the report.
 5. Preserve the arm, receipts, validation results, and available hashes.
 
-Before each arm, record the prediction it tests and the result that would
-change the decision. Run an arm only when its outcome can change the decision.
-A model evaluated at the points it was fitted to returns its inputs; that
-output is not new evidence. A calibrated provider's output is evidence with a
-declared interval, not the decision: keep the agent's own model, and state why
-the decision follows or departs from the provider. Before treating a
-calibrated provider's interval as the noise floor of a comparison, read the
-calibration report its registry record references in `evidence_refs`; the
-interval states the provider's declared basis and validated domain, not a
-measurement of the candidates. Ending without a physical request is a valid
-outcome when the evidence supports it; record the reason.
-
 Continue without renewed approval while the campaign stays inside admitted
 capabilities and its approved compute, cost, network, and authority envelope.
 Pause when the agent's scientific stopping condition is met or when progress
