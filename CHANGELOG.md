@@ -19,6 +19,9 @@ the agent decides.
 - FastCat example and README: the next physical measurement is the one whose
   result would most change the decision, with the prediction it tests stated;
   the lowest point estimate is the virtual lead, not the decision.
+- Study-report template in the campaign skill: `next_physical_experiment` may
+  be a request or `none`; when it is `none`, `no_request_reason` is required.
+  The OpenAI agent card and the FastCat example README say the same.
 
 No command, exit code, schema version, trace schema, admission rule or evidence
 class changed. Requirements without `prospective_ref` validate as before, compose to
