@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.21 (staged; not released)
+## 0.1.21
 
 Correct the public reference labs against pinned source evidence: SDL1 is a
 source-verified virtual workflow; FastCat is a separate bounded empirical

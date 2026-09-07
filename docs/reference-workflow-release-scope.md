@@ -2,8 +2,8 @@
 
 On 2026-09-07, Jarrod approved narrowing the release to the evidence available
 from open sources. This supersedes the earlier requirement to calibrate every
-physical behavior. Version 0.1.21 stays staged
-until review is complete and publication is explicitly approved.
+physical behavior. Jarrod approved publication of version 0.1.21 after final
+CI and PR review.
 
 ## What ships
 

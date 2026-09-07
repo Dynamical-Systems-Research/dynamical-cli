@@ -2,9 +2,9 @@
 
 The release scope is a source-verified SDL1 virtual workflow and a separate
 bounded FastCat empirical predictor. Physical calibration is not a release
-prerequisite under the revised scope approved on 2026-09-07. The removed estimator and failed FastCat interval revision remain failed
-historical results. Version 0.1.21 is
-staged; merge and publication still require explicit approval.
+prerequisite under the revised scope approved on 2026-09-07. The removed estimator
+and failed FastCat interval revision remain failed historical results. Jarrod
+approved merging and publishing version 0.1.21 after final CI and PR review.
 
 The scientific objective remains learning an unfamiliar physical system through
 interventions capable of contradicting predictions. Completing a workflow,
@@ -54,7 +54,7 @@ were subsequently removed; its failed result remains in Git history.
 The campaign schema already uses facility-derived action/channel vocabularies;
 changing a facility does not change that format. No schema version bump or
 restoration of nonexistent operations is needed. All intentional contract changes
-are listed in the single staged changelog entry. Frozen FastCat predictions and
+are listed in the single 0.1.21 changelog entry. Frozen FastCat predictions and
 interval width remain unchanged. Source bindings and composition identities change
 where the corrected declarations change.
 
