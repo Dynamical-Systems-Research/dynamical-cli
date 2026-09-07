@@ -247,7 +247,7 @@ The reference bundles have two distinct scopes:
 
 - **SDL1: source-verified virtual workflow.** Commands, electrode roles and the
   measurement protocol trace to pinned AC sources. Unavailable physical responses
-  remain explicit. AMPERE's failed predictor is not admitted.
+  remain explicit.
 - **FastCat: bounded empirical predictor.** The frozen OER table reports 48.4 mV
   MAE and 90.7% interval coverage on the 54-composition pool, with a fixed
   ±104.969 mV interval. The original 27-composition validation MAE was 22.2 mV;

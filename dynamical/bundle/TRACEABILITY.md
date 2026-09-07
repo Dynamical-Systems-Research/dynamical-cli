@@ -26,11 +26,8 @@ verify external records. Review must read the cited source and assess its actual
 support. The SDL1 measurement setup, stages and extraction rules also carry
 pinned references in `reference-lab/protocols/sdl1-oer.json`.
 
-SDL1 represents source commands and unknown physical responses. AMPERE-2's failed
-historical calibration stays visible, but its estimator is not admitted to either
-facility. Its frozen chronology assertion is explicitly superseded by the dated
-errata. FastCat retains its frozen table and constant interval; original validation
-and later pool evaluation remain distinct. Neither bundle establishes full physical
-facility calibration. SDL1 is a source-verified virtual workflow; FastCat is a
-bounded empirical predictor. Release checks verify these declared scopes, not
-physical bench calibration. Users must validate any connected physical facility.
+SDL1 is a source-verified virtual workflow with unknown physical responses.
+FastCat is a separate bounded empirical predictor with a frozen table and constant
+interval; original validation and later pool evaluation remain distinct. Neither
+bundle establishes full physical facility calibration. Release checks verify
+these declared scopes. Users must validate any connected physical facility.

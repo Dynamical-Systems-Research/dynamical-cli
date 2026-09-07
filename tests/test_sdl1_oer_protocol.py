@@ -87,7 +87,8 @@ def test_missing_source_profile_fails_closed(monkeypatch):
     assert result.reasons[0].code == "PROTOCOL_PROFILE_UNVERIFIED"
 
 
-def test_ampere_is_not_registered_as_a_measurement():
+def test_removed_estimator_cannot_be_resolved():
+    assert instruments.resolve("estimate-oer", "ac-oer-simulator") is None
     assert instruments.resolve("measure-oer", "ac-oer-simulator") is None
     assert instruments.resolve("measure-oer", "ac-sdl1-oer-protocol") is ac_sdl1_oer.measure_oer
 

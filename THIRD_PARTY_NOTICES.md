@@ -38,19 +38,6 @@ Dynamical redistributes no Opentrons-derived geometry; the OT-2 body and
 tiprack appear in compiled stages only as machine-labelled
 `execution_visualization_primitive` proxies.
 
-## AMPERE-2 physical dataset
-
-Calibration evidence in this repository is derived from physical
-chronopotentiometry measurements in:
-
-Nis Fisker-Bødker, *Dataset for Democratizing self-driving lab platform for
-electrodeposition of catalyst and electrochemical validation*, 2025.
-DOI [10.11583/DTU.27446925](https://doi.org/10.11583/DTU.27446925).
-License: MIT.
-
-The raw dataset (1.5 GB) is not redistributed here; the calibration evidence
-records its source URL, retrieval hashes, and extraction procedure.
-
 ## FastCat physical dataset
 
 The frozen FastCat OER prediction table and calibration evidence derive from

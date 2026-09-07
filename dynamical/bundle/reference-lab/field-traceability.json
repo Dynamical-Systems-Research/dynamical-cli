@@ -1705,25 +1705,9 @@
         "classification": "dynamical_convention",
         "value_sha256": "0f3b41a1ab3493eb442a6fe3ecbae12d2d59c4ef581ed1f7c1c55ff97861e608"
       },
-      "/calibration_evidence/0/applies_to_model_binding_id": {
+      "/calibration_evidence": {
         "classification": "dynamical_convention",
-        "value_sha256": "d8086e809c19f1c817579aad924d4acd0f102ead927217d2a00c783c64b5070f"
-      },
-      "/calibration_evidence/0/id": {
-        "classification": "dynamical_convention",
-        "value_sha256": "ec5fb37a1f69760f6b1bce30ac21dac54b266bfe59a0a8ed9666d30a3e3300ca"
-      },
-      "/calibration_evidence/0/limitations/8": {
-        "classification": "dynamical_convention",
-        "value_sha256": "03f5081a6415facf6e7e411b300381df0c64cc19b8e21391658498e22be9e9d9"
-      },
-      "/calibration_evidence/0/supported_channel_ids/0": {
-        "classification": "dynamical_convention",
-        "value_sha256": "28915ac982d4f7ec7ab20cfac68fac524d8a0b4e1537ae42c8531fc494839d87"
-      },
-      "/calibration_evidence/0/supported_channel_ids/1": {
-        "classification": "dynamical_convention",
-        "value_sha256": "5125901fa50d0ea56afcf217dc7984384b2981145e83c91310d1cc13e6ecaf36"
+        "value_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
       },
       "/capabilities/0/action_type": {
         "classification": "dynamical_convention",
@@ -2963,11 +2947,11 @@
       },
       "/facility/claim_boundary/13": {
         "classification": "dynamical_convention",
-        "value_sha256": "86c836191a448a6b3b3efed9ced14baef5ad093570205030d83fdbf08db35712"
+        "value_sha256": "8e1f9529c154acaaee30fb8f0a68ca2a7ca23aa0dfed35dfc4bcf084329834b1"
       },
       "/facility/claim_boundary/14": {
         "classification": "dynamical_convention",
-        "value_sha256": "60cb93341dd930160eec6e1ca3ba8f87787287e46a4a934465633477e705c884"
+        "value_sha256": "80bdf13b2d03af37687b8051240a426eeaff3815f8e9ccc73e1014ec127304e1"
       },
       "/facility/claim_boundary/2": {
         "classification": "dynamical_convention",
@@ -2988,6 +2972,10 @@
       "/facility/claim_boundary/6": {
         "classification": "dynamical_convention",
         "value_sha256": "13d111ddf2a15b5f2cad7cc3be252dca677921da185abd7482f51137a279c602"
+      },
+      "/facility/claim_boundary/7": {
+        "classification": "dynamical_convention",
+        "value_sha256": "592621c47e7be35347b8dcda8970978d49cbd2515e14ba13625b8dd1bfde387c"
       },
       "/facility/claim_boundary/8": {
         "classification": "dynamical_convention",
@@ -3205,21 +3193,21 @@
         "classification": "dynamical_convention",
         "value_sha256": "d0ff5974b6aa52cf562bea5921840c032a860a91a3512f7fe8f768f6bbe005f6"
       },
-      "/model_bindings/3/calibration_evidence_ids/0": {
+      "/model_bindings/3/calibration_evidence_ids": {
         "classification": "dynamical_convention",
-        "value_sha256": "ec5fb37a1f69760f6b1bce30ac21dac54b266bfe59a0a8ed9666d30a3e3300ca"
+        "value_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
       },
       "/model_bindings/3/id": {
         "classification": "dynamical_convention",
-        "value_sha256": "d8086e809c19f1c817579aad924d4acd0f102ead927217d2a00c783c64b5070f"
+        "value_sha256": "3c0e75439fda98439dee64d55594a90a03a3f60a99ab753cff0159ffb2f04460"
       },
       "/model_bindings/3/implementation_ref": {
         "classification": "dynamical_convention",
-        "value_sha256": "38ddb61c2e58c65a323b7f59385fbd34ccce09520c0305b06e3a65ecb29fad2e"
+        "value_sha256": "7d0631bdefb46627aeabc923c07d5508a6f09ce6b8f63770df642dcd265045a8"
       },
       "/model_bindings/3/implementation_sha256": {
         "classification": "dynamical_convention",
-        "value_sha256": "3fea8ad735252b3d72f3fa97d15e53af5691295c7ecfe73f8dcf196132cd127a"
+        "value_sha256": "580d7a66d025a36248e1b83a67dad8996895538bdfaff971c3116f9a4cd3ef12"
       },
       "/model_bindings/3/input_channel_map": {
         "classification": "dynamical_convention",
@@ -3247,15 +3235,15 @@
       },
       "/model_bindings/4/id": {
         "classification": "dynamical_convention",
-        "value_sha256": "3c0e75439fda98439dee64d55594a90a03a3f60a99ab753cff0159ffb2f04460"
+        "value_sha256": "97104643d55cf84fe32a6471e08856f93acb1b018d7d1c08321b76f217fa19d7"
       },
       "/model_bindings/4/implementation_ref": {
         "classification": "dynamical_convention",
-        "value_sha256": "7d0631bdefb46627aeabc923c07d5508a6f09ce6b8f63770df642dcd265045a8"
+        "value_sha256": "2956a247b2050c68239b269fc26dc99e15bfbc12ae0013a7006e554334f8f50a"
       },
       "/model_bindings/4/implementation_sha256": {
         "classification": "dynamical_convention",
-        "value_sha256": "580d7a66d025a36248e1b83a67dad8996895538bdfaff971c3116f9a4cd3ef12"
+        "value_sha256": "e45f986b06c1790c7e9f2db798b7ae4ea9e4792db0b18cc612dc4c0d5df99d8f"
       },
       "/model_bindings/4/input_channel_map": {
         "classification": "dynamical_convention",
@@ -3265,17 +3253,13 @@
         "classification": "dynamical_convention",
         "value_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
       },
-      "/model_bindings/4/parameter_map/evidence-class": {
+      "/model_bindings/4/parameter_map/verifier-owner": {
         "classification": "dynamical_convention",
-        "value_sha256": "7e6ecc88aad7b2f9d0807ccc0bc502413e5f9852cb0ecde2a33f63c70116f88b"
-      },
-      "/model_bindings/4/parameter_map/physical-calibration": {
-        "classification": "dynamical_convention",
-        "value_sha256": "fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa"
+        "value_sha256": "53872c728367180b5839aae47b3e6c9cb1c30dbd21fdaaca977ac00c8e5186f4"
       },
       "/model_bindings/4/update_interval_s": {
         "classification": "dynamical_convention",
-        "value_sha256": "d0ff5974b6aa52cf562bea5921840c032a860a91a3512f7fe8f768f6bbe005f6"
+        "value_sha256": "9fca51987c96ba92d35f303353b7065f31114501c9f2afa37463ff1fdffe8f1f"
       },
       "/model_bindings/5/calibration_evidence_ids": {
         "classification": "dynamical_convention",
@@ -3283,15 +3267,15 @@
       },
       "/model_bindings/5/id": {
         "classification": "dynamical_convention",
-        "value_sha256": "97104643d55cf84fe32a6471e08856f93acb1b018d7d1c08321b76f217fa19d7"
+        "value_sha256": "491a454f6c5f692c4f61db24ad4803995904c1e1d1e8d89f22ddc60d0ee74a3c"
       },
       "/model_bindings/5/implementation_ref": {
         "classification": "dynamical_convention",
-        "value_sha256": "2956a247b2050c68239b269fc26dc99e15bfbc12ae0013a7006e554334f8f50a"
+        "value_sha256": "67bdbaa7b26336f262faca1316aeffd12d187b9f4b0fef0258d9cd109ae997a7"
       },
       "/model_bindings/5/implementation_sha256": {
         "classification": "dynamical_convention",
-        "value_sha256": "e45f986b06c1790c7e9f2db798b7ae4ea9e4792db0b18cc612dc4c0d5df99d8f"
+        "value_sha256": "3076d89cba757f83040755cdaeb2fd27be925c956cdc21e6e3dfa1ed551a3d49"
       },
       "/model_bindings/5/input_channel_map": {
         "classification": "dynamical_convention",
@@ -3301,55 +3285,23 @@
         "classification": "dynamical_convention",
         "value_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
       },
-      "/model_bindings/5/parameter_map/verifier-owner": {
-        "classification": "dynamical_convention",
-        "value_sha256": "53872c728367180b5839aae47b3e6c9cb1c30dbd21fdaaca977ac00c8e5186f4"
-      },
-      "/model_bindings/5/update_interval_s": {
-        "classification": "dynamical_convention",
-        "value_sha256": "9fca51987c96ba92d35f303353b7065f31114501c9f2afa37463ff1fdffe8f1f"
-      },
-      "/model_bindings/6/calibration_evidence_ids": {
-        "classification": "dynamical_convention",
-        "value_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
-      },
-      "/model_bindings/6/id": {
-        "classification": "dynamical_convention",
-        "value_sha256": "491a454f6c5f692c4f61db24ad4803995904c1e1d1e8d89f22ddc60d0ee74a3c"
-      },
-      "/model_bindings/6/implementation_ref": {
-        "classification": "dynamical_convention",
-        "value_sha256": "67bdbaa7b26336f262faca1316aeffd12d187b9f4b0fef0258d9cd109ae997a7"
-      },
-      "/model_bindings/6/implementation_sha256": {
-        "classification": "dynamical_convention",
-        "value_sha256": "3076d89cba757f83040755cdaeb2fd27be925c956cdc21e6e3dfa1ed551a3d49"
-      },
-      "/model_bindings/6/input_channel_map": {
-        "classification": "dynamical_convention",
-        "value_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
-      },
-      "/model_bindings/6/output_channel_map": {
-        "classification": "dynamical_convention",
-        "value_sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
-      },
-      "/model_bindings/6/parameter_map/evidence-class": {
+      "/model_bindings/5/parameter_map/evidence-class": {
         "classification": "dynamical_convention",
         "value_sha256": "7e6ecc88aad7b2f9d0807ccc0bc502413e5f9852cb0ecde2a33f63c70116f88b"
       },
-      "/model_bindings/6/parameter_map/physical-calibration": {
+      "/model_bindings/5/parameter_map/physical-calibration": {
         "classification": "dynamical_convention",
         "value_sha256": "fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa"
       },
-      "/model_bindings/6/parameter_map/protocol-ref": {
+      "/model_bindings/5/parameter_map/protocol-ref": {
         "classification": "dynamical_convention",
         "value_sha256": "692a69cf90e5c17a8d33f0a018293a7f6c8146459ff73b8014aea475769b4b79"
       },
-      "/model_bindings/6/parameter_map/protocol-sha256": {
+      "/model_bindings/5/parameter_map/protocol-sha256": {
         "classification": "dynamical_convention",
         "value_sha256": "416b2023bfe73ce82ba4a7a4b44411d3d848e5ba58df79d3f2a1e1bc630261d3"
       },
-      "/model_bindings/6/update_interval_s": {
+      "/model_bindings/5/update_interval_s": {
         "classification": "dynamical_convention",
         "value_sha256": "d0ff5974b6aa52cf562bea5921840c032a860a91a3512f7fe8f768f6bbe005f6"
       },
@@ -6612,21 +6564,6 @@
   "document_type": "dynamical.field-traceability",
   "rows": [
     {
-      "claim_limit": "Absence is scoped to this bundle, not all upstream or physical data. Failed historical gates remain failed.",
-      "classification": "recorded_provenance",
-      "derivation": "Bundled response adapters expose no measured SDL1 campaign response; the separately recorded DTU AMPERE-2 source supplies the historical failed simulator fit.",
-      "document": "facility.yaml",
-      "pointer": "/facility/claim_boundary/7",
-      "source_ids": [
-        "ampere-source",
-        "ampere-failure",
-        "ampere-mae",
-        "ampere-rank",
-        "protocol-failclosed"
-      ],
-      "value_sha256": "f2ffe08e1a4fbe5ec683c4729e8645c9cd18b0bce81e909adaced793c876bbe8"
-    },
-    {
       "claim_limit": "Source identity/representation does not establish scene pose, physical accuracy or controller behavior.",
       "classification": "recorded_provenance",
       "derivation": "Admitted converted mesh identity bound in the matching source-lock record.",
@@ -7812,484 +7749,6 @@
         "recipe"
       ],
       "value_sha256": "72e72b41e40336eeef6045c40e3ac2988411fbadc42958caf30e7dbf1b729e00"
-    },
-    {
-      "claim_limit": "Historical reported archive identity/license; no raw outcome root was accessed or independently revalidated here.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/source_artifact_ref is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/source_artifact_ref",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-source"
-      ],
-      "value_sha256": "4fa80a6799956ff8bbb0c2702bd9f2f621e0fd40149a01085832b83eab913c35"
-    },
-    {
-      "claim_limit": "Historical reported archive identity/license; no raw outcome root was accessed or independently revalidated here.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/source_sha256 is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/source_sha256",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-source"
-      ],
-      "value_sha256": "c7982901d44962149d237a739bc68b9b1f217bd93963168b5e0388953bb8cce9"
-    },
-    {
-      "claim_limit": "Historical intended domain is not enforced by the legacy simulator. Installed current admission is20or50mA/cm2; current SDL1 commands do not qualify a physical film.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/condition_domain/squidstat.current_density_a_cm2 is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/condition_domain/squidstat.current_density_a_cm2",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-domain",
-        "ampere-model",
-        "ampere-implementation"
-      ],
-      "value_sha256": "8e3079ca2310da4af6ce2317c96f62f114df026bcb8f7cd6fef493b1ffe8ef11"
-    },
-    {
-      "claim_limit": "Historical intended domain is not enforced by the legacy simulator. Installed current admission is20or50mA/cm2; current SDL1 commands do not qualify a physical film.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/condition_domain/squidstat.overpotential_v is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/condition_domain/squidstat.overpotential_v",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-domain",
-        "ampere-model",
-        "ampere-implementation"
-      ],
-      "value_sha256": "1377c1c180311e29f180e406fada66fe977fe26f1fdad60146e8217ab22f5d4e"
-    },
-    {
-      "claim_limit": "File identity is verifiable; pre-outcome timing is unverified and the historical freeze assertion is not certified.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/split_rule_ref is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/split_rule_ref",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-source",
-        "errata-chronology"
-      ],
-      "value_sha256": "712610d1b32405dbf0c6b3385473cbdb3a1e3213f20705188b8ecd8ece60a408"
-    },
-    {
-      "claim_limit": "File identity is verifiable; pre-outcome timing is unverified and the historical freeze assertion is not certified.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/split_rule_sha256 is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/split_rule_sha256",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-source",
-        "errata-chronology"
-      ],
-      "value_sha256": "6ba573516310f55438b73879308bb637c5f7b0f2b6241be99035fdd604c1118a"
-    },
-    {
-      "claim_limit": "Software declaration only; does not establish physical delivery, safety, calibration or performance.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/fit_artifact_ref is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/fit_artifact_ref",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-fit"
-      ],
-      "value_sha256": "8d5b061b7034deea4cd286906ccd69e99909df099d96004ab60878af398bb2e2"
-    },
-    {
-      "claim_limit": "Software declaration only; does not establish physical delivery, safety, calibration or performance.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/fit_artifact_sha256 is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/fit_artifact_sha256",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-fit"
-      ],
-      "value_sha256": "5868ae012dda5b4ec3dc15300b84ca0b6b52483b40a0b9621e27efb25cc7eff3"
-    },
-    {
-      "claim_limit": "Historical single-campaign split, with known leakage; not independently replicated physical validation.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/validation_design is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/validation_design",
-      "source_ids": [
-        "calibration-contract",
-        "errata-cross-condition",
-        "errata-leakage"
-      ],
-      "value_sha256": "660e99e5145073aab75856edea0aea39f3705f5b59707472b47b71273088e58e"
-    },
-    {
-      "claim_limit": "Preserved historical aggregate/threshold. independent_test is the software split label, not proof of independence; see leakage and chronology errata.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/metrics/0/name is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/metrics/0/name",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-mae"
-      ],
-      "value_sha256": "26e8863d307b7979a5136d7c0cb0a98772be275b6b16902aba9352364bb8b1d6"
-    },
-    {
-      "claim_limit": "Preserved historical aggregate/threshold. independent_test is the software split label, not proof of independence; see leakage and chronology errata.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/metrics/0/value is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/metrics/0/value",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-mae"
-      ],
-      "value_sha256": "ca54b3facb275df4ea3a40fcdba871598c0b6e06b225c45d1cd8771e8512a357"
-    },
-    {
-      "claim_limit": "Preserved historical aggregate/threshold. independent_test is the software split label, not proof of independence; see leakage and chronology errata.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/metrics/0/unit is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/metrics/0/unit",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-mae"
-      ],
-      "value_sha256": "c0cf4e9090e7de82b59109d3a6db95f2c8944e0dc62b15c4a1c442f3ecdb2f12"
-    },
-    {
-      "claim_limit": "Preserved historical aggregate/threshold. independent_test is the software split label, not proof of independence; see leakage and chronology errata.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/metrics/0/split is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/metrics/0/split",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-mae"
-      ],
-      "value_sha256": "09d109aa84931a2a923a19c9f2660d2a0ee001ec3fcbcf04fc34ea27f5b0aae4"
-    },
-    {
-      "claim_limit": "Preserved historical aggregate/threshold. independent_test is the software split label, not proof of independence; see leakage and chronology errata.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/metrics/0/threshold is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/metrics/0/threshold",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-mae"
-      ],
-      "value_sha256": "0602d7c813c1f6e7351a5832730f29daf739674976caba8d9dd955be838d46ea"
-    },
-    {
-      "claim_limit": "Preserved historical aggregate/threshold. independent_test is the software split label, not proof of independence; see leakage and chronology errata.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/metrics/0/comparator is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/metrics/0/comparator",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-mae"
-      ],
-      "value_sha256": "20031a08ea54b030cf1baa0627da4bf2354a18b47fa10b5772d960cf470584ec"
-    },
-    {
-      "claim_limit": "Preserved historical aggregate/threshold. independent_test is the software split label, not proof of independence; see leakage and chronology errata.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/metrics/1/name is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/metrics/1/name",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-coverage"
-      ],
-      "value_sha256": "9a940182ddeb412b863467d248d3ad09ce2b8ff470e7f9b72a28281c725044c1"
-    },
-    {
-      "claim_limit": "Preserved historical aggregate/threshold. independent_test is the software split label, not proof of independence; see leakage and chronology errata.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/metrics/1/value is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/metrics/1/value",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-coverage"
-      ],
-      "value_sha256": "d0ff5974b6aa52cf562bea5921840c032a860a91a3512f7fe8f768f6bbe005f6"
-    },
-    {
-      "claim_limit": "Preserved historical aggregate/threshold. independent_test is the software split label, not proof of independence; see leakage and chronology errata.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/metrics/1/unit is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/metrics/1/unit",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-coverage"
-      ],
-      "value_sha256": "391552c099c101b131feaf24c5795a6a15bc8ec82015424e0d2b4274a369a0bf"
-    },
-    {
-      "claim_limit": "Preserved historical aggregate/threshold. independent_test is the software split label, not proof of independence; see leakage and chronology errata.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/metrics/1/split is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/metrics/1/split",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-coverage"
-      ],
-      "value_sha256": "09d109aa84931a2a923a19c9f2660d2a0ee001ec3fcbcf04fc34ea27f5b0aae4"
-    },
-    {
-      "claim_limit": "Preserved historical aggregate/threshold. independent_test is the software split label, not proof of independence; see leakage and chronology errata.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/metrics/1/threshold is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/metrics/1/threshold",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-coverage"
-      ],
-      "value_sha256": "1e9d7c27c8bbc8ddf0055c93e064a62fa995d177fee28cc8fa949bc8a4db06f4"
-    },
-    {
-      "claim_limit": "Preserved historical aggregate/threshold. independent_test is the software split label, not proof of independence; see leakage and chronology errata.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/metrics/1/comparator is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/metrics/1/comparator",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-coverage"
-      ],
-      "value_sha256": "a9af68bc7893cdea37f3e5d68cca582087f9ac9be992538ce6f90074dce3f5f8"
-    },
-    {
-      "claim_limit": "Preserved historical aggregate/threshold. independent_test is the software split label, not proof of independence; see leakage and chronology errata.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/metrics/2/name is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/metrics/2/name",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-rank"
-      ],
-      "value_sha256": "d1bebe14738e664fc6df56e97a9f54c860c181b999c9c58c3637e713d1850ce7"
-    },
-    {
-      "claim_limit": "Preserved historical aggregate/threshold. independent_test is the software split label, not proof of independence; see leakage and chronology errata.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/metrics/2/value is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/metrics/2/value",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-rank"
-      ],
-      "value_sha256": "a111d8fea7dc5af27f04ff709e76d4f6a303c6ebd3a2eadc1663a8005c5b9fe3"
-    },
-    {
-      "claim_limit": "Preserved historical aggregate/threshold. independent_test is the software split label, not proof of independence; see leakage and chronology errata.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/metrics/2/unit is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/metrics/2/unit",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-rank"
-      ],
-      "value_sha256": "391552c099c101b131feaf24c5795a6a15bc8ec82015424e0d2b4274a369a0bf"
-    },
-    {
-      "claim_limit": "Preserved historical aggregate/threshold. independent_test is the software split label, not proof of independence; see leakage and chronology errata.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/metrics/2/split is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/metrics/2/split",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-rank"
-      ],
-      "value_sha256": "09d109aa84931a2a923a19c9f2660d2a0ee001ec3fcbcf04fc34ea27f5b0aae4"
-    },
-    {
-      "claim_limit": "Preserved historical aggregate/threshold. independent_test is the software split label, not proof of independence; see leakage and chronology errata.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/metrics/2/threshold is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/metrics/2/threshold",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-rank"
-      ],
-      "value_sha256": "973b372a514f91db8219fef585cdf81b09196afd7948f5fb1e29c2016dd995a0"
-    },
-    {
-      "claim_limit": "Preserved historical aggregate/threshold. independent_test is the software split label, not proof of independence; see leakage and chronology errata.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/metrics/2/comparator is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/metrics/2/comparator",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-rank"
-      ],
-      "value_sha256": "a9af68bc7893cdea37f3e5d68cca582087f9ac9be992538ce6f90074dce3f5f8"
-    },
-    {
-      "claim_limit": "Preserved historical aggregate/threshold. independent_test is the software split label, not proof of independence; see leakage and chronology errata.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/metrics/3/name is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/metrics/3/name",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-failure"
-      ],
-      "value_sha256": "a99ca79977b59f8a241f2aef9072f1bdd8153e526c3db39c669b2d246895c726"
-    },
-    {
-      "claim_limit": "Preserved historical aggregate/threshold. independent_test is the software split label, not proof of independence; see leakage and chronology errata.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/metrics/3/value is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/metrics/3/value",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-failure"
-      ],
-      "value_sha256": "72a0fd272fad735fbea99736c23ec48f6db4ef3b551b8866b04de60f1cba626b"
-    },
-    {
-      "claim_limit": "Preserved historical aggregate/threshold. independent_test is the software split label, not proof of independence; see leakage and chronology errata.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/metrics/3/unit is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/metrics/3/unit",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-failure"
-      ],
-      "value_sha256": "c0cf4e9090e7de82b59109d3a6db95f2c8944e0dc62b15c4a1c442f3ecdb2f12"
-    },
-    {
-      "claim_limit": "Preserved historical aggregate/threshold. independent_test is the software split label, not proof of independence; see leakage and chronology errata.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/metrics/3/split is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/metrics/3/split",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-failure"
-      ],
-      "value_sha256": "bce5dca4e22d61bc2f155a7ffe25094fc3a19bab0f060d7ea4f3d15d153010cf"
-    },
-    {
-      "claim_limit": "Historical audit finding or explicit qualification; no new fitting, raw-data inspection, or successful calibration is asserted.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/limitations/0 is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/limitations/0",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-failure",
-        "ampere-mae",
-        "ampere-rank"
-      ],
-      "value_sha256": "300538f29e9334203414ba13b204d6341cb905fce7960f6bf75645cf235cfd33"
-    },
-    {
-      "claim_limit": "Historical audit finding or explicit qualification; no new fitting, raw-data inspection, or successful calibration is asserted.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/limitations/1 is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/limitations/1",
-      "source_ids": [
-        "calibration-contract",
-        "errata-cross-condition"
-      ],
-      "value_sha256": "bf9c9533cd30514770b4759400235ee7661400f2d65a205ba72fe81ae55ea0a0"
-    },
-    {
-      "claim_limit": "Historical audit finding or explicit qualification; no new fitting, raw-data inspection, or successful calibration is asserted.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/limitations/2 is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/limitations/2",
-      "source_ids": [
-        "calibration-contract",
-        "errata-rail"
-      ],
-      "value_sha256": "a1a53835a2a27b9c74d38d196fe9753c240a5effa308412200c0f0d0fbaa2da1"
-    },
-    {
-      "claim_limit": "Historical audit finding or explicit qualification; no new fitting, raw-data inspection, or successful calibration is asserted.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/limitations/3 is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/limitations/3",
-      "source_ids": [
-        "calibration-contract",
-        "errata-leakage"
-      ],
-      "value_sha256": "db03fc26fd4c04cb0be333bf7c56ba222f1dfaaacf3b41798bdaf12dddbcb8bc"
-    },
-    {
-      "claim_limit": "Historical audit finding or explicit qualification; no new fitting, raw-data inspection, or successful calibration is asserted.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/limitations/4 is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/limitations/4",
-      "source_ids": [
-        "calibration-contract",
-        "errata-identifiability"
-      ],
-      "value_sha256": "2a295ff81dc9a8fe13ce12c76c53daadbb20697752d03cae968b62c8db3a7456"
-    },
-    {
-      "claim_limit": "Historical audit finding or explicit qualification; no new fitting, raw-data inspection, or successful calibration is asserted.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/limitations/5 is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/limitations/5",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-domain"
-      ],
-      "value_sha256": "497156278a394275ecfb4538e6bb4e6a85c81ed2f8600c6da4b2f4c0a406c2f8"
-    },
-    {
-      "claim_limit": "Historical audit finding or explicit qualification; no new fitting, raw-data inspection, or successful calibration is asserted.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/limitations/6 is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/limitations/6",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-model",
-        "ampere-implementation"
-      ],
-      "value_sha256": "f7f1b73c6cfe46e97e6b322ba8a8f8471bf98fd8eea89406efdd8fe8d516d67f"
-    },
-    {
-      "claim_limit": "Historical audit finding or explicit qualification; no new fitting, raw-data inspection, or successful calibration is asserted.",
-      "classification": "recorded_provenance",
-      "derivation": "/calibration_evidence/0/limitations/7 is metadata for the historical failed AMPERE-2 calibration record; no new validation is claimed.",
-      "document": "facility.yaml",
-      "pointer": "/calibration_evidence/0/limitations/7",
-      "source_ids": [
-        "calibration-contract",
-        "ampere-domain"
-      ],
-      "value_sha256": "58d9de96d48b3ee781fb3edc9998f68886bcbc432f94f6481f36b7fb10b7f6ee"
     },
     {
       "claim_limit": "Historical recorded retrieval, licensing, hash or conversion assertion; no new retrieval or physical measurement is implied.",
@@ -11377,96 +10836,6 @@
       "path": "dynamical/schema.py",
       "sha256": "96929070107af4c8d1963423f753b7fa696002d18be5e8e81712226b78176ab1"
     },
-    "ampere-coverage": {
-      "description": "ampere-coverage",
-      "kind": "provenance_record",
-      "locator": {
-        "line_end": 143,
-        "line_start": 138
-      },
-      "path": "dynamical/bundle/reference-lab/calibration/ampere2-oer/calibration_report.json",
-      "sha256": "53f8444a39ad58fa186904e24faf22f73aaee8e3a83a73cac2b210242dbb29ba"
-    },
-    "ampere-domain": {
-      "description": "ampere-domain",
-      "kind": "provenance_record",
-      "locator": {
-        "line_end": 23,
-        "line_start": 11
-      },
-      "path": "dynamical/bundle/reference-lab/calibration/ampere2-oer/frozen_protocol.json",
-      "sha256": "bcc2e272d3ee519804cfbb36918782931153f46d49dabb30073b974fe8b98032"
-    },
-    "ampere-failure": {
-      "description": "ampere-failure",
-      "kind": "provenance_record",
-      "locator": {
-        "line_end": 168,
-        "line_start": 164
-      },
-      "path": "dynamical/bundle/reference-lab/calibration/ampere2-oer/calibration_report.json",
-      "sha256": "53f8444a39ad58fa186904e24faf22f73aaee8e3a83a73cac2b210242dbb29ba"
-    },
-    "ampere-fit": {
-      "description": "ampere-fit",
-      "kind": "provenance_record",
-      "locator": {
-        "line_end": 46,
-        "line_start": 29
-      },
-      "path": "dynamical/bundle/reference-lab/calibration/ampere2-oer/fit.json",
-      "sha256": "e5a9c611cfc78a7ecddf32479eb5974225ed8ce8125bc8ff6d6ae4de476aece6"
-    },
-    "ampere-implementation": {
-      "description": "ampere-implementation",
-      "kind": "implementation_file",
-      "locator": {
-        "line_end": 126,
-        "line_start": 58
-      },
-      "path": "dynamical/instruments/ac_oer.py",
-      "sha256": "549077f0c4325a32d2600ac64f4622804671bb56940e1dc70d57e27f9b6c6ef7"
-    },
-    "ampere-mae": {
-      "description": "ampere-mae",
-      "kind": "provenance_record",
-      "locator": {
-        "line_end": 137,
-        "line_start": 132
-      },
-      "path": "dynamical/bundle/reference-lab/calibration/ampere2-oer/calibration_report.json",
-      "sha256": "53f8444a39ad58fa186904e24faf22f73aaee8e3a83a73cac2b210242dbb29ba"
-    },
-    "ampere-model": {
-      "description": "ampere-model",
-      "kind": "provenance_record",
-      "locator": {
-        "line_end": 37,
-        "line_start": 24
-      },
-      "path": "dynamical/bundle/reference-lab/calibration/ampere2-oer/frozen_protocol.json",
-      "sha256": "bcc2e272d3ee519804cfbb36918782931153f46d49dabb30073b974fe8b98032"
-    },
-    "ampere-rank": {
-      "description": "ampere-rank",
-      "kind": "provenance_record",
-      "locator": {
-        "line_end": 149,
-        "line_start": 144
-      },
-      "path": "dynamical/bundle/reference-lab/calibration/ampere2-oer/calibration_report.json",
-      "sha256": "53f8444a39ad58fa186904e24faf22f73aaee8e3a83a73cac2b210242dbb29ba"
-    },
-    "ampere-source": {
-      "description": "ampere-source",
-      "kind": "provenance_record",
-      "locator": {
-        "line_end": 10,
-        "line_start": 2
-      },
-      "path": "dynamical/bundle/reference-lab/calibration/ampere2-oer/frozen_protocol.json",
-      "sha256": "bcc2e272d3ee519804cfbb36918782931153f46d49dabb30073b974fe8b98032"
-    },
     "area-current": {
       "description": "area-current",
       "kind": "upstream_file",
@@ -11478,16 +10847,6 @@
       "revision": "2c5a911",
       "sha256": "965de34f92ba95fc187148251de2cc25840409054e379121e7cd5d100b992e23",
       "uri": "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/src/openTron_electrodeposition/parameters.py"
-    },
-    "calibration-contract": {
-      "description": "calibration-contract",
-      "kind": "implementation_file",
-      "locator": {
-        "line_end": 755,
-        "line_start": 715
-      },
-      "path": "dynamical/schema.py",
-      "sha256": "96929070107af4c8d1963423f753b7fa696002d18be5e8e81712226b78176ab1"
     },
     "cap-activation": {
       "description": "200mA/cm2 activation60s",
@@ -12172,66 +11531,6 @@
       "revision": "2c5a911",
       "sha256": "7fdbb417d40d2eceb4f05898236ef0fb8f520e4e951c487cd4550e529c7b5f5c",
       "uri": "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py"
-    },
-    "errata-chronology": {
-      "description": "errata-chronology",
-      "kind": "provenance_record",
-      "locator": {
-        "line_end": 50,
-        "line_start": 44
-      },
-      "path": "dynamical/bundle/reference-lab/calibration/ampere2-oer/ERRATA.md",
-      "sha256": "92e1a6045e7151f30d7e8d0b552b1fc174594123afc19836e47db24fde283992"
-    },
-    "errata-cross-condition": {
-      "description": "errata-cross-condition",
-      "kind": "provenance_record",
-      "locator": {
-        "line_end": 28,
-        "line_start": 23
-      },
-      "path": "dynamical/bundle/reference-lab/calibration/ampere2-oer/ERRATA.md",
-      "sha256": "92e1a6045e7151f30d7e8d0b552b1fc174594123afc19836e47db24fde283992"
-    },
-    "errata-identifiability": {
-      "description": "errata-identifiability",
-      "kind": "provenance_record",
-      "locator": {
-        "line_end": 57,
-        "line_start": 52
-      },
-      "path": "dynamical/bundle/reference-lab/calibration/ampere2-oer/ERRATA.md",
-      "sha256": "92e1a6045e7151f30d7e8d0b552b1fc174594123afc19836e47db24fde283992"
-    },
-    "errata-leakage": {
-      "description": "errata-leakage",
-      "kind": "provenance_record",
-      "locator": {
-        "line_end": 21,
-        "line_start": 15
-      },
-      "path": "dynamical/bundle/reference-lab/calibration/ampere2-oer/ERRATA.md",
-      "sha256": "92e1a6045e7151f30d7e8d0b552b1fc174594123afc19836e47db24fde283992"
-    },
-    "errata-rail": {
-      "description": "errata-rail",
-      "kind": "provenance_record",
-      "locator": {
-        "line_end": 36,
-        "line_start": 30
-      },
-      "path": "dynamical/bundle/reference-lab/calibration/ampere2-oer/ERRATA.md",
-      "sha256": "92e1a6045e7151f30d7e8d0b552b1fc174594123afc19836e47db24fde283992"
-    },
-    "protocol-failclosed": {
-      "description": "protocol-failclosed",
-      "kind": "implementation_file",
-      "locator": {
-        "line_end": 41,
-        "line_start": 1
-      },
-      "path": "dynamical/instruments/ac_sdl1_oer.py",
-      "sha256": "52d15ac9e804acd91634b90111855d07eaf3f511f651fb16d1a38f2f033cbfe7"
     },
     "recipe": {
       "description": "recipe",

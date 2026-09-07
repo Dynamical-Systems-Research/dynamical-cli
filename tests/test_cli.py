@@ -555,7 +555,7 @@ def test_modified_model_hash_in_agent_facility_is_refused(tmp_path: Path, capsys
 
     facility = yaml.safe_load(MANIFEST.read_text(encoding="utf-8"))
     for binding in facility["model_bindings"]:
-        if binding["id"] == "ac-oer-model":
+        if binding["id"] == "ac-sdl1-oer-model":
             binding["implementation_sha256"] = "0" * 64
     forged_facility = tmp_path / "facility.yaml"
     forged_facility.write_text(yaml.safe_dump(facility, sort_keys=False), encoding="utf-8")

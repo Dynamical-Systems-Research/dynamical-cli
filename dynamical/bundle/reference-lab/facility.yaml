@@ -52,9 +52,7 @@ facility:
     by this code.
   - The test well is temperature-controlled by the Arduino (example/experiment.py:2017-2018; src/arduino/main/main.ino:76-93,212-230).
     Its inclusion establishes controller topology, not measured temperature accuracy or uniformity.
-  - This bundle supplies no measured SDL1 campaign rows. Separate AMPERE-2 data (DOI 10.11583/DTU.27446925) underlie
-    the Dynamical ac-oer simulator, whose calibration gates failed. It remains simulator evidence only, with no
-    calibrated predictive or physical qualification claim.
+  - This bundle supplies no measured SDL1 campaign rows or calibrated physical response predictions.
   - A compiled stage proves scene composition only. Embodied evidence needs a preserved real execution trace, render,
     replay, and inspection. No physical execution is claimed.
   - SDL1 adapters record source-defined commands only. Mixture aliquoting truncates to integer uL; electrolyte dispensing
@@ -75,11 +73,9 @@ facility:
   - measure-oer binds the full SDL1 source protocol, including 0.200 A/cm^2 activation and the 0.100,0.050,0.020,0.010,0.005,0.002,0.001
     A/cm^2 staircase. These fixed source stages are admitted together, not as a continuous calibrated current envelope.
     The last-third iR-corrected potential at 0.010 A/cm^2 is the upstream headline. Any 1.229 V overpotential offset
-    is a Dynamical convention; the mounted reference and compatible potential scale remain unverified. AMPERE-2
-    estimation is a preserved historical model whose calibration failed; it is not an admitted SDL1 operation.
+    is a Dynamical convention; the mounted reference and compatible potential scale remain unverified.
   - Squidstat hardware current/voltage limits and actual elapsed duration are unverified. Device channels have no
-    hardware bounds; deposition-only constraints do not describe the full OER protocol. AMPERE-2 is not an admitted
-    SDL1 operation.
+    hardware bounds; deposition-only constraints do not describe the full OER protocol.
 workstations:
 - id: ot2-liquid-handling
   facility_id: ac-electrodeposition-cell
@@ -985,16 +981,6 @@ model_bindings:
     physical-calibration: false
   update_interval_s: 1.0
   calibration_evidence_ids: []
-- id: ac-oer-model
-  implementation_ref: dynamical/instruments/ac_oer.py
-  implementation_sha256: 549077f0c4325a32d2600ac64f4622804671bb56940e1dc70d57e27f9b6c6ef7
-  input_channel_map: {}
-  output_channel_map: {}
-  parameter_map:
-    evidence-class: simulator
-    physical-calibration: false
-  update_interval_s: 1.0
-  calibration_evidence_ids: [ampere2-oer-cp-2050]
 - id: ac-cleaning-model
   implementation_ref: dynamical/instruments/ac_cleaning.py
   implementation_sha256: 9d78cd6cc23ff0fe8287a9db598a0811e6c1a04f95e02f1383d6be8278a9a2ec
@@ -1342,67 +1328,7 @@ constraints:
   enforcement: reject
   verifier_binding_id: bounded-constraint-verifier
   constrained_parameter_name: temperature_setpoint_c
-calibration_evidence:
-- id: ampere2-oer-cp-2050
-  source_artifact_ref: https://doi.org/10.11583/DTU.27446925 (Data.zip, MIT license; historical source identity
-    recorded in frozen_protocol.json)
-  source_sha256: 649c5a8269e773371a6fcdc14db4d72166dbeb697fc49b66a89991fbdd44e736
-  applies_to_model_binding_id: ac-oer-model
-  supported_channel_ids: [squidstat.overpotential_v, squidstat.current_density_a_cm2]
-  condition_domain:
-    squidstat.current_density_a_cm2: 0.020 to 0.050 A/cm^2 (fitted basis; physical chronopotentiometry per the frozen
-      protocol)
-    squidstat.overpotential_v: historical intended fit domain over nominal Ni, Fe, Cr, Mn, Co, Zn, Cu and NH4OH/NaCi
-      inputs; the legacy simulator does not enforce membership in the fit-composition domain and supplies no calibrated
-      prediction guarantee
-  split_rule_ref: calibration/ampere2-oer/frozen_protocol.json
-  split_rule_sha256: bcc2e272d3ee519804cfbb36918782931153f46d49dabb30073b974fe8b98032
-  fit_artifact_ref: calibration/ampere2-oer/fit.json
-  fit_artifact_sha256: e5a9c611cfc78a7ecddf32479eb5974225ed8ce8125bc8ff6d6ae4de476aece6
-  validation_design: cross_condition
-  metrics:
-  - name: held-out-overpotential-mae
-    value: 0.38126269391939616
-    unit: V
-    split: independent_test
-    threshold: 0.05
-    comparator: le
-  - name: uncertainty-coverage-2sigma
-    value: 1.0
-    unit: '1'
-    split: independent_test
-    threshold: 0.8
-    comparator: ge
-  - name: candidate-order-spearman
-    value: -0.18793832808714067
-    unit: '1'
-    split: independent_test
-    threshold: 0.7
-    comparator: ge
-  - name: fit-residual-sigma
-    value: 1.8073715433658781
-    unit: V
-    split: fit
-  limitations: ['The frozen held-out gates FAILED (overpotential MAE and candidate-order preservation), so calibrated-twin
-      admission is denied and this model supplies simulator evidence only; the failed report is preserved at calibration/ampere2-oer/calibration_report.json.',
-    'Validation is a cross-condition holdout within a single AMPERE-2 campaign (one lab, one instrument), not independent
-      physical facility runs; calibrated-twin admission requires the latter and is denied on this ground independent
-      of the failed gates.', 'Fit and held-out data include runs recorded at the instrument compliance rail (~10.63
-      V) that the upstream dataset marks success; the frozen protocol does not permit post-hoc exclusion, and they
-      dominate the declared sigma. The uncertainty-coverage-2sigma metric passes only because that sigma is large;
-      it is not evidence of calibrated uncertainty.', The condition split hashes raw metadata strings and leaks
-      two physically identical conditions across the fit/held-out boundary; this compromises holdout independence.
-      The direction and magnitude of a corrected evaluation are unknown; the existing failed admission result remains
-      in force. See calibration/ampere2-oer/ERRATA.md., 'The fit design matrix is rank 9 of 11 (no condition separates
-      Mn from Cu), so those coefficients are not separately identified. See ERRATA.md.', Corrected potentials are
-      used on the upstream-reported scale; overpotential_v = corrected potential - 1.23 V carries that reference-scale
-      assumption., Nominal precursor composition is the volume-ratio analogue of the AMPERE-2 recipe units; deposited
-      stoichiometry was not measured upstream in a form admissible as a predictor., 'The fitted basis is exactly
-      {0.020, 0.050} A/cm^2; the instrument''s admitted current-density envelope is restricted to that basis so
-      predictions outside it are flagged out-of-envelope rather than silently extrapolated.', 'Historical frozen_before_any_outcome_inspection=true
-      is unverified and superseded by ERRATA.md item 5 (amended 2026-09-07). AMPERE-2 is retained as a failed historical
-      model record, not admitted to SDL1 execution. Its historical 1.23 V offset differs from the FastCat 1.229
-      V convention; neither establishes an SDL1 reference scale.']
+calibration_evidence: []
 asset_sources:
 - id: sources/ac-sdl1/assembly_well_cartridge v44.step
   retrieval_uri: https://zenodo.org/api/records/15575908/files/AccelerationConsortium/SDL1_OpenTron_electrodeposition-0.0.2.zip/content

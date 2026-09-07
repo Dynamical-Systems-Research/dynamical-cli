@@ -575,7 +575,7 @@ def test_current_only_measurement_does_not_bypass_the_sdl1_protocol(current):
 
 
 @pytest.mark.parametrize("current", [0.01, 0.02, 0.05, 0.2])
-def test_failed_ampere_estimator_is_not_an_admitted_sdl1_operation(current):
+def test_unsupported_estimator_is_not_an_admitted_sdl1_operation(current):
     requirement = _measurement_only_requirement(
         operation_id="estimate-oer",
         parameters=[_parameter("current_density_a_cm2", "number", "A/cm^2", current)],

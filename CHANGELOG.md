@@ -4,8 +4,8 @@
 
 Correct the public reference labs against pinned source evidence: SDL1 is a
 source-verified virtual workflow; FastCat is a separate bounded empirical
-predictor. Physical bench calibration is outside this release. AMPERE-2 and
-the FastCat interval revision retain their failed results.
+predictor. Physical bench calibration is outside this release. The failed
+FastCat interval revision remains recorded.
 
 - Separate SDL1 and DTU FastCat facilities and registry IDs; SDL1 keeps only
   `ot2-liquid-handling`, FastCat uses `fastcat-process`. Remove the fictional
@@ -30,9 +30,9 @@ the FastCat interval revision retain their failed results.
   Bind setup, thirteen stages, reference/correction/aggregation and missing responses.
   Account for 550 s of known CP dwell as a campaign-time lower bound; additional
   CV/EIS and handling time remain unaccounted, and actual duration is unknown.
-- Remove AMPERE `estimate-oer` from SDL1 admission and its misleading `measure-oer`
-  dispatch alias. Historical fit coefficients and failed metrics stay intact;
-  direct estimator calls now refuse unsupported currents without predictions.
+- Remove the failed AMPERE estimator, registration, model binding and bundled
+  calibration records. The failed result remains in Git history; removal does
+  not reverse it. FastCat predictions and SDL1 protocol commands are unchanged.
 - Update provider policy tags and command envelopes. Receipts include enum bounds
   when declared. Compiled action/channel enums remain facility-specific under
   the existing schema; the schema format and open-vocabulary semantics are unchanged.
@@ -40,8 +40,6 @@ the FastCat interval revision retain their failed results.
 - Correct FastCat accuracy/attribution: original 27-composition MAE 22.2 mV;
   later 54-composition MAE 48.4 mV with 43 single-run labels. Publish an aggregate
   receipt with study revisions and digest. Frozen table and ±104.969 mV width are unchanged.
-- Date the AMPERE errata amendment and explicitly supersede the historical,
-  unverified pre-outcome-freeze assertion without rewriting frozen records.
 - Correct example routing and stale skill instructions; remove the unsupported
   reporting additions. Keep the public prompt and nine candidates unchanged.
 - Separate substantive field evidence from software/unknown declarations. Remove

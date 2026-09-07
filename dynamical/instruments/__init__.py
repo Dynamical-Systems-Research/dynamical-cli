@@ -61,7 +61,6 @@ from . import (  # noqa: E402,F401
     ac_arduino,
     ac_bath,
     ac_cleaning,
-    ac_oer,
     ac_oer_twin,
     ac_opentron,
     ac_potentiostat,

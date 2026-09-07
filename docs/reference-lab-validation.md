@@ -2,8 +2,8 @@
 
 The release scope is a source-verified SDL1 virtual workflow and a separate
 bounded FastCat empirical predictor. Physical calibration is not a release
-prerequisite under the revised scope approved on 2026-09-07. AMPERE-2 remains
-unadmitted and both historical failed gates remain failed. Version 0.1.21 is
+prerequisite under the revised scope approved on 2026-09-07. The removed estimator and failed FastCat interval revision remain failed
+historical results. Version 0.1.21 is
 staged; merge and publication still require explicit approval.
 
 The scientific objective remains learning an unfamiliar physical system through
@@ -48,8 +48,8 @@ SDL1 admission now uses the explicit example recipe rather than a cross-product
 of unrelated defaults and cleaning commands. Arduino owns temperature setup;
 Squidstat device channels no longer assert deposition-only hardware limits.
 OER setup context is pinned and campaign timing includes only the known 550 s CP
-dwell lower bound. AMPERE estimation is not admitted to either facility; its
-failed historical fit remains visible and its measurement alias is removed.
+dwell lower bound. The obsolete estimator and its bundled calibration records
+were subsequently removed; its failed result remains in Git history.
 
 The campaign schema already uses facility-derived action/channel vocabularies;
 changing a facility does not change that format. No schema version bump or
@@ -140,7 +140,7 @@ budget is $3.256626525 of $10, including earlier unsettled reservations. The own
 
 The subsequent documentation revision adopts SDL1 as a source-verified virtual
 workflow and FastCat as a bounded empirical predictor. It removes physical
-bench calibration as a release prerequisite and defers AMPERE development.
+bench calibration as a release prerequisite and removes the obsolete estimator.
 The public prompt, candidate inputs and skills are unchanged.
 
 Rebuilt wheel SHA256:
