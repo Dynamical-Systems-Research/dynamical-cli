@@ -5,11 +5,11 @@ Instrument physics only. No objective, no experiment order, no stopping rule.
 The response surface is an ordinary-least-squares fit of iR-corrected,
 final-measurement (last-third mean) potentials from physical
 chronopotentiometry at 20 and 50 mA/cm^2 in the AMPERE-2 dataset
-(DOI 10.11583/DTU.27446925), under the frozen protocol recorded in
+(DOI 10.11583/DTU.27446925), under the historical protocol recorded in
 ``dynamical/bundle/reference-lab/calibration/ampere2-oer/``. Inputs are the deposited film's
-nominal precursor composition (written onto the sample by the upstream
-electrodeposition from accumulated electrolyte volumes) and the requested
-OER current density.
+nominal precursor composition in the legacy sample-state representation and
+the requested OER current density. Current SDL1 command-only deposition does
+not supply the physical film-state prerequisites; this estimator then refuses.
 
 The frozen held-out calibration gates FAILED (held-out MAE and candidate-order
 preservation; see ``calibration_report.json``), so this model supplies simulator
@@ -25,7 +25,7 @@ from ..reasons import RuntimeReason
 from . import InstrumentRequest, InstrumentResult, register
 
 # Frozen fit constants from dynamical/bundle/reference-lab/calibration/ampere2-oer/fit.json.
-# Fitted once under the frozen protocol; never revised against held-out data.
+# Historical fit record; independent pre-outcome chronology is unverified (see ERRATA.md).
 INTERCEPT_V = 1.214239114588155
 LOG10_J_COEFFICIENT_V = 0.30187979289520034
 METAL_COEFFICIENTS_V = {

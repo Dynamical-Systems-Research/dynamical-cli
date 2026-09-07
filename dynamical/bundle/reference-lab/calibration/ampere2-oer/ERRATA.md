@@ -5,17 +5,15 @@ The public metadata keys and prose were normalized after the freeze to use the
 public evidence-class vocabulary; the v0.1.6 tag preserves the prior byte-level
 records. This errata records defects found in independent review after the freeze.
 **None of them change the outcome: the
-held-out gates failed and calibrated-twin admission is denied.** Each correction
-below can only reinforce that decision.
+held-out gates failed and calibrated-twin admission is denied.** These defects do not supply evidence for reversing that decision.
 
 1. **Condition-split leakage does not change admission.** The condition key hashes
    raw metadata strings, so upstream formatting differences (`0` vs `0.0`,
    `60` vs `60.0`) split two physically identical conditions across the
-   fit/held-out boundary (uids 291–295 vs 316–318; 325 vs 323–324). A clean
-   condition-level split would remove those rows from the held-out set. Split
-   leakage biases held-out performance *optimistically*, so a correct split
-   can only make the already-failed MAE and rank gates worse. The rejection
-   decision is conservative under this defect.
+   fit/held-out boundary (uids 291–295 vs 316–318; 325 vs 323–324). This compromises the independence of the reported holdout. The direction
+   and magnitude of a corrected evaluation are unknown without a separately
+   specified evaluation; neither improvement nor worsening follows from this
+   defect alone. The existing failed result remains the admission record.
 
 2. **`validation_design` corrected to `cross_condition`.** The evidence record
    originally declared `independent_facility_runs`. The data is a
@@ -38,12 +36,13 @@ below can only reinforce that decision.
    column (verified by re-derivation); the protocol string is a typo. The
    pipeline, not the protocol prose, is authoritative for the column used.
 
-5. **Freeze timestamp.** `frozen_protocol.json` records
-   `frozen_at_utc: 2026-08-10T19:30:00Z`. The file's own mtime is ~19:13 UTC,
-   before every pipeline output (~19:17 UTC), so the protocol was authored
-   before any outcome existed — the ordering the freeze requires holds and is
-   verifiable by mtime. The `19:30` string is an imprecise round; the file
-   mtimes are the authoritative record of ordering.
+5. **Freeze chronology is not independently established.**
+   `frozen_protocol.json` records `frozen_at_utc: 2026-08-10T19:30:00Z`.
+   The earlier audit cited file mtimes near 19:13 UTC for the protocol and
+   19:17 UTC for outputs. File mtimes can change and do not establish that
+   the protocol preceded access to outcomes. An independently verifiable
+   pre-outcome freeze receipt is not supplied by this bundle; chronology
+   remains unverified. The recorded timestamp is preserved, not certified.
 
 6. **Model identifiability (rank 9 of 11).** No fit condition separates Mn
    from Cu, so `x_Mn` and `x_Cu` are identical across all 90 fit rows and the

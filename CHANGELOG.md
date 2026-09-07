@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.21 (staged; not released)
+
+Correct the reference bundles against AC SDL1 source commands and separate DTU
+FastCat: restore the single-deck topology, carried electrode roles, cathodic
+deposition, deposit-preserving rinse semantics and full OER protocol. Unknown
+physical responses fail closed. Correct FastCat cohort accuracy and attribution,
+route examples to their own facilities, and add field-level traceability and
+separate execution, source-fidelity, predictive-validity and interpretation
+judgments. Frozen FastCat predictions and interval width remain unchanged; old
+mixed-platform requirements intentionally HOLD. These fixes do not satisfy the
+successful-calibration release requirement: AMPERE-2 remains failed simulator
+evidence, and full reference-facility calibration is still outstanding.
+
 ## 0.1.20
 
 Closes gaps found by an audit of agent campaigns run with Dynamical (fatigue

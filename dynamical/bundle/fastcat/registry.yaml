@@ -4,8 +4,8 @@ registry_id: dynamical-dtu-fastcat-capabilities-20260907
 capabilities:
 - operation_id: deposit-chemical-bath
   kind: scientific
-  description: Deposit a mixed-dopant LDH film on the in-custody Ni-foam sample from a chemical bath,
-    writing the requested dopant fractions onto the sample as its recorded nominal composition.
+  description: Record requested nominal precursor fractions and synthesis duration on the virtual sample.
+    The chemical-bath operation name is a Dynamical abstraction; no deposited film is measured.
   input_ports:
   - id: sample.state
     state_type: sample_state
@@ -18,47 +18,47 @@ capabilities:
     state_type: number
     unit: '1'
     required: true
-    description: Recorded Cr dopant fraction of the deposited film.
+    description: Nominal Cr precursor fraction echoed by the bath simulator; deposited stoichiometry is not measured.
   - id: deposited_fraction_Al
     state_type: number
     unit: '1'
     required: true
-    description: Recorded Al dopant fraction of the deposited film.
+    description: Nominal Al precursor fraction echoed by the bath simulator; deposited stoichiometry is not measured.
   - id: deposited_fraction_Fe
     state_type: number
     unit: '1'
     required: true
-    description: Recorded Fe dopant fraction of the deposited film.
+    description: Nominal Fe precursor fraction echoed by the bath simulator; deposited stoichiometry is not measured.
   - id: deposited_fraction_Co
     state_type: number
     unit: '1'
     required: true
-    description: Recorded Co dopant fraction of the deposited film.
+    description: Nominal Co precursor fraction echoed by the bath simulator; deposited stoichiometry is not measured.
   - id: deposited_fraction_Mn
     state_type: number
     unit: '1'
     required: true
-    description: Recorded Mn dopant fraction of the deposited film.
+    description: Nominal Mn precursor fraction echoed by the bath simulator; deposited stoichiometry is not measured.
   - id: deposited_fraction_Ni
     state_type: number
     unit: '1'
     required: true
-    description: Recorded Ni dopant fraction of the deposited film.
+    description: Nominal Ni precursor fraction echoed by the bath simulator; deposited stoichiometry is not measured.
   - id: deposited_fraction_Cu
     state_type: number
     unit: '1'
     required: true
-    description: Recorded Cu dopant fraction of the deposited film.
+    description: Nominal Cu precursor fraction echoed by the bath simulator; deposited stoichiometry is not measured.
   - id: deposited_fraction_Zn
     state_type: number
     unit: '1'
     required: true
-    description: Recorded Zn dopant fraction of the deposited film.
+    description: Nominal Zn precursor fraction echoed by the bath simulator; deposited stoichiometry is not measured.
   - id: bath_synthesis_time_s
     state_type: number
     unit: s
     required: true
-    description: Delivered bath synthesis time.
+    description: Nominal bath synthesis duration echoed by the simulator; physical delivery is not measured.
   parameters:
   - name: fraction_cr
     value_type: number

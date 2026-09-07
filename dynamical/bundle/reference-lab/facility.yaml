@@ -48,13 +48,13 @@ facility:
   - Deck slot assignments and tool-rack positions come from example/experiment.py:154-199 and parameters.py:27-56.
     Fourteen test wells are used (parameters.py:57-72); the fifteenth position is reserved for the temperature
     sensor (README.md:97).
-  - The working electrode is nickel tape (BOM sheet1 B41); the nickel rod is the deposition counter tool
+  - The working electrode is nickel tape (BOM Ark1 B41); the nickel rod is the deposition counter tool
     (B52, Electric_diagram.pdf). The OER tool combines counter and reference electrodes; the BOM lists
     Mini Hydroflex, platinum electrode and platinum wire (B53-B55). Which reference electrode was physically
     mounted during a measured run is not established by this code.
   - The test well is temperature-controlled by the Arduino (example/experiment.py:2017-2018; src/arduino/main/main.ino:76-93,212-230).
     Its inclusion establishes controller topology, not measured temperature accuracy or uniformity.
-  - The released SDL1 tag contains no measured campaign rows. Separate AMPERE-2 data (DOI 10.11583/DTU.27446925)
+  - This bundle supplies no measured SDL1 campaign rows. Separate AMPERE-2 data (DOI 10.11583/DTU.27446925)
     underlie the Dynamical ac-oer simulator, whose calibration gates failed. It remains simulator evidence
     only, with no calibrated predictive or physical qualification claim.
   - A compiled stage proves scene composition only. Embodied evidence needs a preserved real execution
@@ -1047,7 +1047,7 @@ model_bindings:
   calibration_evidence_ids: []
 - id: ac-oer-model
   implementation_ref: dynamical/instruments/ac_oer.py
-  implementation_sha256: b5db5023b5d0c727f98cd9b2b1c44f12060550d26d64139147ab370fbe8ebff7
+  implementation_sha256: ea74cfe94541f0a050e0a97c4fef54394d2ccb79763660b7fd48a779e41329c7
   input_channel_map: {}
   output_channel_map: {}
   parameter_map:
@@ -1468,7 +1468,7 @@ constraints:
   constrained_parameter_name: temperature_setpoint_c
 calibration_evidence:
 - id: ampere2-oer-cp-2050
-  source_artifact_ref: https://doi.org/10.11583/DTU.27446925 (Data.zip, MIT license, retrieved 2026-08-10)
+  source_artifact_ref: https://doi.org/10.11583/DTU.27446925 (Data.zip, MIT license; historical source identity recorded in frozen_protocol.json)
   source_sha256: 649c5a8269e773371a6fcdc14db4d72166dbeb697fc49b66a89991fbdd44e736
   applies_to_model_binding_id: ac-oer-model
   supported_channel_ids:
@@ -1476,7 +1476,7 @@ calibration_evidence:
   - squidstat.current_density_a_cm2
   condition_domain:
     squidstat.current_density_a_cm2: 0.020 to 0.050 A/cm^2 (fitted basis; physical chronopotentiometry per the frozen protocol)
-    squidstat.overpotential_v: predicted only for deposited films whose nominal precursor fractions over Ni, Fe, Cr, Mn, Co, Zn, Cu and NH4OH/NaCi levels are represented in the fit split
+    squidstat.overpotential_v: historical intended fit domain over nominal Ni, Fe, Cr, Mn, Co, Zn, Cu and NH4OH/NaCi inputs; the legacy simulator does not enforce membership in the fit-composition domain and supplies no calibrated prediction guarantee
   split_rule_ref: calibration/ampere2-oer/frozen_protocol.json
   split_rule_sha256: bcc2e272d3ee519804cfbb36918782931153f46d49dabb30073b974fe8b98032
   fit_artifact_ref: calibration/ampere2-oer/fit.json
@@ -1509,7 +1509,7 @@ calibration_evidence:
   - The frozen held-out gates FAILED (overpotential MAE and candidate-order preservation), so calibrated-twin admission is denied and this model supplies simulator evidence only; the failed report is preserved at calibration/ampere2-oer/calibration_report.json.
   - Validation is a cross-condition holdout within a single AMPERE-2 campaign (one lab, one instrument), not independent physical facility runs; calibrated-twin admission requires the latter and is denied on this ground independent of the failed gates.
   - Fit and held-out data include runs recorded at the instrument compliance rail (~10.63 V) that the upstream dataset marks success; the frozen protocol does not permit post-hoc exclusion, and they dominate the declared sigma. The uncertainty-coverage-2sigma metric passes only because that sigma is large; it is not evidence of calibrated uncertainty.
-  - The condition split hashes raw metadata strings and leaks two physically identical conditions across the fit/held-out boundary; split leakage biases held-out performance optimistically, so a clean split can only worsen the already-failed gates. See calibration/ampere2-oer/ERRATA.md.
+  - The condition split hashes raw metadata strings and leaks two physically identical conditions across the fit/held-out boundary; this compromises holdout independence. The direction and magnitude of a corrected evaluation are unknown; the existing failed admission result remains in force. See calibration/ampere2-oer/ERRATA.md.
   - The fit design matrix is rank 9 of 11 (no condition separates Mn from Cu), so those coefficients are not separately identified. See ERRATA.md.
   - Corrected potentials are used on the upstream-reported scale; overpotential_v = corrected potential - 1.23 V carries that reference-scale assumption.
   - Nominal precursor composition is the volume-ratio analogue of the AMPERE-2 recipe units; deposited stoichiometry was not measured upstream in a form admissible as a predictor.

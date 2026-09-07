@@ -10,7 +10,7 @@
     "halfwidth_v": 0.104969,
     "method": "split-conformal, one fixed pipeline"
   },
-  "output": "overpotential_v = E@10mA - 1.229 V (O2/H2O vs RHE), at exactly 0.010 A/cm^2",
+  "output": "overpotential_v = frozen E@10mA estimate - 1.229 V, at exactly 0.010 A/cm^2; the offset is a Dynamical convention, and this bundle does not independently establish the source reference scale",
   "pool_evaluation": {
     "cohort": "54 causal-pool compositions; distinct from the original 27-composition validation cohort",
     "coverage_at_frozen_q": 0.9074074074074074,

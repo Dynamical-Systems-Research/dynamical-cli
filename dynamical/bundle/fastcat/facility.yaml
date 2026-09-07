@@ -2,7 +2,7 @@ document_type: dynamical.facility
 schema_version: 0.1.0
 facility:
   id: dtu-fastcat
-  name: DTU FastCat chemical-bath process and frozen OER predictor
+  name: DTU FastCat process abstraction and frozen OER predictor
   schema_version: 0.1.0
   frame:
     up_axis: Z
@@ -14,9 +14,9 @@ facility:
   - uri: https://doi.org/10.11583/DTU.28494185
     role: dataset-source
   claim_boundary:
-  - FastCat is a separate DTU chemical-bath synthesis platform. No FastCat hardware geometry, control
-    software, or measured layout is admitted by this bundle; AC SDL1 geometry and operations are not FastCat
-    hardware.
+  - FastCat is a separate DTU platform. The chemical-bath operation name is a Dynamical process abstraction.
+    No FastCat hardware geometry, control software, or measured layout is admitted by this bundle; AC SDL1
+    geometry and operations are not FastCat hardware.
   - The single fastcat-process workstation is a Dynamical virtual process location, not a claim about
     the physical bench topology. Its marker dimensions, pose, color, and frame are visualization conventions
     only; physical dimensions and equipment positions are unknown. Collision is disabled.
@@ -31,7 +31,8 @@ facility:
   - A compiled scene and simulated trace do not prove physical synthesis, motion, transfer, or laboratory
     qualification. There is no physical provider in this facility.
   - The predictor subtracts 1.229 V from its frozen potential estimate as a Dynamical overpotential convention.
-    Its frozen extraction statistic differs from the upstream last-40-sample mean.
+    The supplied aggregate record does not independently establish the frozen label-extraction statistic
+    or its equivalence to the upstream last-40-sample mean.
 workstations:
 - id: fastcat-process
   facility_id: dtu-fastcat
@@ -374,8 +375,8 @@ calibration_evidence:
   - fastcat.overpotential_v
   - fastcat.current_density_a_cm2
   condition_domain:
-    fastcat.current_density_a_cm2: exactly 0.010 A/cm^2 (calibrated basis; chronopotentiometry tail medians
-      per the frozen protocol)
+    fastcat.current_density_a_cm2: exactly 0.010 A/cm^2 (recorded calibrated basis; label-extraction statistic
+      is not independently verified by the supplied aggregate record)
     fastcat.overpotential_v: predicted only for the 72 frozen-table compositions under the frozen per-pool
       conditioning; the original 27-composition validation passed 9/9 predeclared gates (MAE 22.2 mV);
       the later 54-composition causal-pool evaluation had MAE 48.4 mV
@@ -412,16 +413,16 @@ calibration_evidence:
   - The later 54-composition causal-pool evaluation had MAE 48.4 mV; 43 labels were single physical runs
     and 11 had replicates. This is a distinct cohort from the original 27-composition validation (MAE
     22.2 mV).
-  - The reported replicate variability is 20.8 mV median within-replicate SD; it is not a composition-specific
-    uncertainty estimate or a deterministic lower bound on prediction error.
+  - Composition-specific measurement uncertainty and a replicate-variability summary are not verified
+    by the aggregate calibration record supplied in this bundle.
   - The per-row interval gate failed on the pool evaluation; the frozen constant interval covered 49 of
     54 labels (0.907). The constant half-width stays unchanged.
   - No untouched FastCat cohort remains for another held-out validation; these results do not authorize
     recalibration or stronger predictive claims.
-  - The interval half-width (0.104969 V at 90% target coverage) reflects split-conformal calibration on
-    22 development compositions.
+  - The recorded interval half-width is 0.104969 V at 90% target coverage using split-conformal calibration;
+    the development-cohort size is not verified by the supplied aggregate record.
   split_rule_ref: calibration/fastcat-oer/calibration_report.json
-  split_rule_sha256: 2e511c59ff349485dae6f7e705f2defce83c0ff5999a9ddaba96827782763cbb
+  split_rule_sha256: aa0eaf994c9113c5678fbf9d89a43b2b97488062980f7638224db9f3c7d9f383
   fit_artifact_ref: calibration/fastcat-oer/prediction_table.json
   fit_artifact_sha256: 098245794ec3925a16777b3df18eb9fcaf06816588f46cd562dbd8b957fb2728
 asset_sources: []

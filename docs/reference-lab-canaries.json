@@ -1,0 +1,330 @@
+{
+  "artifact_type": "reference-lab-canary-evidence-index",
+  "recorded_at": "2026-09-07T14:05:34.514332+00:00",
+  "scope": "Bounded native Pi canaries on exact branch wheels. This index does not assert broad scientific or release acceptance.",
+  "availability": "Receipts are local operator records at the listed paths, not committed public reproducibility artifacts or physical measurements. Hashes identify those local records; readers without them cannot independently reproduce this audit from the index alone.",
+  "limits": [
+    "No sealed outcomes, physical experiments or new predictive calibration were used.",
+    "One trajectory per wheel is not causal evidence of improved CLI behavior, instruction effectiveness, learning or stopping. Wheel, instruction, admission and scoring differences confound comparisons.",
+    "Raw agent reports contain unsupported scientific statements; they remain unchanged and are labeled QUALIFIED.",
+    "Closed CLI-only harness excludes unrelated fatigue corpus and replay service. Their observation/release smokes are inapplicable, not passed.",
+    "Configured native Pi calls use a capped relay; the cap is not an adversarial key-level boundary because another existing relay remained reachable on the internal network."
+  ],
+  "budget": {
+    "authorized_cap_nanousd": 10000000000,
+    "accounted_after_pr5_nanousd": 2936122950,
+    "accounting_rule": "Reserve 132000000 nanodollars per call before forwarding. Settle only complete authenticated upstream HTTP200 SSE final usage.cost, rounded up to nanodollars. Missing, malformed, truncated and failed calls retain full reservation. Prior PR2 calls are never settled from client-reported usage.",
+    "sources": [
+      "https://openrouter.ai/api/v1/models",
+      "https://openrouter.ai/docs/cookbook/administration/usage-accounting",
+      "https://openrouter.ai/docs/guides/routing/provider-selection#max-price"
+    ]
+  },
+  "pre_execution_harness_failure": {
+    "world": "ref-lab-pr2-20260907a",
+    "receipt_id": "RUN-20260907T131114Z-664f27b0",
+    "detail": "Non-root Python3.12 Path.exists raised PermissionError for an inaccessible protected path. Proof fixed to treat inaccessible paths as inaccessible; fresh run used. No agent call or spend occurred."
+  },
+  "canaries": [
+    {
+      "deliverable": 2,
+      "tested_commit": "de91e63f48652319e7c90f6dac64c0428e2825be",
+      "receipt_id": "RUN-20260907T131148Z-bd6099b6",
+      "local_receipt_directory": "/home/jarrodbarnes/amb-value-worlds/ref-lab-pr2-20260907b/receipts/RUN-20260907T131148Z-bd6099b6",
+      "wheel_sha256": "cc7d3a03ba93e6b339509e464c3a9cf41669aec5516046c36e2d0fa09d251988",
+      "runtime_image_id": "sha256:b4c8834a7afdad46c504faf030b6907e55dcb287386b166e1316c420e3aaa632",
+      "audit_sha256": "7803be7e1c102a0e17eccbf63b35cfdeec9e1c357e6e6ab0c0c41b4ecc086cdc",
+      "raw_agent_report_sha256": "95abad5286a49ae7d3c3a818ff89723672cd3a810eb8a37af08cd36ef851fd50",
+      "agent_session_sha256": "bc4806f6c107a7374fdfa27cd9713d77331bcfc074535c29449f67634e33d7ca",
+      "session_exit_code": 0,
+      "bindings": {
+        "prompt_sha256": "2c194d7755269104749d48d0bba897c1e1382babf5cf2999e11e1e16d711d319",
+        "candidate_set_sha256": "cc78580a0e614d11b5e8d48cc085897c83d9cf133e0acc16c47ed69cafb304ca",
+        "requirement_sha256": "848358b5d1fb12eed85c202cd19abf8372827565b345382c14f5b61080d34ba1",
+        "requirement_role": "operator-only FastCat routing overlay; public example migrated in PR5",
+        "skill_mount_source": "/home/jarrodbarnes/dynamical-cli/skills",
+        "skill_mount_read_only": true,
+        "skill_file_sha256": {
+          "dynamical/SKILL.md": "1c48ebef54799d3bb676f23eeee5095ce8408704e2a1f79ec51ec6390b41f9ed",
+          "dynamical/agents/openai.yaml": "7dd69dd81b8eaa6e5b410b8704338f77df7aa8dc2b6056d168aabbc3875f1ba3",
+          "dynamical-instrument/SKILL.md": "fbe7f2b103cfa5f3ea40265a13c2807c1d4bd9067fdc53f36e427df0cc1b7f7c",
+          "dynamical-instrument/agents/openai.yaml": "31ac377b3673bae710316cc765a1bc047f4735d8487f84448efe87ad66db93e0"
+        },
+        "skill_hash_binding": "PR2 preparation hashes, unchanged released skills used by PR2/3. These launches mounted repository skills rather than frozen copies; per-run installed proof did not hash skill contents."
+      },
+      "isolation_checks": {
+        "before": "PASS",
+        "after": "PASS",
+        "checks_per_proof": 26,
+        "before_receipt_sha256": "6e1894c74d8995b95a332f5a06de19cdd90606672d042899f5c4f6894f72b2eb",
+        "after_receipt_sha256": "6e1894c74d8995b95a332f5a06de19cdd90606672d042899f5c4f6894f72b2eb"
+      },
+      "review_axes": {
+        "execution_correctness": {
+          "status": "PASS_WITHIN_EXERCISED_SCOPE",
+          "detail": "Nine FastCat arms validated; fixed fractions/conditions, two operations, constant 0.104969 V half-width. PR3\u20135 predictions match PR2 exactly."
+        },
+        "source_fidelity": {
+          "status": "PARTIAL_OPERATOR_SMOKE",
+          "detail": "Not exercised beyond installed platform separation and wheel-byte identity. Canary does not replace the upstream field-level traceability audit."
+        },
+        "predictive_validity": {
+          "status": "NOT_EXERCISED",
+          "detail": "No physical data or independent held-out evaluation. Frozen table execution is not evidence of calibration validity."
+        },
+        "agent_interpretation": {
+          "status": "QUALIFIED",
+          "detail": [
+            "Agent report calls interval 95%-style without verified confidence level.",
+            "Agent report overstates that no physical measurement exists for any candidate; canary supports only that none was made in this run.",
+            "Single lead measurement compared to unmeasured rival point estimate does not confirm true ranking.",
+            "Canary validates CLI behavior only, not physical calibration."
+          ]
+        },
+        "unsupported_boundary_response": {
+          "status": "NOT_EXERCISED_BY_AGENT",
+          "detail": "Nine FastCat arms were valid; SDL1 unknown-response behavior, where present, was operator-tested. No claim about agent behavior on repeated HOLD."
+        },
+        "bounded_final_conclusion": {
+          "status": "PARTIAL",
+          "detail": "Finished nine arms and deferred physical execution; unsupported conditional ranking statements remain."
+        }
+      },
+      "cost": {
+        "authenticated_upstream_cost_nanousd": null,
+        "client_reported_cost_usd": 0.006920844999999999,
+        "program_accounted_nanousd_after_run": 2772000000,
+        "unsettled_reserved_nanousd": 2772000000,
+        "note": "Client-reported cost is not authenticated billing evidence; all 21 original reservations remain."
+      }
+    },
+    {
+      "deliverable": 3,
+      "tested_commit": "b5f1d4c726d34664a32612a4852d41d9cf0c6e60",
+      "receipt_id": "RUN-20260907T132524Z-20cccb80",
+      "local_receipt_directory": "/home/jarrodbarnes/amb-value-worlds/ref-lab-pr3-20260907a/receipts/RUN-20260907T132524Z-20cccb80",
+      "wheel_sha256": "86ee8d89c179dfcdf392e8344864bf0bb00192c30af4646a27f217b91a111729",
+      "runtime_image_id": "sha256:b4c8834a7afdad46c504faf030b6907e55dcb287386b166e1316c420e3aaa632",
+      "audit_sha256": "0eaee1a4a5c2ba2724b264ef972e59a68c84de89941dd5561d60bfe67c02885d",
+      "raw_agent_report_sha256": "4ee5b3c98c8904df5b64eebd99b3dcf579231ceb7c4161afb9e7d72eed596a2c",
+      "agent_session_sha256": "1428940354f9c12d61c256048dd09f11679f50a6f6f55f29425d08bca32a778b",
+      "session_exit_code": 0,
+      "bindings": {
+        "prompt_sha256": "2c194d7755269104749d48d0bba897c1e1382babf5cf2999e11e1e16d711d319",
+        "candidate_set_sha256": "cc78580a0e614d11b5e8d48cc085897c83d9cf133e0acc16c47ed69cafb304ca",
+        "requirement_sha256": "848358b5d1fb12eed85c202cd19abf8372827565b345382c14f5b61080d34ba1",
+        "requirement_role": "operator-only FastCat routing overlay; public example migrated in PR5",
+        "skill_mount_source": "/home/jarrodbarnes/dynamical-cli/skills",
+        "skill_mount_read_only": true,
+        "skill_file_sha256": {
+          "dynamical/SKILL.md": "1c48ebef54799d3bb676f23eeee5095ce8408704e2a1f79ec51ec6390b41f9ed",
+          "dynamical/agents/openai.yaml": "7dd69dd81b8eaa6e5b410b8704338f77df7aa8dc2b6056d168aabbc3875f1ba3",
+          "dynamical-instrument/SKILL.md": "fbe7f2b103cfa5f3ea40265a13c2807c1d4bd9067fdc53f36e427df0cc1b7f7c",
+          "dynamical-instrument/agents/openai.yaml": "31ac377b3673bae710316cc765a1bc047f4735d8487f84448efe87ad66db93e0"
+        },
+        "skill_hash_binding": "PR2 preparation hashes, unchanged released skills used by PR2/3. These launches mounted repository skills rather than frozen copies; per-run installed proof did not hash skill contents."
+      },
+      "isolation_checks": {
+        "before": "PASS",
+        "after": "PASS",
+        "checks_per_proof": 26,
+        "before_receipt_sha256": "6e1894c74d8995b95a332f5a06de19cdd90606672d042899f5c4f6894f72b2eb",
+        "after_receipt_sha256": "6e1894c74d8995b95a332f5a06de19cdd90606672d042899f5c4f6894f72b2eb"
+      },
+      "review_axes": {
+        "execution_correctness": {
+          "status": "PASS_WITHIN_EXERCISED_SCOPE",
+          "detail": "Nine FastCat arms validated; fixed fractions/conditions, two operations, constant 0.104969 V half-width. PR3\u20135 predictions match PR2 exactly."
+        },
+        "source_fidelity": {
+          "status": "PARTIAL_OPERATOR_SMOKE",
+          "detail": "Command-only trace passed; unknown physical-response trace failed closed; synthetic cleaning state preserved. Canary does not replace the upstream field-level traceability audit."
+        },
+        "predictive_validity": {
+          "status": "NOT_EXERCISED",
+          "detail": "No physical data or independent held-out evaluation. Frozen table execution is not evidence of calibration validity."
+        },
+        "agent_interpretation": {
+          "status": "QUALIFIED",
+          "detail": [
+            "Report claims broad interval consistency would confirm physical lead despite unmeasured rivals.",
+            "Report overstates absence of any physical observation rather than none in this run.",
+            "Interval overlap alone is not a formal statistical ranking test.",
+            "No physical calibration established."
+          ]
+        },
+        "unsupported_boundary_response": {
+          "status": "NOT_EXERCISED_BY_AGENT",
+          "detail": "Nine FastCat arms were valid; SDL1 unknown-response behavior, where present, was operator-tested. No claim about agent behavior on repeated HOLD."
+        },
+        "bounded_final_conclusion": {
+          "status": "PARTIAL",
+          "detail": "Finished nine arms and deferred physical execution; unsupported conditional ranking statements remain."
+        }
+      },
+      "cost": {
+        "authenticated_upstream_cost_nanousd": 9511093,
+        "client_reported_cost_usd": 0.01011279,
+        "program_accounted_nanousd_after_run": 2913511093,
+        "retained_transport_failure_reservation_nanousd": 132000000
+      },
+      "supplemental_preflight_sha256": "f5e59fe514c2acadc11e1b6ce1ee68b9ecb68ea2346b62d72b7798f8553b50ab",
+      "harness_incident": {
+        "incident": "Upstream TLS SSLError then relay failed to return HTTP502 before response headers",
+        "request": 43,
+        "upstream_failure_at": "2026-09-07T13:27:03Z",
+        "old_relay_pid": 2309108,
+        "old_relay_revision": "6c87873",
+        "restart_at": "2026-09-07T13:29:02Z",
+        "new_relay_pid": 2313463,
+        "new_runtime_relay_revision": "45cbcf9",
+        "later_source_style_only_revision": "c769500",
+        "reservation_retained_usd": 0.132,
+        "prompt_intervention": false,
+        "recovery": "Native Pi resumed inference after owned relay restart; original session and receipts retained.",
+        "classification": "Harness/provider transport failure; not scientific failure or CLI regression."
+      }
+    },
+    {
+      "deliverable": 4,
+      "tested_commit": "4bc2185066b2f773c3c51d8bc6f02b16e4ae652e",
+      "receipt_id": "RUN-20260907T134320Z-fd2dcfd9",
+      "local_receipt_directory": "/home/jarrodbarnes/amb-value-worlds/ref-lab-pr4-20260907a/receipts/RUN-20260907T134320Z-fd2dcfd9",
+      "wheel_sha256": "140ecb458390c7574b0678fd654b3588651515c3f0029917210f69047b4c0268",
+      "runtime_image_id": "sha256:b4c8834a7afdad46c504faf030b6907e55dcb287386b166e1316c420e3aaa632",
+      "audit_sha256": "32e8541c6ca38e18d2cf687c0c467e2fdfba0b3d4aca39ef0de5ecfd17dabb44",
+      "raw_agent_report_sha256": "b79bb6a31bbe18ecef5e64c4232b0b187745c8e398b03416d887c8c52abe22d8",
+      "agent_session_sha256": "a9218b128db2c847bd79a04d463debdd8ba867d21b31532c2c0578c9288fb212",
+      "session_exit_code": 0,
+      "bindings": {
+        "prompt_sha256": "2c194d7755269104749d48d0bba897c1e1382babf5cf2999e11e1e16d711d319",
+        "candidate_set_sha256": "cc78580a0e614d11b5e8d48cc085897c83d9cf133e0acc16c47ed69cafb304ca",
+        "requirement_sha256": "848358b5d1fb12eed85c202cd19abf8372827565b345382c14f5b61080d34ba1",
+        "requirement_role": "operator-only FastCat routing overlay; public example migrated in PR5",
+        "skill_mount_source": "/home/jarrodbarnes/amb-value-worlds/reference-lab-canary-inputs/pr4/skills",
+        "skill_mount_read_only": true,
+        "skill_file_sha256": {
+          "dynamical/SKILL.md": "1c48ebef54799d3bb676f23eeee5095ce8408704e2a1f79ec51ec6390b41f9ed",
+          "dynamical/agents/openai.yaml": "7dd69dd81b8eaa6e5b410b8704338f77df7aa8dc2b6056d168aabbc3875f1ba3",
+          "dynamical-instrument/SKILL.md": "fbe7f2b103cfa5f3ea40265a13c2807c1d4bd9067fdc53f36e427df0cc1b7f7c",
+          "dynamical-instrument/agents/openai.yaml": "31ac377b3673bae710316cc765a1bc047f4735d8487f84448efe87ad66db93e0"
+        },
+        "skill_hash_binding": "Frozen per-canary copies; independently recorded before launch."
+      },
+      "isolation_checks": {
+        "before": "PASS",
+        "after": "PASS",
+        "checks_per_proof": 26,
+        "before_receipt_sha256": "6e1894c74d8995b95a332f5a06de19cdd90606672d042899f5c4f6894f72b2eb",
+        "after_receipt_sha256": "6e1894c74d8995b95a332f5a06de19cdd90606672d042899f5c4f6894f72b2eb"
+      },
+      "review_axes": {
+        "execution_correctness": {
+          "status": "PASS_WITHIN_EXERCISED_SCOPE",
+          "detail": "Nine FastCat arms validated; fixed fractions/conditions, two operations, constant 0.104969 V half-width. PR3\u20135 predictions match PR2 exactly."
+        },
+        "source_fidelity": {
+          "status": "PARTIAL_OPERATOR_SMOKE",
+          "detail": "Command-only trace passed; unknown physical-response trace failed closed; synthetic cleaning state preserved. Installed SDL1 protocol SHA 9c188a91282a7c0ce78d137ea7be835b0c6a42b942106f72315a222103500d40 and 13 stages checked; PROTOCOL_RESPONSE_UNAVAILABLE, REFERENCE_SCALE_UNVERIFIED and PROOF_OUTPUT_UNAVAILABLE required. Canary does not replace the upstream field-level traceability audit."
+        },
+        "predictive_validity": {
+          "status": "NOT_EXERCISED",
+          "detail": "No physical data or independent held-out evaluation. Frozen table execution is not evidence of calibration validity."
+        },
+        "agent_interpretation": {
+          "status": "QUALIFIED",
+          "detail": {
+            "status": "QUALIFIED",
+            "evidence": "Agent distinguishes current virtual lead from present confirmed winner, preserves declared halfwidth and does not invent confidence level. Conditional claim that measuring lead below unmeasured rival estimate confirms winner is unsupported; labels overlapping intervals statistically indistinguishable without formal test."
+          }
+        },
+        "unsupported_boundary_response": {
+          "status": "NOT_EXERCISED_BY_AGENT",
+          "detail": "Nine FastCat arms were valid; SDL1 unknown-response behavior, where present, was operator-tested. No claim about agent behavior on repeated HOLD."
+        },
+        "bounded_final_conclusion": {
+          "status": "PARTIAL",
+          "detail": "Finished nine arms and deferred physical execution; unsupported conditional ranking statements remain."
+        }
+      },
+      "cost": {
+        "authenticated_upstream_cost_nanousd": 12622435,
+        "client_reported_cost_usd": null,
+        "program_accounted_nanousd_after_run": 2926133528
+      },
+      "supplemental_preflight_sha256": "70855de0f6a26fe680927cc9690544f6d01a40fed2b3cfd4fb3e6c083ffd2b5e"
+    },
+    {
+      "deliverable": 5,
+      "tested_commit": "4961232d599501b3827efbd1ae4739c13b2b9fd9",
+      "receipt_id": "RUN-20260907T135243Z-f21a11d6",
+      "local_receipt_directory": "/home/jarrodbarnes/amb-value-worlds/ref-lab-pr5-20260907a/receipts/RUN-20260907T135243Z-f21a11d6",
+      "wheel_sha256": "2ae23c8bfd95b486992e0ffc51d7344830d8ed0f19efb4c25af91870382a6dfd",
+      "runtime_image_id": "sha256:b4c8834a7afdad46c504faf030b6907e55dcb287386b166e1316c420e3aaa632",
+      "audit_sha256": "375c5ec0d5fd5e5d7d15af4a50a2b36ce9d5414ad1dc9f0c359cfb6a064ab853",
+      "raw_agent_report_sha256": "4db53c361bafbe50fb64a8407f1460ce9a575a29b3a848fc66712d526cad4ad4",
+      "agent_session_sha256": "3c38bd82edfadc0b91709ebce0ffa87a4c56e0037786e4303b15f75e85ce41f4",
+      "session_exit_code": 0,
+      "bindings": {
+        "prompt_sha256": "2c194d7755269104749d48d0bba897c1e1382babf5cf2999e11e1e16d711d319",
+        "candidate_set_sha256": "cc78580a0e614d11b5e8d48cc085897c83d9cf133e0acc16c47ed69cafb304ca",
+        "requirement_sha256": "f2a795275d53680f2fd8ab5e57b8bab258e9748733f260ecb077c31e818b5083",
+        "requirement_role": "public FastCat example",
+        "skill_mount_source": "/home/jarrodbarnes/amb-value-worlds/reference-lab-canary-inputs/pr5/skills",
+        "skill_mount_read_only": true,
+        "skill_file_sha256": {
+          "dynamical/SKILL.md": "2fc163a2f841d274b5981c6e3520b6f030714b417d88924ce2c0e3f3482a22ec",
+          "dynamical/agents/openai.yaml": "7dd69dd81b8eaa6e5b410b8704338f77df7aa8dc2b6056d168aabbc3875f1ba3",
+          "dynamical-instrument/SKILL.md": "fbe7f2b103cfa5f3ea40265a13c2807c1d4bd9067fdc53f36e427df0cc1b7f7c",
+          "dynamical-instrument/agents/openai.yaml": "31ac377b3673bae710316cc765a1bc047f4735d8487f84448efe87ad66db93e0"
+        },
+        "skill_hash_binding": "Frozen per-canary copies; independently recorded before launch."
+      },
+      "isolation_checks": {
+        "before": "PASS",
+        "after": "PASS",
+        "checks_per_proof": 26,
+        "before_receipt_sha256": "6e1894c74d8995b95a332f5a06de19cdd90606672d042899f5c4f6894f72b2eb",
+        "after_receipt_sha256": "6e1894c74d8995b95a332f5a06de19cdd90606672d042899f5c4f6894f72b2eb"
+      },
+      "review_axes": {
+        "execution_correctness": {
+          "status": "PASS_WITHIN_EXERCISED_SCOPE",
+          "detail": "Nine FastCat arms validated; fixed fractions/conditions, two operations, constant 0.104969 V half-width. PR3\u20135 predictions match PR2 exactly."
+        },
+        "source_fidelity": {
+          "status": "PARTIAL_OPERATOR_SMOKE",
+          "detail": "Command-only trace passed; unknown physical-response trace failed closed; synthetic cleaning state preserved. Installed SDL1 protocol SHA 9c188a91282a7c0ce78d137ea7be835b0c6a42b942106f72315a222103500d40 and 13 stages checked; PROTOCOL_RESPONSE_UNAVAILABLE, REFERENCE_SCALE_UNVERIFIED and PROOF_OUTPUT_UNAVAILABLE required. Canary does not replace the upstream field-level traceability audit."
+        },
+        "predictive_validity": {
+          "status": "NOT_EXERCISED",
+          "detail": "No physical data or independent held-out evaluation. Frozen table execution is not evidence of calibration validity."
+        },
+        "agent_interpretation": {
+          "status": "QUALIFIED",
+          "detail": {
+            "invented_95_percent_label": "NOT_OBSERVED: confidence_level null",
+            "global_no_physical_measurements": "RESOLVED_IN_THIS_REPORT: says none in this campaign",
+            "single_lead_confirms_winner": "NOT_OBSERVED explicitly, but measured lead >= unmeasured rival mean still described as contradicting lead prediction and dethroning it",
+            "consult_calibration_record": "FAIL: report says record supplies no confidence/cohort; installed record declares coverage_target0.9 and validation27/pool54. No need to infer confidence semantics beyond the declared coverage target."
+          }
+        },
+        "unsupported_boundary_response": {
+          "status": "NOT_EXERCISED_BY_AGENT",
+          "detail": "Nine FastCat arms were valid; SDL1 unknown-response behavior, where present, was operator-tested. No claim about agent behavior on repeated HOLD."
+        },
+        "bounded_final_conclusion": {
+          "status": "PARTIAL",
+          "detail": "Finished nine arms and deferred physical execution; unsupported conditional ranking statements remain."
+        }
+      },
+      "cost": {
+        "authenticated_upstream_cost_nanousd": 9989422,
+        "client_reported_cost_usd": null,
+        "program_accounted_nanousd_after_run": 2936122950
+      },
+      "supplemental_preflight_sha256": "70855de0f6a26fe680927cc9690544f6d01a40fed2b3cfd4fb3e6c083ffd2b5e"
+    }
+  ],
+  "pr6_status": "Pending fresh final-wheel canary; not covered by PR2\u20135 results."
+}
