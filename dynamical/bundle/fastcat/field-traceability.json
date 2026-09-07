@@ -328,6 +328,18 @@
         "line_end": 1247
       },
       "uri": "https://ndownloader.figshare.com/files/55717997"
+    },
+    "fc-legacy-twin-availability": {
+      "kind": "provenance_record",
+      "path": "dynamical/bundle/reference-lab/registry.yaml",
+      "description": "Historical FastCat twin provider availability declaration",
+      "sha256": "4bf5350eba4596f653a15c46261241f1a145c90e2e5f2301d4892cd2ae9e4c6f",
+      "locator": {
+        "line_start": 164,
+        "line_end": 169
+      },
+      "uri": "https://github.com/Dynamical-Systems-Research/dynamical-cli/blob/41107e6/dynamical/bundle/reference-lab/registry.yaml",
+      "revision": "41107e6"
     }
   },
   "rows": [
@@ -6655,7 +6667,7 @@
       "classification": "recorded_provenance",
       "source_ids": [
         "fc-schema-availability",
-        "fc-legacy-availability"
+        "fc-legacy-twin-availability"
       ],
       "derivation": "Preserved provider availability declaration and nominal timestamp.",
       "claim_limit": "Historical registry declaration, not a newly observed live hardware endpoint."
@@ -6667,7 +6679,7 @@
       "classification": "recorded_provenance",
       "source_ids": [
         "fc-schema-availability",
-        "fc-legacy-availability"
+        "fc-legacy-twin-availability"
       ],
       "derivation": "Preserved provider availability declaration and nominal timestamp.",
       "claim_limit": "Historical registry declaration, not a newly observed live hardware endpoint."
@@ -6679,7 +6691,7 @@
       "classification": "recorded_provenance",
       "source_ids": [
         "fc-schema-availability",
-        "fc-legacy-availability"
+        "fc-legacy-twin-availability"
       ],
       "derivation": "Preserved provider availability declaration and nominal timestamp.",
       "claim_limit": "Historical registry declaration, not a newly observed live hardware endpoint."
