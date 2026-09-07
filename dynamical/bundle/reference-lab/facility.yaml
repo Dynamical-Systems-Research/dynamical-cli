@@ -54,11 +54,22 @@ facility:
   - The released SDL1 tag contains no measured campaign rows. Separate AMPERE-2 data (DOI 10.11583/DTU.27446925)
     underlie the Dynamical ac-oer simulator, whose calibration gates failed. It remains simulator evidence
     only, with no calibrated predictive or physical qualification claim.
-  - This topology correction does not validate existing numerical dispensing, conditioning, deposition
-    or cleaning models. Their legacy simulator assumptions remain subject to the separately staged semantics
-    and measurement-protocol corrections; they are not upstream hardware operating guarantees.
   - A compiled stage proves scene composition only. Embodied evidence needs a preserved real execution
     trace, render, replay, and inspection. No physical execution is claimed.
+  - SDL1 adapters record source-defined commands only. Pipette handling uses integer uL commands in strokes
+    no greater than 1000 uL. The 3.895 mL admission cap follows the labware definition; parameters.py declares
+    3.9 mL and the main recipe uses 2.5 mL bath plus a later 3 mL electrolyte fill. Command inventory is
+    not measured delivered volume.
+  - The reference deposition command is cathodic -0.002827 A at a 35 degC setpoint for 60 s (the upstream
+    function also has a 10 s default), followed by 120 s OCP. Nominal precursor ratios are not measured
+    film stoichiometry; actual mass, thickness, temperature and delivered charge are unavailable.
+  - Cleaning retains deposit history while replacing nominal bath inventory, following the same-well sequence
+    between deposition and test. Neither perfect liquid removal nor unchanged film chemistry is established.
+    Pumps rinse/drain only; pipette dispensing is separate.
+  - The Arduino exposes temperature setpoint and timed ultrasound, not a power percentage. Discrete admitted
+    commands are upstream recipe points, not a verified continuous hardware envelope. Unknown physical outputs
+    are unavailable and carry no invented uncertainty. Duration/cost zero is unexecuted-physical-work bookkeeping;
+    actual handling duration and cost remain unknown.
 workstations:
 - id: ot2-liquid-handling
   facility_id: ac-electrodeposition-cell
@@ -646,13 +657,23 @@ devices:
     value_type: number
     unit: mL
     minimum: 0.0
-    maximum: 25.0
+    maximum: 3.895
+  - id: ot2.dispense_volume_commanded_ml
+    value_type: number
+    unit: mL
+    minimum: 0.0
+    maximum: 3.895
   - id: ot2.dispense_volume_applied_ml
     value_type: number
     unit: mL
     minimum: 0.0
-    maximum: 25.0
+    maximum: 3.895
   - id: ot2.aliquot_volume_requested_ml
+    value_type: number
+    unit: mL
+    minimum: 0.0
+    maximum: 3.895
+  - id: ot2.aliquot_volume_commanded_ml
     value_type: number
     unit: mL
     minimum: 0.0
@@ -668,16 +689,15 @@ devices:
 - id: arduino-device
   asset_id: arduino-controller-body
   state_channels:
-  - id: arduino.conditioning_duration_s
+  - id: arduino.ultrasound_commanded_s
     value_type: number
     unit: s
-    minimum: 0.0
-    maximum: 1800.0
-  - id: arduino.conditioning_setpoint_percent
+  - id: arduino.temperature_setpoint_c
     value_type: number
-    unit: '%'
-    minimum: 0.0
-    maximum: 100.0
+    unit: degC
+  - id: arduino.temperature_observed_c
+    value_type: number
+    unit: degC
   capability_ids:
   - condition-ultrasonic-capability
 - id: squidstat-device
@@ -686,17 +706,21 @@ devices:
   - id: squidstat.current_a
     value_type: number
     unit: A
-    minimum: 0.0
-    maximum: 0.01
+    minimum: -0.002827
+    maximum: -0.002827
   - id: squidstat.duration_s
     value_type: number
     unit: s
-    minimum: 0.0
-    maximum: 3600.0
-  - id: squidstat.charge_c
+    minimum: 10.0
+    maximum: 60.0
+  - id: squidstat.temperature_setpoint_c
+    value_type: number
+    unit: degC
+    minimum: 35.0
+    maximum: 35.0
+  - id: squidstat.commanded_charge_c
     value_type: number
     unit: C
-    minimum: 0.0
   - id: squidstat.deposited_mass_g
     value_type: number
     unit: g
@@ -708,28 +732,32 @@ devices:
   - id: squidstat.current_density_a_cm2
     value_type: number
     unit: A/cm^2
-    minimum: 0.0
-    maximum: 0.1
+    minimum: -0.01
+    maximum: 0.2
   - id: squidstat.overpotential_v
     value_type: number
     unit: V
-    minimum: 0.0
   capability_ids:
   - electrodeposit-constant-current-capability
   - measure-oer-capability
 - id: cleaning-station-device
-  asset_id: ot2-cleaning-cartridge
+  asset_id: flush-tool
   state_channels:
-  - id: cleaning.rinse_volume_ml
+  - id: cleaning.water_commanded_ml
     value_type: number
     unit: mL
-    minimum: 0.0
-    maximum: 12.0
-  - id: cleaning.ultrasound_s
+  - id: cleaning.acid_commanded_ml
+    value_type: number
+    unit: mL
+  - id: cleaning.drain_commanded_ml
+    value_type: number
+    unit: mL
+  - id: cleaning.ultrasound_commanded_s
     value_type: number
     unit: s
-    minimum: 0.0
-    maximum: 1800.0
+  - id: cleaning.residual_volume_ml
+    value_type: number
+    unit: mL
   capability_ids:
   - clean-electrode-capability
 agents: []
@@ -740,21 +768,34 @@ capabilities:
   parameters:
   - name: volume_ml
     value_type: number
-    unit: mL
     required: true
+    unit: mL
     minimum: 0.0
-    maximum: 25.0
+    maximum: 3.895
   - name: chemical
     value_type: string
     required: false
-    enum: [Ni, Fe, Cr, Mn, Co, Zn, Cu, NH4OH, NaCi]
+    unit: '1'
+    enum:
+    - Ni
+    - Fe
+    - Cr
+    - Mn
+    - Co
+    - Zn
+    - Cu
+    - NH4OH
+    - NaCi
+    - KOH
   observation_channel_ids:
   - ot2.dispense_volume_requested_ml
+  - ot2.dispense_volume_commanded_ml
   - ot2.dispense_volume_applied_ml
   echoed_parameter_bindings:
     ot2.dispense_volume_requested_ml: volume_ml
   reported_output_port_ids:
     ot2.dispense_volume_requested_ml: volume_requested_ml
+    ot2.dispense_volume_commanded_ml: volume_commanded_ml
     ot2.dispense_volume_applied_ml: volume_applied_ml
   precondition_constraint_ids:
   - dispense-volume-envelope
@@ -765,21 +806,34 @@ capabilities:
   parameters:
   - name: volume_ml
     value_type: number
-    unit: mL
     required: true
+    unit: mL
     minimum: 0.0
     maximum: 3.895
   - name: chemical
     value_type: string
     required: false
-    enum: [Ni, Fe, Cr, Mn, Co, Zn, Cu, NH4OH, NaCi]
+    unit: '1'
+    enum:
+    - Ni
+    - Fe
+    - Cr
+    - Mn
+    - Co
+    - Zn
+    - Cu
+    - NH4OH
+    - NaCi
+    - KOH
   observation_channel_ids:
   - ot2.aliquot_volume_requested_ml
+  - ot2.aliquot_volume_commanded_ml
   - ot2.aliquot_volume_applied_ml
   echoed_parameter_bindings:
     ot2.aliquot_volume_requested_ml: volume_ml
   reported_output_port_ids:
     ot2.aliquot_volume_requested_ml: volume_requested_ml
+    ot2.aliquot_volume_commanded_ml: volume_commanded_ml
     ot2.aliquot_volume_applied_ml: volume_applied_ml
   precondition_constraint_ids:
   - aliquot-volume-envelope
@@ -790,25 +844,29 @@ capabilities:
   parameters:
   - name: duration_s
     value_type: number
-    unit: s
     required: true
-    minimum: 0.0
-    maximum: 1800.0
-  - name: setpoint_percent
+    unit: s
+    enum:
+    - 5.0
+    - 15.0
+    - 30.0
+  - name: temperature_setpoint_c
     value_type: number
-    unit: '%'
-    required: false
-    minimum: 0.0
-    maximum: 100.0
+    required: true
+    unit: degC
+    enum:
+    - 35.0
   observation_channel_ids:
-  - arduino.conditioning_duration_s
-  - arduino.conditioning_setpoint_percent
+  - arduino.ultrasound_commanded_s
+  - arduino.temperature_setpoint_c
+  - arduino.temperature_observed_c
   echoed_parameter_bindings:
-    arduino.conditioning_duration_s: duration_s
-    arduino.conditioning_setpoint_percent: setpoint_percent
+    arduino.ultrasound_commanded_s: duration_s
+    arduino.temperature_setpoint_c: temperature_setpoint_c
   reported_output_port_ids:
-    arduino.conditioning_duration_s: instrument.conditioning_duration_s
-    arduino.conditioning_setpoint_percent: instrument.conditioning_setpoint_percent
+    arduino.ultrasound_commanded_s: instrument.ultrasound_commanded_s
+    arduino.temperature_setpoint_c: instrument.temperature_setpoint_c
+    arduino.temperature_observed_c: instrument.temperature_observed_c
   precondition_constraint_ids:
   - conditioning-duration-envelope
   - conditioning-setpoint-envelope
@@ -819,34 +877,44 @@ capabilities:
   parameters:
   - name: current_a
     value_type: number
-    unit: A
     required: true
-    minimum: 0.0
-    maximum: 0.01
+    unit: A
+    enum:
+    - -0.002827
   - name: duration_s
     value_type: number
-    unit: s
     required: true
-    minimum: 0.0
-    maximum: 3600.0
+    unit: s
+    enum:
+    - 10.0
+    - 60.0
+  - name: temperature_setpoint_c
+    value_type: number
+    required: true
+    unit: degC
+    enum:
+    - 35.0
   observation_channel_ids:
   - squidstat.current_a
   - squidstat.duration_s
-  - squidstat.charge_c
+  - squidstat.temperature_setpoint_c
+  - squidstat.commanded_charge_c
   - squidstat.deposited_mass_g
   - squidstat.deposited_thickness_um
   - squidstat.current_density_a_cm2
   echoed_parameter_bindings:
     squidstat.current_a: current_a
     squidstat.duration_s: duration_s
+    squidstat.temperature_setpoint_c: temperature_setpoint_c
   reported_output_port_ids:
-    squidstat.charge_c: charge_c
+    squidstat.commanded_charge_c: commanded_charge_c
     squidstat.deposited_mass_g: deposited_mass_g
     squidstat.deposited_thickness_um: deposited_thickness_um
     squidstat.current_density_a_cm2: current_density_a_cm2
   precondition_constraint_ids:
   - current-envelope
   - deposition-duration-envelope
+  - deposition-temperature-envelope
   postcondition_constraint_ids: []
 - id: measure-oer-capability
   provider_id: squidstat-device
@@ -873,36 +941,38 @@ capabilities:
   provider_id: cleaning-station-device
   action_type: clean
   parameters:
-  - name: rinse_volume_ml
-    value_type: number
-    unit: mL
+  - name: use_acid
+    value_type: boolean
+    unit: '1'
     required: true
-    minimum: 0.0
-    maximum: 12.0
-  - name: ultrasound_s
+  - name: acid_dwell_s
     value_type: number
+    required: true
     unit: s
-    required: false
-    minimum: 0.0
-    maximum: 1800.0
+    enum:
+    - 0.0
+    - 0.1
+    - 30.0
   observation_channel_ids:
-  - cleaning.rinse_volume_ml
-  - cleaning.ultrasound_s
-  echoed_parameter_bindings:
-    cleaning.rinse_volume_ml: rinse_volume_ml
-    cleaning.ultrasound_s: ultrasound_s
+  - cleaning.water_commanded_ml
+  - cleaning.acid_commanded_ml
+  - cleaning.drain_commanded_ml
+  - cleaning.ultrasound_commanded_s
+  - cleaning.residual_volume_ml
+  echoed_parameter_bindings: {}
   reported_output_port_ids:
-    cleaning.rinse_volume_ml: instrument.rinse_volume_ml
-    cleaning.ultrasound_s: instrument.ultrasound_s
-  precondition_constraint_ids:
-  - cleaning-rinse-volume-envelope
-  - cleaning-ultrasound-envelope
+    cleaning.water_commanded_ml: instrument.water_commanded_ml
+    cleaning.acid_commanded_ml: instrument.acid_commanded_ml
+    cleaning.drain_commanded_ml: instrument.drain_commanded_ml
+    cleaning.ultrasound_commanded_s: instrument.ultrasound_commanded_s
+    cleaning.residual_volume_ml: instrument.residual_volume_ml
+  precondition_constraint_ids: []
   postcondition_constraint_ids: []
 material_states: []
 model_bindings:
 - id: ac-opentron-model
   implementation_ref: dynamical/instruments/ac_opentron.py
-  implementation_sha256: 938b52c5b4943e0650eafbc615bc234c41919f33b3f9fbb4740b8655656b18e2
+  implementation_sha256: 611ac117df4817fac8ffa9dea22c1a6a7a95fbc0c3daabcf5bea9a12042ee39f
   input_channel_map: {}
   output_channel_map: {}
   parameter_map:
@@ -912,7 +982,7 @@ model_bindings:
   calibration_evidence_ids: []
 - id: ac-arduino-model
   implementation_ref: dynamical/instruments/ac_arduino.py
-  implementation_sha256: a5e99a0ea5ccf37e393770ac9104a7d9509003f72dca1dee6c440ce127627c57
+  implementation_sha256: 0e530262497a93e42455f45bd1c741afc0afc7c818e0d0537fda341cd20ebe5a
   input_channel_map: {}
   output_channel_map: {}
   parameter_map:
@@ -922,7 +992,7 @@ model_bindings:
   calibration_evidence_ids: []
 - id: ac-potentiostat-model
   implementation_ref: dynamical/instruments/ac_potentiostat.py
-  implementation_sha256: 8fc7c1054d4a844eab627269ba2db311f69c3331770596edaeacd96d480273ea
+  implementation_sha256: ee4d9aa12a919fba8ba275b0d4a5bf2d8841edf476ee03d2571c481d35507d81
   input_channel_map: {}
   output_channel_map: {}
   parameter_map:
@@ -942,7 +1012,7 @@ model_bindings:
   calibration_evidence_ids: [ampere2-oer-cp-2050]
 - id: ac-cleaning-model
   implementation_ref: dynamical/instruments/ac_cleaning.py
-  implementation_sha256: 939f238f41ef4171468f3a1d635ae272b8f18fdea2351968c2aa380ae9d6f996
+  implementation_sha256: 9d78cd6cc23ff0fe8287a9db598a0811e6c1a04f95e02f1383d6be8278a9a2ec
   input_channel_map: {}
   output_channel_map: {}
   parameter_map:
@@ -1012,12 +1082,28 @@ provider_admission_bindings:
     value_type: number
     unit: mL
     minimum: 0.0
-    maximum: 25.0
+    maximum: 3.895
+  - subject_kind: parameter
+    subject_id: chemical
+    value_type: string
+    unit: '1'
+    enum:
+    - Ni
+    - Fe
+    - Cr
+    - Mn
+    - Co
+    - Zn
+    - Cu
+    - NH4OH
+    - NaCi
+    - KOH
   safety_limit_ids:
   - dispense-volume-envelope
   policy_tags:
   - simulation-only
-  - pump-calibration-unverified
+  - source-command-only
+  - physical-response-unavailable
   required_approval_ids: []
 - id: admitted-ac-ot2-aliquot-to-well
   provider_id: ac-ot2-simulator
@@ -1041,11 +1127,27 @@ provider_admission_bindings:
     unit: mL
     minimum: 0.0
     maximum: 3.895
+  - subject_kind: parameter
+    subject_id: chemical
+    value_type: string
+    unit: '1'
+    enum:
+    - Ni
+    - Fe
+    - Cr
+    - Mn
+    - Co
+    - Zn
+    - Cu
+    - NH4OH
+    - NaCi
+    - KOH
   safety_limit_ids:
   - aliquot-volume-envelope
   policy_tags:
   - simulation-only
-  - pump-calibration-unverified
+  - source-command-only
+  - physical-response-unavailable
   required_approval_ids: []
 - id: admitted-ac-arduino-condition-ultrasonic
   provider_id: ac-arduino-simulator
@@ -1067,19 +1169,23 @@ provider_admission_bindings:
     subject_id: duration_s
     value_type: number
     unit: s
-    minimum: 0.0
-    maximum: 1800.0
+    enum:
+    - 5.0
+    - 15.0
+    - 30.0
   - subject_kind: parameter
-    subject_id: setpoint_percent
+    subject_id: temperature_setpoint_c
     value_type: number
-    unit: '%'
-    minimum: 0.0
-    maximum: 100.0
+    unit: degC
+    enum:
+    - 35.0
   safety_limit_ids:
   - conditioning-duration-envelope
   - conditioning-setpoint-envelope
   policy_tags:
   - simulation-only
+  - source-command-only
+  - physical-response-unavailable
   required_approval_ids: []
 - id: admitted-ac-squidstat-electrodeposit
   provider_id: ac-squidstat-simulator
@@ -1101,20 +1207,29 @@ provider_admission_bindings:
     subject_id: current_a
     value_type: number
     unit: A
-    minimum: 0.0
-    maximum: 0.01
+    enum:
+    - -0.002827
   - subject_kind: parameter
     subject_id: duration_s
     value_type: number
     unit: s
-    minimum: 0.0
-    maximum: 3600.0
+    enum:
+    - 10.0
+    - 60.0
+  - subject_kind: parameter
+    subject_id: temperature_setpoint_c
+    value_type: number
+    unit: degC
+    enum:
+    - 35.0
   safety_limit_ids:
   - current-envelope
   - deposition-duration-envelope
+  - deposition-temperature-envelope
   policy_tags:
   - simulation-only
-  - not-fitted-to-measured-data
+  - source-command-only
+  - physical-response-unavailable
   required_approval_ids: []
 - id: admitted-ac-oer-measure-oer
   provider_id: ac-oer-simulator
@@ -1161,22 +1276,22 @@ provider_admission_bindings:
     endpoint_ref: cleaning-station-device
   validity_envelope:
   - subject_kind: parameter
-    subject_id: rinse_volume_ml
-    value_type: number
-    unit: mL
-    minimum: 0.0
-    maximum: 12.0
+    subject_id: use_acid
+    value_type: boolean
+    unit: '1'
   - subject_kind: parameter
-    subject_id: ultrasound_s
+    subject_id: acid_dwell_s
     value_type: number
     unit: s
-    minimum: 0.0
-    maximum: 1800.0
-  safety_limit_ids:
-  - cleaning-rinse-volume-envelope
-  - cleaning-ultrasound-envelope
+    enum:
+    - 0.0
+    - 0.1
+    - 30.0
+  safety_limit_ids: []
   policy_tags:
   - simulation-only
+  - source-command-only
+  - physical-response-unavailable
   required_approval_ids: []
 constraints:
 - id: dispense-volume-envelope
@@ -1185,7 +1300,7 @@ constraints:
   operator: between
   bound:
     minimum: 0.0
-    maximum: 25.0
+    maximum: 3.895
   unit: mL
   enforcement: reject
   verifier_binding_id: bounded-constraint-verifier
@@ -1203,33 +1318,33 @@ constraints:
   constrained_parameter_name: volume_ml
 - id: conditioning-duration-envelope
   phase: pre_action
-  channel_id: arduino.conditioning_duration_s
+  channel_id: arduino.ultrasound_commanded_s
   operator: between
   bound:
-    minimum: 0.0
-    maximum: 1800.0
+    minimum: 5.0
+    maximum: 30.0
   unit: s
   enforcement: reject
   verifier_binding_id: bounded-constraint-verifier
   constrained_parameter_name: duration_s
 - id: conditioning-setpoint-envelope
   phase: pre_action
-  channel_id: arduino.conditioning_setpoint_percent
+  channel_id: arduino.temperature_setpoint_c
   operator: between
   bound:
-    minimum: 0.0
-    maximum: 100.0
-  unit: '%'
+    minimum: 35.0
+    maximum: 35.0
+  unit: degC
   enforcement: reject
   verifier_binding_id: bounded-constraint-verifier
-  constrained_parameter_name: setpoint_percent
+  constrained_parameter_name: temperature_setpoint_c
 - id: current-envelope
   phase: pre_action
   channel_id: squidstat.current_a
   operator: between
   bound:
-    minimum: 0.0
-    maximum: 0.01
+    minimum: -0.002827
+    maximum: -0.002827
   unit: A
   enforcement: reject
   verifier_binding_id: bounded-constraint-verifier
@@ -1239,8 +1354,8 @@ constraints:
   channel_id: squidstat.duration_s
   operator: between
   bound:
-    minimum: 0.0
-    maximum: 3600.0
+    minimum: 10.0
+    maximum: 60.0
   unit: s
   enforcement: reject
   verifier_binding_id: bounded-constraint-verifier
@@ -1256,28 +1371,17 @@ constraints:
   enforcement: reject
   verifier_binding_id: bounded-constraint-verifier
   constrained_parameter_name: current_density_a_cm2
-- id: cleaning-rinse-volume-envelope
+- id: deposition-temperature-envelope
   phase: pre_action
-  channel_id: cleaning.rinse_volume_ml
+  channel_id: squidstat.temperature_setpoint_c
   operator: between
   bound:
-    minimum: 0.0
-    maximum: 12.0
-  unit: mL
+    minimum: 35.0
+    maximum: 35.0
+  unit: degC
   enforcement: reject
   verifier_binding_id: bounded-constraint-verifier
-  constrained_parameter_name: rinse_volume_ml
-- id: cleaning-ultrasound-envelope
-  phase: pre_action
-  channel_id: cleaning.ultrasound_s
-  operator: between
-  bound:
-    minimum: 0.0
-    maximum: 1800.0
-  unit: s
-  enforcement: reject
-  verifier_binding_id: bounded-constraint-verifier
-  constrained_parameter_name: ultrasound_s
+  constrained_parameter_name: temperature_setpoint_c
 calibration_evidence:
 - id: ampere2-oer-cp-2050
   source_artifact_ref: https://doi.org/10.11583/DTU.27446925 (Data.zip, MIT license, retrieved 2026-08-10)

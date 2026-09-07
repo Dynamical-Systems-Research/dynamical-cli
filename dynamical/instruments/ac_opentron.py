@@ -1,127 +1,68 @@
-"""Opentrons OT-2 liquid handling: requested volume vs. pump-applied volume.
+"""SDL1 pipette command bookkeeping; physical delivered volumes are unknown.
 
-Instrument physics only. No objective, no experiment order, no stopping
-rule. The AC SDL1 archive's own ``parameters.py`` flags its pump-timing
-constants ``slope`` and ``intercept`` ``# XXX "Change this to real life
-number if pumps are calibrated"`` -- i.e. they are declared placeholders,
-not calibrated hardware constants. This model carries that fact forward as
-an inflated declared uncertainty and this claim-boundary note, rather than
-silently adopting an invented pair of "real" numbers. Volume is converted
-through a source-shaped pump relation ``time_on = slope * volume_ml +
-intercept``, quantized to the pump controller's time step, and inverted
-back to an applied volume -- the same shape the upstream archive documents,
-with the same unfitted status.
+SDL1 2c5a911 example/experiment.py:1145-1154 truncates mixture volumes to
+integer uL; 1180-1185 and 1198-1235 issue pipette strokes of at most 1000 uL.
+The electrolyte path also uses the pipette (1432-1500), never a rinse pump.
+No volume accuracy or elapsed-time measurement is supplied by this adapter.
 """
 
 from __future__ import annotations
 
+import math
+
 from ..reasons import RuntimeReason
 from . import InstrumentRequest, InstrumentResult, register
 
-# Declared engineering assumptions, not sourced calibration data. The
-# upstream AC SDL1 archive documents this pump relation's *form*
-# (``time_on = slope * V + intercept``) but flags both constants as
-# uncalibrated placeholders. Substituting plausible-looking numbers here
-# would misrepresent them as measured, so these are kept explicitly
-# declared and the resulting uncertainty is inflated accordingly.
-PUMP_TIME_SLOPE_S_PER_ML = 12.0
-PUMP_TIME_INTERCEPT_S = 0.5
-PUMP_STEP_S = 0.1  # smallest pump-controller time increment, declared
-
-# Inflated relative uncertainty on applied volume. Not a documented
-# instrument tolerance -- it is inflated specifically because the upstream
-# slope/intercept are themselves unfitted placeholders.
-VOLUME_RELATIVE_UNCERTAINTY = 0.10
-
-CLAIM_BOUNDARY = (
-    "Applied-volume uncertainty is inflated because the upstream AC SDL1 pump "
-    'calibration constants are declared placeholders (`# XXX "Change this to '
-    'real life number if pumps are calibrated"`), not measured hardware '
-    "coefficients. This model is not fitted to, or validated against, any "
-    "measured dispense; the AC SDL1 archive contains no experimental data."
-)
-
-DISPENSE_VOLUME_MIN_ML = 0.0
-DISPENSE_VOLUME_MAX_ML = 25.0  # source-verified stock reservoir capacity
-
-ALIQUOT_VOLUME_MIN_ML = 0.0
-ALIQUOT_VOLUME_MAX_ML = 3.895  # source-verified test-plate well capacity (3895 uL)
-
-# The stock chemicals the AMPERE-2 platform mixes by volume: seven metal
-# chloride solutions and two complexing agents. A dispense may name which
-# stock it draws from; the delivered volume then accumulates on the sample's
-# electrolyte state so a downstream deposition knows the nominal precursor
-# composition it deposited from.
-ADMITTED_CHEMICALS = ("Ni", "Fe", "Cr", "Mn", "Co", "Zn", "Cu", "NH4OH", "NaCi")
+# Destination geometry, not a measured delivery tolerance or a stock capacity.
+DISPENSE_VOLUME_MIN_ML = ALIQUOT_VOLUME_MIN_ML = 0.0
+DISPENSE_VOLUME_MAX_ML = ALIQUOT_VOLUME_MAX_ML = 3.895
+# SDL1 src/openTron_electrodeposition/parameters.py:74-96.
+ADMITTED_CHEMICALS = ("Ni", "Fe", "Cr", "Mn", "Co", "Zn", "Cu", "NH4OH", "NaCi", "KOH")
 
 
-def _apply_volume(volume_ml: float) -> tuple[float, float]:
-    """Round a requested volume through the pump's quantized time control."""
-
-    time_on_s = PUMP_TIME_SLOPE_S_PER_ML * volume_ml + PUMP_TIME_INTERCEPT_S
-    quantized_time_s = round(time_on_s / PUMP_STEP_S) * PUMP_STEP_S
-    applied_ml = max(0.0, (quantized_time_s - PUMP_TIME_INTERCEPT_S) / PUMP_TIME_SLOPE_S_PER_ML)
-    half_step_ml = (PUMP_STEP_S / 2.0) / PUMP_TIME_SLOPE_S_PER_ML
-    uncertainty_ml = max(half_step_ml, VOLUME_RELATIVE_UNCERTAINTY * applied_ml)
-    return applied_ml, uncertainty_ml
-
-
-def _envelope_reasons(
-    volume_ml: float, minimum: float, maximum: float, channel_id: str
-) -> list[RuntimeReason]:
-    if minimum <= volume_ml <= maximum:
-        return []
-    return [
-        RuntimeReason(
-            code="PARAMETER_OUT_OF_ENVELOPE",
-            detail=(
-                f"volume {volume_ml} mL is outside the admitted envelope [{minimum}, {maximum}] mL"
-            ),
-            channel_id=channel_id,
-            recoverable=True,
-        )
-    ]
-
-
-def _dispense(request: InstrumentRequest, reasons: list[RuntimeReason]) -> InstrumentResult:
-    volume_ml = float(request.parameters["volume_ml"])
-    applied_ml, uncertainty_ml = _apply_volume(volume_ml)
+def _dispense(request: InstrumentRequest) -> InstrumentResult:
+    volume = float(request.parameters["volume_ml"])
     chemical = request.parameters.get("chemical")
-    sample = None
-    if chemical is not None:
-        chemical = str(chemical)
-        if chemical not in ADMITTED_CHEMICALS:
-            reasons = [
-                *reasons,
-                RuntimeReason(
-                    code="PARAMETER_OUT_OF_ENVELOPE",
-                    detail=(
-                        f"chemical {chemical!r} is not an admitted stock; admitted stocks are "
-                        f"{list(ADMITTED_CHEMICALS)}"
-                    ),
-                    channel_id="instrument.chemical",
-                    recoverable=True,
+    reasons: list[RuntimeReason] = []
+    valid = math.isfinite(volume) and 0.0 <= volume <= DISPENSE_VOLUME_MAX_ML
+    if chemical is not None and chemical not in ADMITTED_CHEMICALS:
+        valid = False
+    commanded = int(volume * 1000) / 1000 if valid else None
+    state = dict(request.sample.state) if request.sample is not None else {}
+    prior_volume = sum(v for k, v in state.items() if k.startswith("electrolyte_commanded."))
+    if commanded is not None and prior_volume + commanded > DISPENSE_VOLUME_MAX_ML:
+        valid = False
+        commanded = None
+    if not valid:
+        reasons.append(
+            RuntimeReason(
+                code="PARAMETER_OUT_OF_ENVELOPE",
+                detail=(
+                    "Pipette command requires finite nonnegative volume within the 3.895 mL "
+                    "destination geometry and an admitted stock; cumulative nominal "
+                    "inventory must fit the well."
                 ),
-            ]
-        elif request.sample is not None:
-            key = f"electrolyte.{chemical}_ml"
-            sample = request.sample.model_copy(
-                update={
-                    "state": {
-                        **request.sample.state,
-                        key: request.sample.state.get(key, 0.0) + applied_ml,
-                    }
-                }
+                channel_id="instrument.volume_ml",
+                recoverable=True,
             )
+        )
+    sample = None
+    if valid and request.sample is not None:
+        key = f"electrolyte_commanded.{chemical if chemical is not None else 'unspecified'}_ml"
+        state[key] = state.get(key, 0.0) + commanded
+        sample = request.sample.model_copy(update={"state": state})
     return InstrumentResult(
         outputs={
-            "volume_requested_ml": volume_ml,
-            "volume_applied_ml": applied_ml,
+            "volume_requested_ml": volume if math.isfinite(volume) else None,
+            "volume_commanded_ml": commanded,
+            "volume_applied_ml": None,
         },
-        uncertainty={"volume_applied_ml": uncertainty_ml},
+        # The runtime otherwise copies requested parameters into applied telemetry.
+        # These adapters record commands, not physically applied settings.
+        applied_parameters={name: None for name in request.parameters},
+        uncertainty={},
         cost_usd=0.0,
-        duration_s=max(0.0, PUMP_TIME_SLOPE_S_PER_ML * volume_ml + PUMP_TIME_INTERCEPT_S),
-        applied_parameters={"volume_ml": applied_ml},
+        duration_s=0.0,
         reasons=reasons,
         sample=sample,
     )
@@ -129,17 +70,9 @@ def _dispense(request: InstrumentRequest, reasons: list[RuntimeReason]) -> Instr
 
 @register("dispense-electrolyte", "ac-ot2-simulator")
 def dispense_electrolyte(request: InstrumentRequest) -> InstrumentResult:
-    volume_ml = float(request.parameters["volume_ml"])
-    reasons = _envelope_reasons(
-        volume_ml, DISPENSE_VOLUME_MIN_ML, DISPENSE_VOLUME_MAX_ML, "instrument.volume_ml"
-    )
-    return _dispense(request, reasons)
+    return _dispense(request)
 
 
 @register("aliquot-to-well", "ac-ot2-simulator")
 def aliquot_to_well(request: InstrumentRequest) -> InstrumentResult:
-    volume_ml = float(request.parameters["volume_ml"])
-    reasons = _envelope_reasons(
-        volume_ml, ALIQUOT_VOLUME_MIN_ML, ALIQUOT_VOLUME_MAX_ML, "instrument.volume_ml"
-    )
-    return _dispense(request, reasons)
+    return _dispense(request)

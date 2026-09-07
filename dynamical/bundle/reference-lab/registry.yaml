@@ -4,58 +4,114 @@ registry_id: dynamical-ac-sdl1-capabilities-20260907
 capabilities:
   - operation_id: dispense-electrolyte
     kind: scientific
-    description: Dispense electrolyte from an OT-2 stock reservoir through the syringe pump, reporting requested and pump-applied volume.
+    description: Command pipette dispensing in at most 1000 uL strokes into the test well. Pumps only rinse and drain; delivered
+      volume and elapsed handling time are unknown.
     input_ports:
-      - {id: sample.state, state_type: sample_state, unit: "1", required: true, description: "The sample this dispense acts on. Consumed for custody continuity; this is a pump-volume calculation, not a custody change, so no new sample.state is produced."}
+    - {id: sample.state, state_type: sample_state, unit: '1', required: true, description: The stationary sample identity and
+        its recorded state; command inventory is nominal and custody is unchanged.}
     output_ports:
-      - {id: volume_requested_ml, state_type: number, unit: mL, required: true, description: Requested dispense volume.}
-      - {id: volume_applied_ml, state_type: number, unit: mL, required: true, description: Pump-applied volume after the quantized pump-time-step relation.}
+    - {id: volume_requested_ml, state_type: number, unit: mL, required: true, description: Requested nominal pipette volume.}
+    - {id: volume_commanded_ml, state_type: number, unit: mL, required: true, description: Nominal pipette command after integer-microlitre
+        encoding; no delivery measurement.}
+    - {id: volume_applied_ml, state_type: number, unit: mL, required: true, description: Unknown physical delivered volume;
+        unavailable until measured.}
     parameters:
-      - {name: volume_ml, value_type: number, unit: mL, required: true, minimum: 0.0, maximum: 25.0}
-      - {name: chemical, value_type: string, unit: "1", required: false, enum: [Ni, Fe, Cr, Mn, Co, Zn, Cu, NH4OH, NaCi]}
+    - {name: volume_ml, value_type: number, required: true, unit: mL, minimum: 0.0, maximum: 3.895}
+    - name: chemical
+      value_type: string
+      required: false
+      unit: '1'
+      enum: [Ni, Fe, Cr, Mn, Co, Zn, Cu, NH4OH, NaCi, KOH]
     required_conditions: []
-    possible_failures: [the requested volume exceeds the 25 mL stock-reservoir envelope, the named chemical is not an admitted stock]
+    possible_failures: [unsupported or nonfinite command refused without state mutation, physical response and accuracy unavailable
+        without measurements]
   - operation_id: aliquot-to-well
     kind: scientific
-    description: Aliquot electrolyte from the OT-2 pipette into one test-plate well, reporting requested and pump-applied volume.
+    description: Command pipette delivery into the same test well in at most 1000 uL strokes. The 3.895 mL limit is the labware
+      definition capacity, not a delivery-accuracy claim.
     input_ports:
-      - {id: sample.state, state_type: sample_state, unit: "1", required: true, description: "The sample this aliquot acts on. Consumed for custody continuity; this is a pump-volume calculation, not a custody change, so no new sample.state is produced."}
+    - {id: sample.state, state_type: sample_state, unit: '1', required: true, description: The stationary sample identity and
+        its recorded state; command inventory is nominal and custody is unchanged.}
     output_ports:
-      - {id: volume_requested_ml, state_type: number, unit: mL, required: true, description: Requested aliquot volume.}
-      - {id: volume_applied_ml, state_type: number, unit: mL, required: true, description: Pump-applied volume after the quantized pump-time-step relation.}
+    - {id: volume_requested_ml, state_type: number, unit: mL, required: true, description: Requested nominal pipette volume.}
+    - {id: volume_commanded_ml, state_type: number, unit: mL, required: true, description: Nominal pipette command after integer-microlitre
+        encoding; no delivery measurement.}
+    - {id: volume_applied_ml, state_type: number, unit: mL, required: true, description: Unknown physical delivered volume;
+        unavailable until measured.}
     parameters:
-      - {name: volume_ml, value_type: number, unit: mL, required: true, minimum: 0.0, maximum: 3.895}
-      - {name: chemical, value_type: string, unit: "1", required: false, enum: [Ni, Fe, Cr, Mn, Co, Zn, Cu, NH4OH, NaCi]}
+    - {name: volume_ml, value_type: number, required: true, unit: mL, minimum: 0.0, maximum: 3.895}
+    - name: chemical
+      value_type: string
+      required: false
+      unit: '1'
+      enum: [Ni, Fe, Cr, Mn, Co, Zn, Cu, NH4OH, NaCi, KOH]
     required_conditions: []
-    possible_failures: [the requested volume exceeds the 3895 uL test-plate well envelope, the named chemical is not an admitted stock]
+    possible_failures: [unsupported or nonfinite command refused without state mutation, physical response and accuracy unavailable
+        without measurements]
   - operation_id: condition-ultrasonic
     kind: scientific
-    description: Run the Arduino-controlled ultrasonic conditioning relay for a bounded duration and power setpoint.
+    description: Command the Arduino well temperature setpoint and timed ultrasound relay; no acoustic power setpoint exists
+      upstream. The admitted points are source recipe commands, not a calibrated hardware envelope.
     input_ports:
-      - {id: sample.state, state_type: sample_state, unit: "1", required: true, description: "The sample this conditioning acts on. Consumed for custody continuity; conditioning does not relocate, split, or rename the sample, so no new sample.state is produced."}
+    - {id: sample.state, state_type: sample_state, unit: '1', required: true, description: The stationary sample identity and
+        its recorded state; command inventory is nominal and custody is unchanged.}
     output_ports:
-      - {id: instrument.conditioning_duration_s, state_type: number, unit: s, required: true, description: Delivered conditioning duration.}
-      - {id: instrument.conditioning_setpoint_percent, state_type: number, unit: "%", required: true, description: Delivered power setpoint.}
+    - {id: instrument.ultrasound_commanded_s, state_type: number, unit: s, required: true, description: 'Commanded relay duration,
+        not measured acoustic exposure.'}
+    - {id: instrument.temperature_setpoint_c, state_type: number, unit: degC, required: true, description: 'Commanded well temperature
+        setpoint, not sensor readback.'}
+    - {id: instrument.temperature_observed_c, state_type: number, unit: degC, required: true, description: Unknown actual well
+        temperature; unavailable until measured.}
     parameters:
-      - {name: duration_s, value_type: number, unit: s, required: true, minimum: 0.0, maximum: 1800.0}
-      - {name: setpoint_percent, value_type: number, unit: "%", required: false, minimum: 0.0, maximum: 100.0}
+    - name: duration_s
+      value_type: number
+      required: true
+      unit: s
+      enum: [5.0, 15.0, 30.0]
+    - name: temperature_setpoint_c
+      value_type: number
+      required: true
+      unit: degC
+      enum: [35.0]
     required_conditions: []
-    possible_failures: [the requested duration exceeds the 1800 s conditioning envelope, the requested setpoint is outside 0-100%]
+    possible_failures: [unsupported or nonfinite command refused without state mutation, physical response and accuracy unavailable
+        without measurements]
   - operation_id: electrodeposit-constant-current
     kind: scientific
-    description: Apply a constant current between the working and counter electrode and estimate charge passed, deposited nickel mass and thickness via Faraday's law.
+    description: Command cathodic deposition at -0.002827 A on the stationary Ni-tape working electrode at a 35 degC setpoint,
+      followed upstream by 120 s open circuit. The Ni tool is the counter electrode with reference tied for deposition. Actual
+      temperature, charge delivery, composition, mass and thickness are unmeasured.
     input_ports:
-      - {id: sample.state, state_type: sample_state, unit: "1", required: true, description: "The sample (working electrode) this deposition acts on. Consumed for custody continuity; deposited mass and thickness are reported as their own output ports rather than folded into a restated sample.state, so no new sample.state is produced."}
+    - {id: sample.state, state_type: sample_state, unit: '1', required: true, description: The stationary sample identity and
+        its recorded state; command inventory is nominal and custody is unchanged.}
     output_ports:
-      - {id: charge_c, state_type: number, unit: C, required: true, description: Charge passed (current times duration).}
-      - {id: deposited_mass_g, state_type: number, unit: g, required: true, description: "Nickel mass deposited, from Faraday's law at n=2."}
-      - {id: deposited_thickness_um, state_type: number, unit: um, required: true, description: Deposited film thickness over the 0.2827 cm^2 electrode area.}
-      - {id: current_density_a_cm2, state_type: number, unit: A/cm^2, required: true, description: Applied current divided by electrode area.}
+    - {id: commanded_charge_c, state_type: number, unit: C, required: true, description: Signed integral of cathodic current
+        command over its duration; not measured delivered charge.}
+    - {id: deposited_mass_g, state_type: number, unit: g, required: true, description: Unknown actual deposited mass; no pure-nickel
+        yield assumption.}
+    - {id: deposited_thickness_um, state_type: number, unit: um, required: true, description: Unknown actual film thickness;
+        unavailable until measured.}
+    - {id: current_density_a_cm2, state_type: number, unit: A/cm^2, required: true, description: Signed current command divided
+        by upstream area 0.2827 cm^2.}
     parameters:
-      - {name: current_a, value_type: number, unit: A, required: true, minimum: 0.0, maximum: 0.010}
-      - {name: duration_s, value_type: number, unit: s, required: true, minimum: 0.0, maximum: 3600.0}
+    - name: current_a
+      value_type: number
+      required: true
+      unit: A
+      enum: [-0.002827]
+    - name: duration_s
+      value_type: number
+      required: true
+      unit: s
+      enum: [10.0, 60.0]
+    - name: temperature_setpoint_c
+      value_type: number
+      required: true
+      unit: degC
+      enum: [35.0]
     required_conditions: []
-    possible_failures: [the requested current exceeds the 0.010 A source-verified envelope, the requested duration exceeds 3600 s]
+    possible_failures: [unsupported or nonfinite command refused without state mutation, physical response and accuracy unavailable
+        without measurements]
   - operation_id: measure-oer
     kind: scientific
     description: Estimate OER overpotential from the deposited film's recorded precursor composition and the requested current density. The selected provider determines the calibration basis, evidence class, and validity envelope.
@@ -70,100 +126,171 @@ capabilities:
     possible_failures: [the requested current density is outside the fitted basis envelope, the measured sample carries no recorded deposit or precursor composition]
   - operation_id: clean-electrode
     kind: scientific
-    description: Rinse and drain the working electrode at the OT-2 cleaning cartridge, clearing accumulated electrolyte volumes and the recorded deposit from the sample's scientific state.
+    description: Command the upstream test-well rinse/drain sequence in place, retaining the deposit record between deposition
+      and OER test. Clear only nominal bath command inventory; residual liquid, cleaning efficacy and physical film changes
+      remain unknown. The pipette-carried tool cartridge cleaning is a separate upstream sequence.
     input_ports:
-      - {id: sample.state, state_type: sample_state, unit: "1", required: true, description: "The sample this cleaning resets. Consumed for custody continuity; cleaning clears process state in place, so no new sample.state is produced."}
+    - {id: sample.state, state_type: sample_state, unit: '1', required: true, description: The stationary sample identity and
+        its recorded state; command inventory is nominal and custody is unchanged.}
     output_ports:
-      - {id: instrument.rinse_volume_ml, state_type: number, unit: mL, required: true, description: Delivered rinse volume.}
-      - {id: instrument.ultrasound_s, state_type: number, unit: s, required: true, description: Delivered ultrasound time.}
+    - {id: instrument.water_commanded_ml, state_type: number, unit: mL, required: true, description: Sum of water rinse pump
+        volume commands; delivery unknown.}
+    - {id: instrument.acid_commanded_ml, state_type: number, unit: mL, required: true, description: Sum of acid rinse pump volume
+        commands; delivery unknown.}
+    - {id: instrument.drain_commanded_ml, state_type: number, unit: mL, required: true, description: Sum of drain pump commands;
+        actual removed volume unknown.}
+    - {id: instrument.ultrasound_commanded_s, state_type: number, unit: s, required: true, description: Sum of relay-duration
+        commands in the well-cleaning sequence.}
+    - {id: instrument.residual_volume_ml, state_type: number, unit: mL, required: true, description: Unknown residual volume
+        after drain; unavailable until measured.}
     parameters:
-      - {name: rinse_volume_ml, value_type: number, unit: mL, required: true, minimum: 0.0, maximum: 12.0}
-      - {name: ultrasound_s, value_type: number, unit: s, required: false, minimum: 0.0, maximum: 1800.0}
+    - {name: use_acid, value_type: boolean, unit: '1', required: true}
+    - name: acid_dwell_s
+      value_type: number
+      required: true
+      unit: s
+      enum: [0.0, 0.1, 30.0]
     required_conditions: []
-    possible_failures: [the requested rinse volume exceeds the cleaning-cartridge envelope, the requested ultrasound time exceeds the 1800 s relay envelope, no sample is in custody]
+    possible_failures: [unsupported or nonfinite command refused without state mutation, physical response and accuracy unavailable
+        without measurements]
 providers:
   - provider_id: ac-ot2-simulator
     operation_id: dispense-electrolyte
     evidence_class: simulator
     endpoint_id: ac-opentron-model
     facility_ids: [ot2-liquid-handling]
-    availability: {available: true, observed_at: "2026-08-09T00:00:00Z", availability_ref: dynamical/instruments/ac_opentron.py}
+    availability: {available: true, observed_at: '2026-08-09T00:00:00Z', availability_ref: dynamical/instruments/ac_opentron.py}
     admission:
       status: admitted
       authority_id: dynamical-v0.1-release-authority
       authority_kind: release_authority
       evidence_refs: [dynamical/instruments/ac_opentron.py, tests/test_instrument_models.py]
     validity_envelope:
-      - {subject_kind: parameter, subject_id: volume_ml, value_type: number, unit: mL, minimum: 0.0, maximum: 25.0}
+    - {subject_kind: parameter, subject_id: volume_ml, value_type: number, unit: mL, minimum: 0.0, maximum: 3.895}
+    - subject_kind: parameter
+      subject_id: chemical
+      value_type: string
+      unit: '1'
+      enum: [Ni, Fe, Cr, Mn, Co, Zn, Cu, NH4OH, NaCi, KOH]
     cost: {currency: USD, fixed: 0.0}
-    duration: {minimum_s: 0.0, typical_s: 12.5, maximum_s: 300.5}
-    failures: [{code: pump-time-quantization, description: Requested volume rounds through the quantized pump-time step and is not applied exactly., recoverable: true}]
-    policy: {permitted: true, policy_tags: [simulation-only, pump-calibration-unverified], safety_limit_ids: [dispense-volume-envelope], required_approval_ids: []}
+    duration: {minimum_s: 0.0, typical_s: 0.0, maximum_s: 0.0}
+    failures:
+    - {code: physical-response-unavailable, description: 'Commands do not establish measured delivery, temperature, deposited
+        film or cleaning efficacy. Zero duration/cost denotes unexecuted physical work, not a physical estimate.', recoverable: true}
+    policy:
+      permitted: true
+      policy_tags: [simulation-only, source-command-only, physical-response-unavailable]
+      safety_limit_ids: [dispense-volume-envelope]
+      required_approval_ids: []
     adapter_links:
-      - {adapter_id: dynamical-ac-opentron-python, adapter_version: 0.1.0, endpoint_ref: ac-opentron-model}
-      - {adapter_id: dynamical-ac-ot2-control, adapter_version: 0.1.0, endpoint_ref: ot2-device}
+    - {adapter_id: dynamical-ac-opentron-python, adapter_version: 0.1.0, endpoint_ref: ac-opentron-model}
+    - {adapter_id: dynamical-ac-ot2-control, adapter_version: 0.1.0, endpoint_ref: ot2-device}
   - provider_id: ac-ot2-simulator
     operation_id: aliquot-to-well
     evidence_class: simulator
     endpoint_id: ac-opentron-model
     facility_ids: [ot2-liquid-handling]
-    availability: {available: true, observed_at: "2026-08-09T00:00:00Z", availability_ref: dynamical/instruments/ac_opentron.py}
+    availability: {available: true, observed_at: '2026-08-09T00:00:00Z', availability_ref: dynamical/instruments/ac_opentron.py}
     admission:
       status: admitted
       authority_id: dynamical-v0.1-release-authority
       authority_kind: release_authority
       evidence_refs: [dynamical/instruments/ac_opentron.py, tests/test_instrument_models.py]
     validity_envelope:
-      - {subject_kind: parameter, subject_id: volume_ml, value_type: number, unit: mL, minimum: 0.0, maximum: 3.895}
+    - {subject_kind: parameter, subject_id: volume_ml, value_type: number, unit: mL, minimum: 0.0, maximum: 3.895}
+    - subject_kind: parameter
+      subject_id: chemical
+      value_type: string
+      unit: '1'
+      enum: [Ni, Fe, Cr, Mn, Co, Zn, Cu, NH4OH, NaCi, KOH]
     cost: {currency: USD, fixed: 0.0}
-    duration: {minimum_s: 0.0, typical_s: 5.0, maximum_s: 47.24}
-    failures: [{code: pump-time-quantization, description: Requested volume rounds through the quantized pump-time step and is not applied exactly., recoverable: true}]
-    policy: {permitted: true, policy_tags: [simulation-only, pump-calibration-unverified], safety_limit_ids: [aliquot-volume-envelope], required_approval_ids: []}
+    duration: {minimum_s: 0.0, typical_s: 0.0, maximum_s: 0.0}
+    failures:
+    - {code: physical-response-unavailable, description: 'Commands do not establish measured delivery, temperature, deposited
+        film or cleaning efficacy. Zero duration/cost denotes unexecuted physical work, not a physical estimate.', recoverable: true}
+    policy:
+      permitted: true
+      policy_tags: [simulation-only, source-command-only, physical-response-unavailable]
+      safety_limit_ids: [aliquot-volume-envelope]
+      required_approval_ids: []
     adapter_links:
-      - {adapter_id: dynamical-ac-opentron-python, adapter_version: 0.1.0, endpoint_ref: ac-opentron-model}
-      - {adapter_id: dynamical-ac-ot2-control, adapter_version: 0.1.0, endpoint_ref: ot2-device}
+    - {adapter_id: dynamical-ac-opentron-python, adapter_version: 0.1.0, endpoint_ref: ac-opentron-model}
+    - {adapter_id: dynamical-ac-ot2-control, adapter_version: 0.1.0, endpoint_ref: ot2-device}
   - provider_id: ac-arduino-simulator
     operation_id: condition-ultrasonic
     evidence_class: simulator
     endpoint_id: ac-arduino-model
     facility_ids: [ot2-liquid-handling]
-    availability: {available: true, observed_at: "2026-08-09T00:00:00Z", availability_ref: dynamical/instruments/ac_arduino.py}
+    availability: {available: true, observed_at: '2026-08-09T00:00:00Z', availability_ref: dynamical/instruments/ac_arduino.py}
     admission:
       status: admitted
       authority_id: dynamical-v0.1-release-authority
       authority_kind: release_authority
       evidence_refs: [dynamical/instruments/ac_arduino.py, tests/test_instrument_models.py]
     validity_envelope:
-      - {subject_kind: parameter, subject_id: duration_s, value_type: number, unit: s, minimum: 0.0, maximum: 1800.0}
-      - {subject_kind: parameter, subject_id: setpoint_percent, value_type: number, unit: "%", minimum: 0.0, maximum: 100.0}
+    - subject_kind: parameter
+      subject_id: duration_s
+      value_type: number
+      unit: s
+      enum: [5.0, 15.0, 30.0]
+    - subject_kind: parameter
+      subject_id: temperature_setpoint_c
+      value_type: number
+      unit: degC
+      enum: [35.0]
     cost: {currency: USD, fixed: 0.0}
-    duration: {minimum_s: 0.0, typical_s: 300.0, maximum_s: 1800.0}
-    failures: [{code: relay-timer-resolution, description: "Declared relay/timer resolution assumption, not a measured tolerance.", recoverable: true}]
-    policy: {permitted: true, policy_tags: [simulation-only], safety_limit_ids: [conditioning-duration-envelope, conditioning-setpoint-envelope], required_approval_ids: []}
+    duration: {minimum_s: 0.0, typical_s: 0.0, maximum_s: 0.0}
+    failures:
+    - {code: physical-response-unavailable, description: 'Commands do not establish measured delivery, temperature, deposited
+        film or cleaning efficacy. Zero duration/cost denotes unexecuted physical work, not a physical estimate.', recoverable: true}
+    policy:
+      permitted: true
+      policy_tags: [simulation-only, source-command-only, physical-response-unavailable]
+      safety_limit_ids: [conditioning-duration-envelope, conditioning-setpoint-envelope]
+      required_approval_ids: []
     adapter_links:
-      - {adapter_id: dynamical-ac-arduino-python, adapter_version: 0.1.0, endpoint_ref: ac-arduino-model}
-      - {adapter_id: dynamical-ac-arduino-control, adapter_version: 0.1.0, endpoint_ref: arduino-device}
+    - {adapter_id: dynamical-ac-arduino-python, adapter_version: 0.1.0, endpoint_ref: ac-arduino-model}
+    - {adapter_id: dynamical-ac-arduino-control, adapter_version: 0.1.0, endpoint_ref: arduino-device}
   - provider_id: ac-squidstat-simulator
     operation_id: electrodeposit-constant-current
     evidence_class: simulator
     endpoint_id: ac-potentiostat-model
     facility_ids: [ot2-liquid-handling]
-    availability: {available: true, observed_at: "2026-08-09T00:00:00Z", availability_ref: dynamical/instruments/ac_potentiostat.py}
+    availability: {available: true, observed_at: '2026-08-09T00:00:00Z', availability_ref: dynamical/instruments/ac_potentiostat.py}
     admission:
       status: admitted
       authority_id: dynamical-v0.1-release-authority
       authority_kind: release_authority
       evidence_refs: [dynamical/instruments/ac_potentiostat.py, tests/test_instrument_models.py]
     validity_envelope:
-      - {subject_kind: parameter, subject_id: current_a, value_type: number, unit: A, minimum: 0.0, maximum: 0.010}
-      - {subject_kind: parameter, subject_id: duration_s, value_type: number, unit: s, minimum: 0.0, maximum: 3600.0}
+    - subject_kind: parameter
+      subject_id: current_a
+      value_type: number
+      unit: A
+      enum: [-0.002827]
+    - subject_kind: parameter
+      subject_id: duration_s
+      value_type: number
+      unit: s
+      enum: [10.0, 60.0]
+    - subject_kind: parameter
+      subject_id: temperature_setpoint_c
+      value_type: number
+      unit: degC
+      enum: [35.0]
     cost: {currency: USD, fixed: 0.0}
-    duration: {minimum_s: 0.0, typical_s: 600.0, maximum_s: 3600.0}
-    failures: [{code: current-source-tolerance, description: Deposited mass carries a 5% declared relative uncertainty bounding current-source tolerance and current efficiency below unity., recoverable: true}]
-    policy: {permitted: true, policy_tags: [simulation-only, not-fitted-to-measured-data], safety_limit_ids: [current-envelope, deposition-duration-envelope], required_approval_ids: []}
+    duration: {minimum_s: 0.0, typical_s: 0.0, maximum_s: 0.0}
+    failures:
+    - {code: physical-response-unavailable, description: 'Commands do not establish measured delivery, temperature, deposited
+        film or cleaning efficacy. Zero duration/cost denotes unexecuted physical work, not a physical estimate.', recoverable: true}
+    policy:
+      permitted: true
+      policy_tags: [simulation-only, source-command-only, physical-response-unavailable]
+      safety_limit_ids: [current-envelope, deposition-duration-envelope, deposition-temperature-envelope]
+      required_approval_ids: []
     adapter_links:
-      - {adapter_id: dynamical-ac-potentiostat-python, adapter_version: 0.1.0, endpoint_ref: ac-potentiostat-model}
-      - {adapter_id: dynamical-ac-squidstat-control, adapter_version: 0.1.0, endpoint_ref: squidstat-device}
+    - {adapter_id: dynamical-ac-potentiostat-python, adapter_version: 0.1.0, endpoint_ref: ac-potentiostat-model}
+    - {adapter_id: dynamical-ac-squidstat-control, adapter_version: 0.1.0, endpoint_ref: squidstat-device}
   - provider_id: ac-oer-simulator
     operation_id: measure-oer
     evidence_class: simulator
@@ -189,74 +316,124 @@ providers:
     evidence_class: simulator
     endpoint_id: ac-cleaning-model
     facility_ids: [ot2-liquid-handling]
-    availability: {available: true, observed_at: "2026-08-10T00:00:00Z", availability_ref: dynamical/instruments/ac_cleaning.py}
+    availability: {available: true, observed_at: '2026-08-10T00:00:00Z', availability_ref: dynamical/instruments/ac_cleaning.py}
     admission:
       status: admitted
       authority_id: dynamical-v0.1-release-authority
       authority_kind: release_authority
       evidence_refs: [dynamical/instruments/ac_cleaning.py, tests/test_instrument_models.py]
     validity_envelope:
-      - {subject_kind: parameter, subject_id: rinse_volume_ml, value_type: number, unit: mL, minimum: 0.0, maximum: 12.0}
-      - {subject_kind: parameter, subject_id: ultrasound_s, value_type: number, unit: s, minimum: 0.0, maximum: 1800.0}
+    - {subject_kind: parameter, subject_id: use_acid, value_type: boolean, unit: '1'}
+    - subject_kind: parameter
+      subject_id: acid_dwell_s
+      value_type: number
+      unit: s
+      enum: [0.0, 0.1, 30.0]
     cost: {currency: USD, fixed: 0.0}
-    duration: {minimum_s: 30.0, typical_s: 330.0, maximum_s: 1830.0}
-    failures: [{code: residual-liquid, description: "Declared residual-liquid bound after drain, not a measured cleaning efficacy.", recoverable: true}]
-    policy: {permitted: true, policy_tags: [simulation-only], safety_limit_ids: [cleaning-rinse-volume-envelope, cleaning-ultrasound-envelope], required_approval_ids: []}
+    duration: {minimum_s: 0.0, typical_s: 0.0, maximum_s: 0.0}
+    failures:
+    - {code: physical-response-unavailable, description: 'Commands do not establish measured delivery, temperature, deposited
+        film or cleaning efficacy. Zero duration/cost denotes unexecuted physical work, not a physical estimate.', recoverable: true}
+    policy:
+      permitted: true
+      policy_tags: [simulation-only, source-command-only, physical-response-unavailable]
+      safety_limit_ids: []
+      required_approval_ids: []
     adapter_links:
-      - {adapter_id: dynamical-ac-cleaning-python, adapter_version: 0.1.0, endpoint_ref: ac-cleaning-model}
-      - {adapter_id: dynamical-ac-ot2-control, adapter_version: 0.1.0, endpoint_ref: cleaning-station-device}
+    - {adapter_id: dynamical-ac-cleaning-python, adapter_version: 0.1.0, endpoint_ref: ac-cleaning-model}
+    - {adapter_id: dynamical-ac-ot2-control, adapter_version: 0.1.0, endpoint_ref: cleaning-station-device}
   - provider_id: physical-ac-ot2-dispense-electrolyte-pending
     operation_id: dispense-electrolyte
     evidence_class: physical
     endpoint_id: physical-ot2-endpoint
     facility_ids: [ot2-liquid-handling]
-    availability: {available: false, observed_at: "2026-08-09T00:00:00Z", availability_ref: dynamical/bundle/reference-lab/facility.yaml}
-    admission: {status: pending, authority_id: facility-operator-pending, authority_kind: facility_operator, evidence_refs: []}
+    availability: {available: false, observed_at: '2026-08-09T00:00:00Z', availability_ref: dynamical/bundle/reference-lab/facility.yaml}
+    admission:
+      status: pending
+      authority_id: facility-operator-pending
+      authority_kind: facility_operator
+      evidence_refs: []
     validity_envelope: []
     cost: {currency: USD, fixed: 0.0}
-    duration: {minimum_s: 0.0, typical_s: 12.5, maximum_s: 300.5}
-    failures: [{code: physical-provider-unavailable, description: No admitted physical dispense receipt exists., recoverable: true}]
-    policy: {permitted: false, policy_tags: [physical-run-required], safety_limit_ids: [], required_approval_ids: [physical-execution-approval]}
-    adapter_links: [{adapter_id: pending-physical-ot2-adapter, adapter_version: 0.1.0, endpoint_ref: physical-ot2-endpoint}]
+    duration: {minimum_s: 0.0, typical_s: 0.0, maximum_s: 0.0}
+    failures:
+    - {code: physical-provider-unavailable, description: No admitted physical dispense receipt exists., recoverable: true}
+    policy:
+      permitted: false
+      policy_tags: [physical-run-required]
+      safety_limit_ids: []
+      required_approval_ids: [physical-execution-approval]
+    adapter_links:
+    - {adapter_id: pending-physical-ot2-adapter, adapter_version: 0.1.0, endpoint_ref: physical-ot2-endpoint}
   - provider_id: physical-ac-ot2-aliquot-to-well-pending
     operation_id: aliquot-to-well
     evidence_class: physical
     endpoint_id: physical-ot2-endpoint
     facility_ids: [ot2-liquid-handling]
-    availability: {available: false, observed_at: "2026-08-09T00:00:00Z", availability_ref: dynamical/bundle/reference-lab/facility.yaml}
-    admission: {status: pending, authority_id: facility-operator-pending, authority_kind: facility_operator, evidence_refs: []}
+    availability: {available: false, observed_at: '2026-08-09T00:00:00Z', availability_ref: dynamical/bundle/reference-lab/facility.yaml}
+    admission:
+      status: pending
+      authority_id: facility-operator-pending
+      authority_kind: facility_operator
+      evidence_refs: []
     validity_envelope: []
     cost: {currency: USD, fixed: 0.0}
-    duration: {minimum_s: 0.0, typical_s: 5.0, maximum_s: 47.24}
-    failures: [{code: physical-provider-unavailable, description: No admitted physical aliquot receipt exists., recoverable: true}]
-    policy: {permitted: false, policy_tags: [physical-run-required], safety_limit_ids: [], required_approval_ids: [physical-execution-approval]}
-    adapter_links: [{adapter_id: pending-physical-ot2-adapter, adapter_version: 0.1.0, endpoint_ref: physical-ot2-endpoint}]
+    duration: {minimum_s: 0.0, typical_s: 0.0, maximum_s: 0.0}
+    failures:
+    - {code: physical-provider-unavailable, description: No admitted physical aliquot receipt exists., recoverable: true}
+    policy:
+      permitted: false
+      policy_tags: [physical-run-required]
+      safety_limit_ids: []
+      required_approval_ids: [physical-execution-approval]
+    adapter_links:
+    - {adapter_id: pending-physical-ot2-adapter, adapter_version: 0.1.0, endpoint_ref: physical-ot2-endpoint}
   - provider_id: physical-ac-arduino-condition-ultrasonic-pending
     operation_id: condition-ultrasonic
     evidence_class: physical
     endpoint_id: physical-arduino-endpoint
     facility_ids: [ot2-liquid-handling]
-    availability: {available: false, observed_at: "2026-08-09T00:00:00Z", availability_ref: dynamical/bundle/reference-lab/facility.yaml}
-    admission: {status: pending, authority_id: facility-operator-pending, authority_kind: facility_operator, evidence_refs: []}
+    availability: {available: false, observed_at: '2026-08-09T00:00:00Z', availability_ref: dynamical/bundle/reference-lab/facility.yaml}
+    admission:
+      status: pending
+      authority_id: facility-operator-pending
+      authority_kind: facility_operator
+      evidence_refs: []
     validity_envelope: []
     cost: {currency: USD, fixed: 0.0}
-    duration: {minimum_s: 0.0, typical_s: 300.0, maximum_s: 1800.0}
-    failures: [{code: physical-provider-unavailable, description: No admitted physical conditioning receipt exists., recoverable: true}]
-    policy: {permitted: false, policy_tags: [physical-run-required], safety_limit_ids: [], required_approval_ids: [physical-execution-approval]}
-    adapter_links: [{adapter_id: pending-physical-arduino-adapter, adapter_version: 0.1.0, endpoint_ref: physical-arduino-endpoint}]
+    duration: {minimum_s: 0.0, typical_s: 0.0, maximum_s: 0.0}
+    failures:
+    - {code: physical-provider-unavailable, description: No admitted physical conditioning receipt exists., recoverable: true}
+    policy:
+      permitted: false
+      policy_tags: [physical-run-required]
+      safety_limit_ids: []
+      required_approval_ids: [physical-execution-approval]
+    adapter_links:
+    - {adapter_id: pending-physical-arduino-adapter, adapter_version: 0.1.0, endpoint_ref: physical-arduino-endpoint}
   - provider_id: physical-ac-squidstat-electrodeposit-pending
     operation_id: electrodeposit-constant-current
     evidence_class: physical
     endpoint_id: physical-squidstat-endpoint
     facility_ids: [ot2-liquid-handling]
-    availability: {available: false, observed_at: "2026-08-09T00:00:00Z", availability_ref: dynamical/bundle/reference-lab/facility.yaml}
-    admission: {status: pending, authority_id: facility-operator-pending, authority_kind: facility_operator, evidence_refs: []}
+    availability: {available: false, observed_at: '2026-08-09T00:00:00Z', availability_ref: dynamical/bundle/reference-lab/facility.yaml}
+    admission:
+      status: pending
+      authority_id: facility-operator-pending
+      authority_kind: facility_operator
+      evidence_refs: []
     validity_envelope: []
     cost: {currency: USD, fixed: 0.0}
-    duration: {minimum_s: 0.0, typical_s: 600.0, maximum_s: 3600.0}
-    failures: [{code: physical-provider-unavailable, description: No admitted physical electrodeposition receipt exists., recoverable: true}]
-    policy: {permitted: false, policy_tags: [physical-run-required], safety_limit_ids: [], required_approval_ids: [physical-execution-approval]}
-    adapter_links: [{adapter_id: pending-physical-squidstat-adapter, adapter_version: 0.1.0, endpoint_ref: physical-squidstat-endpoint}]
+    duration: {minimum_s: 0.0, typical_s: 0.0, maximum_s: 0.0}
+    failures:
+    - {code: physical-provider-unavailable, description: No admitted physical electrodeposition receipt exists., recoverable: true}
+    policy:
+      permitted: false
+      policy_tags: [physical-run-required]
+      safety_limit_ids: []
+      required_approval_ids: [physical-execution-approval]
+    adapter_links:
+    - {adapter_id: pending-physical-squidstat-adapter, adapter_version: 0.1.0, endpoint_ref: physical-squidstat-endpoint}
   - provider_id: physical-ac-oer-measure-oer-pending
     operation_id: measure-oer
     evidence_class: physical
@@ -275,11 +452,21 @@ providers:
     evidence_class: physical
     endpoint_id: physical-cleaning-endpoint
     facility_ids: [ot2-liquid-handling]
-    availability: {available: false, observed_at: "2026-08-10T00:00:00Z", availability_ref: dynamical/bundle/reference-lab/facility.yaml}
-    admission: {status: pending, authority_id: facility-operator-pending, authority_kind: facility_operator, evidence_refs: []}
+    availability: {available: false, observed_at: '2026-08-10T00:00:00Z', availability_ref: dynamical/bundle/reference-lab/facility.yaml}
+    admission:
+      status: pending
+      authority_id: facility-operator-pending
+      authority_kind: facility_operator
+      evidence_refs: []
     validity_envelope: []
     cost: {currency: USD, fixed: 0.0}
-    duration: {minimum_s: 30.0, typical_s: 330.0, maximum_s: 1830.0}
-    failures: [{code: physical-provider-unavailable, description: No admitted physical cleaning receipt exists., recoverable: true}]
-    policy: {permitted: false, policy_tags: [physical-run-required], safety_limit_ids: [], required_approval_ids: [physical-execution-approval]}
-    adapter_links: [{adapter_id: pending-physical-cleaning-adapter, adapter_version: 0.1.0, endpoint_ref: physical-cleaning-endpoint}]
+    duration: {minimum_s: 0.0, typical_s: 0.0, maximum_s: 0.0}
+    failures:
+    - {code: physical-provider-unavailable, description: No admitted physical cleaning receipt exists., recoverable: true}
+    policy:
+      permitted: false
+      policy_tags: [physical-run-required]
+      safety_limit_ids: []
+      required_approval_ids: [physical-execution-approval]
+    adapter_links:
+    - {adapter_id: pending-physical-cleaning-adapter, adapter_version: 0.1.0, endpoint_ref: physical-cleaning-endpoint}

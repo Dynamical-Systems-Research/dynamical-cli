@@ -1,12 +1,11 @@
-"""Cleaning-station electrode reset: rinse and drain at the cleaning cartridge.
+"""SDL1 well rinse/drain command sequence; deposit history is retained.
 
-Instrument physics only. No objective, no experiment order, no stopping rule.
-Cleaning resets the working electrode between runs, as on the physical
-AMPERE-2 platform: it clears the accumulated electrolyte volumes and the
-recorded deposit from the sample's scientific state. The rinse-volume
-envelope is bounded by the cleaning cartridge's two-well geometry, and the
-ultrasound envelope reuses the same relay bound as conditioning; both are
-declared engineering assumptions, not measured cleaning efficacy.
+SDL1 2c5a911 example/experiment.py:895-1073 cleans the stationary well.
+The recipe invokes this between deposition and test (2044-2063), without
+removing the working electrode or declaring its deposit erased. The carried
+Ni tool's cartridge cleaning (1358-1386) is a separate procedure.
+Command inventory resets do not establish zero residual liquid or unchanged
+physical film properties. No cleaning efficacy or pump accuracy is inferred.
 """
 
 from __future__ import annotations
@@ -14,71 +13,64 @@ from __future__ import annotations
 from ..reasons import RuntimeReason
 from . import InstrumentRequest, InstrumentResult, register
 
-RINSE_VOLUME_MIN_ML = 0.0
-RINSE_VOLUME_MAX_ML = 12.0  # bounded by the 25 x 59.7 x 24 mm two-well cartridge
-ULTRASOUND_MIN_S = 0.0
-ULTRASOUND_MAX_S = 1800.0  # same declared relay envelope as conditioning
-
-# Declared, not measured: residual-liquid bound after a drain.
-RESIDUAL_VOLUME_UNCERTAINTY_ML = 0.1
-
-_CLEARED_STATE_PREFIXES = ("electrolyte.", "deposited_")
-
 
 @register("clean-electrode", "ac-cleaning-simulator")
 def clean_electrode(request: InstrumentRequest) -> InstrumentResult:
-    rinse_volume_ml = float(request.parameters["rinse_volume_ml"])
-    ultrasound_s = float(request.parameters.get("ultrasound_s", 0.0))
-    reasons: list[RuntimeReason] = []
-    if not RINSE_VOLUME_MIN_ML <= rinse_volume_ml <= RINSE_VOLUME_MAX_ML:
-        reasons.append(
+    use_acid = request.parameters["use_acid"]
+    dwell = float(request.parameters["acid_dwell_s"])
+    # Calls at experiment.py:2025,2050,2066: acid/30, acid/0.1, water-only/0.
+    valid = isinstance(use_acid, bool) and (
+        (use_acid and dwell in (0.1, 30.0)) or (not use_acid and dwell == 0.0)
+    )
+    reasons = (
+        []
+        if valid
+        else [
             RuntimeReason(
                 code="PARAMETER_OUT_OF_ENVELOPE",
                 detail=(
-                    f"rinse volume {rinse_volume_ml} mL is outside the admitted envelope "
-                    f"[{RINSE_VOLUME_MIN_ML}, {RINSE_VOLUME_MAX_ML}] mL"
+                    "Source well-cleaning calls use acid with 30 or 0.1 s dwell, or water "
+                    "only with 0 s acid dwell."
                 ),
-                channel_id="instrument.rinse_volume_ml",
+                channel_id="instrument.acid_dwell_s",
                 recoverable=True,
             )
-        )
-    if not ULTRASOUND_MIN_S <= ultrasound_s <= ULTRASOUND_MAX_S:
-        reasons.append(
-            RuntimeReason(
-                code="PARAMETER_OUT_OF_ENVELOPE",
-                detail=(
-                    f"ultrasound time {ultrasound_s} s is outside the admitted envelope "
-                    f"[{ULTRASOUND_MIN_S}, {ULTRASOUND_MAX_S}] s"
-                ),
-                channel_id="instrument.ultrasound_s",
-                recoverable=True,
-            )
-        )
-    cleaned = None
-    if request.sample is not None:
-        kept = {
-            key: value
-            for key, value in request.sample.state.items()
-            if not key.startswith(_CLEARED_STATE_PREFIXES)
+        ]
+    )
+    # Four 1 mL initial drains, then two water/2 mL drain cycles;
+    # acid mode adds acid plus two water cycles, each with a 2 mL drain.
+    outputs = {
+        "instrument.water_commanded_ml": (2.0 if use_acid else 1.0) if valid else None,
+        "instrument.acid_commanded_ml": (0.5 if use_acid else 0.0) if valid else None,
+        "instrument.drain_commanded_ml": (14.0 if use_acid else 8.0) if valid else None,
+        "instrument.ultrasound_commanded_s": (25.0 if use_acid else 10.0) if valid else None,
+        "instrument.residual_volume_ml": None,
+    }
+    sample = None
+    if valid and request.sample is not None:
+        state = {
+            k: v
+            for k, v in request.sample.state.items()
+            if not k.startswith("electrolyte_commanded.")
         }
-        cleaned = request.sample.model_copy(update={"state": kept})
-    elif not reasons:
+        sample = request.sample.model_copy(update={"state": state})
+    elif valid:
         reasons.append(
             RuntimeReason(
                 code="SAMPLE_STATE_UNAVAILABLE",
-                detail="no sample is in custody for this cleaning to act on",
+                detail="No sample is in custody for well cleaning.",
                 channel_id="sample.state",
                 recoverable=True,
             )
         )
     return InstrumentResult(
-        outputs={
-            "instrument.rinse_volume_ml": rinse_volume_ml,
-            "instrument.ultrasound_s": ultrasound_s,
-        },
-        uncertainty={"instrument.rinse_volume_ml": RESIDUAL_VOLUME_UNCERTAINTY_ML},
+        outputs=outputs,
+        # The runtime otherwise copies requested parameters into applied telemetry.
+        # These adapters record commands, not physically applied settings.
+        applied_parameters={name: None for name in request.parameters},
+        uncertainty={},
         cost_usd=0.0,
-        duration_s=ultrasound_s + 30.0,
+        duration_s=0.0,
         reasons=reasons,
-        sample=cleaned,
+        sample=sample,
     )

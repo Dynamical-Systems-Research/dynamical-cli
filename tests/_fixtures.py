@@ -38,7 +38,7 @@ REFERENCE_REQUIREMENT = {
             {
                 "id": "conditioning-proof",
                 "operation_id": "condition-ultrasonic",
-                "output_port_ids": ["instrument.conditioning_duration_s"],
+                "output_port_ids": ["instrument.ultrasound_commanded_s"],
                 "minimum_evidence_class": "simulator",
                 "acceptance_rule": "The simulator trace and replay pass.",
                 "independent_verification_required": True,
@@ -64,13 +64,13 @@ REFERENCE_REQUIREMENT = {
                     "name": "duration_s",
                     "value_type": "number",
                     "unit": "s",
-                    "value": 60.0,
+                    "value": 30.0,
                 },
                 {
-                    "name": "setpoint_percent",
+                    "name": "temperature_setpoint_c",
                     "value_type": "number",
-                    "unit": "%",
-                    "value": 80.0,
+                    "unit": "degC",
+                    "value": 35.0,
                 },
             ],
             "input_bindings": [
@@ -547,7 +547,9 @@ def _electrodeposition_capability_contract(
 
 @pytest.fixture
 def three_station_composition() -> _CompositionDocument:
-    """Three real AC SDL1 operations, deliberately unordered, with real dependency edges.
+    """Three SDL1 operation identities in a synthetic ordering harness.
+
+    Deliberately unordered, with real dependency edges.
 
     Grounded in the instrument models and endpoint ids declared in
     ``dynamical/bundle/reference-lab/registry.yaml``: dispense on the OT-2,
@@ -585,7 +587,7 @@ def three_station_composition() -> _CompositionDocument:
             "provider_id": "ac-ot2-simulator",
             "evidence_class": "simulator",
             "endpoint_id": "ac-opentron-model",
-            "parameters": [{"name": "volume_ml", "value": 20.0}],
+            "parameters": [{"name": "volume_ml", "value": 3.0}],
             "capability_contract": _electrodeposition_capability_contract(
                 "dispense-electrolyte",
                 [
@@ -595,7 +597,7 @@ def three_station_composition() -> _CompositionDocument:
                         "unit": "mL",
                         "required": True,
                         "minimum": 0.0,
-                        "maximum": 25.0,
+                        "maximum": 3.0,
                     }
                 ],
             ),
@@ -607,8 +609,9 @@ def three_station_composition() -> _CompositionDocument:
             "evidence_class": "simulator",
             "endpoint_id": "ac-potentiostat-model",
             "parameters": [
-                {"name": "current_a", "value": 0.002827},
-                {"name": "duration_s", "value": 600.0},
+                {"name": "current_a", "value": -0.002827},
+                {"name": "duration_s", "value": 60.0},
+                {"name": "temperature_setpoint_c", "value": 35.0},
             ],
             "capability_contract": _electrodeposition_capability_contract(
                 "electrodeposit-constant-current",
@@ -618,16 +621,22 @@ def three_station_composition() -> _CompositionDocument:
                         "value_type": "number",
                         "unit": "A",
                         "required": True,
-                        "minimum": 0.0,
-                        "maximum": 0.010,
+                        "minimum": -0.002827,
+                        "maximum": -0.002827,
                     },
                     {
                         "name": "duration_s",
                         "value_type": "number",
                         "unit": "s",
                         "required": True,
-                        "minimum": 0.0,
-                        "maximum": 3600.0,
+                        "enum": [10.0, 60.0],
+                    },
+                    {
+                        "name": "temperature_setpoint_c",
+                        "value_type": "number",
+                        "unit": "degC",
+                        "required": True,
+                        "enum": [35.0],
                     },
                 ],
             ),

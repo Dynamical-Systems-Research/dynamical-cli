@@ -262,17 +262,19 @@ def _observation(events: list[dict[str, object]], frame_id: str) -> dict[str, ob
 
 
 def test_non_restore_simulate_and_replay_bytes_are_stable(tmp_path: Path) -> None:
+    # PR 3 changes this fixture's deposition contract: cathodic commands,
+    # explicit temperature, and unknown physical film outputs. Re-pin those bytes.
     simulated = tmp_path / "simulate.ndjson"
     replayed = tmp_path / "replay.ndjson"
     run_composed_campaign(_transfer_contract(), simulated, seed=5)
     replay_trace(simulated, replayed)
     assert (len(simulated.read_bytes()), _sha256(simulated)) == (
-        23_456,
-        "9233e23c8439ad675d914bf1018ad51de961e538d984833b7f12f199d44b7847",
+        23_652,
+        "428f48af7a6c63efdaaeec4601992b9e6366b6470f9478de89dca50575f583a1",
     )
     assert (len(replayed.read_bytes()), _sha256(replayed)) == (
-        24_278,
-        "47005005a11a9473b4ac5826d6b0a59af063509797240fb87bf894adece64462",
+        24_474,
+        "a780f92a343d844733eead22a381bb2ab45335ff49de584a7238cca8de95c534",
     )
 
 

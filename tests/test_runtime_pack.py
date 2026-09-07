@@ -191,8 +191,8 @@ def test_contract_resolution_declines_when_missing_or_ambiguous():
 
     Declining leaves the operation unbound, which fails closed upstream. Two
     real capabilities declare the same contract -- dispense-electrolyte and
-    aliquot-to-well both take (chemical, volume_ml) and report the same two
-    volumes -- so a match must be unique in both directions to be used.
+    aliquot-to-well both take (chemical, volume_ml) and report the same
+    volume fields -- so a match must be unique in both directions to be used.
     """
 
     from dynamical.backends._runtime_pack import _select_by_declared_contract

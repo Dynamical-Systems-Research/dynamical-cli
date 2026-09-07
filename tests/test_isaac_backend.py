@@ -74,8 +74,12 @@ def test_live_kit_run_of_coverage_campaign_has_zero_lineage_findings(
     assert result.returncode == 0, result.stderr[-4000:]
 
     trace_validation = validate_path(trace)
-    assert trace_validation["execution_status"] == "passed"
-    assert trace_validation["valid"] is True
+    assert trace_validation["execution_status"] == "failed"
+    assert trace_validation["valid"] is False
+    assert any(
+        reason["code"] == "PROOF_OUTPUT_UNAVAILABLE"
+        for reason in trace_validation["validation_reasons"]
+    )
     events = [json.loads(line) for line in trace.read_text().splitlines() if line.strip()]
     overpotential = [
         channel
@@ -84,7 +88,7 @@ def test_live_kit_run_of_coverage_campaign_has_zero_lineage_findings(
         if channel["name"] == "squidstat.overpotential_v"
     ]
     assert len(overpotential) == 1
-    assert overpotential[0]["value"] is not None
+    assert overpotential[0]["value"] is None
     assert overpotential[0]["origin"] == "source_model"
 
     replay = replay_trace(
@@ -93,7 +97,7 @@ def test_live_kit_run_of_coverage_campaign_has_zero_lineage_findings(
         compiled_world=compiled_electrodeposition_coverage_world,
         runtime_receipt=run_dir / "runtime_evidence.json",
     )
-    assert replay["valid"] is True
+    assert replay["valid"] is False
 
 
 def test_compiled_instrument_runtime_returns_scientific_feedback(
@@ -118,7 +122,7 @@ def test_compiled_instrument_runtime_returns_scientific_feedback(
     overpotential = next(
         channel for channel in channels if channel["name"] == "squidstat.overpotential_v"
     )
-    assert overpotential["value"] is not None
+    assert overpotential["value"] is None
     assert overpotential["origin"] == "source_model"
 
     replay_state = {}
@@ -130,7 +134,7 @@ def test_compiled_instrument_runtime_returns_scientific_feedback(
                 for channel in snapshot["observation_channels"]
                 if channel["name"] == "squidstat.overpotential_v"
             )
-            target["value"] += 1.0
+            target["value"] = 0.25
             with pytest.raises(CampaignValidationError, match="admitted instrument runtime"):
                 _expected_snapshot_channels(snapshot, action, pack, replay_state)
             break
@@ -229,7 +233,7 @@ def _compile_coverage_isaac(tmp_path: Path) -> Path:
 
 def _compile_coverage_isaac_with_narrowed_current_envelope(tmp_path: Path) -> Path:
     """The same compiled coverage isaac world, except ``current-envelope``'s own
-    declared bound is narrowed below the campaign's real ``current_a`` (0.002827 A).
+    declared bound excludes the campaign's cathodic ``current_a`` (-0.002827 A).
 
     Models a facility whose own safety interlock is tighter than the
     instrument's abstract admitted operating range -- a realistic scenario, not
@@ -255,7 +259,9 @@ def _compile_coverage_isaac_with_narrowed_current_envelope(tmp_path: Path) -> Pa
     narrowed_constraints = [
         (
             constraint.model_copy(
-                update={"bound": constraint.bound.model_copy(update={"maximum": 0.001})}
+                update={
+                    "bound": constraint.bound.model_copy(update={"minimum": -0.001, "maximum": 0.0})
+                }
             )
             if constraint.id == "current-envelope"
             else constraint
@@ -275,7 +281,7 @@ def test_live_kit_run_rejects_the_deposit_action_before_executing_an_unsafe_curr
 
     Every declared facility constraint is ``pre_action`` + ``reject`` (see
     ``dynamical/bundle/reference-lab/facility.yaml``), the live path this exercises:
-    ``current-envelope`` (narrowed below the campaign's real 0.002827 A current, see
+    ``current-envelope`` (narrowed below the campaign's real -0.002827 A current, see
     ``_compile_coverage_isaac_with_narrowed_current_envelope``) must reject the
     ``deposit`` action before Isaac ever submits it to the instrument, not execute it
     and merely record the violation. Before the fix, this ran to completion and wrote

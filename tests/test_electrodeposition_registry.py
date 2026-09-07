@@ -34,13 +34,12 @@ def _sample_input_binding(source_id: str = "campaign.sample-id") -> dict[str, ob
 
 def _coverage_requirement(
     *,
-    current_a: float = 0.002827,
+    current_a: float = -0.002827,
     chemical: str = "Ni",
 ) -> CampaignRequirement:
     """Exercise five SDL1 instruments on one stationary sample.
 
-    Parameters remain harness-selected simulator inputs, not a validated protocol.
-    Chemistry and current variations test state coupling between instruments.
+    Inputs follow source command points; physical material response remains unknown.
     """
 
     return CampaignRequirement.model_validate(
@@ -96,8 +95,8 @@ def _coverage_requirement(
                     "operation_id": "condition-ultrasonic",
                     "minimum_evidence_class": "simulator",
                     "parameters": [
-                        _parameter("duration_s", "number", "s", 60.0),
-                        _parameter("setpoint_percent", "number", "%", 80.0),
+                        _parameter("duration_s", "number", "s", 30.0),
+                        _parameter("temperature_setpoint_c", "number", "degC", 35.0),
                     ],
                     "input_bindings": [_sample_input_binding()],
                     "depends_on": ["dispense"],
@@ -109,10 +108,23 @@ def _coverage_requirement(
                     "minimum_evidence_class": "simulator",
                     "parameters": [
                         _parameter("current_a", "number", "A", current_a),
-                        _parameter("duration_s", "number", "s", 600.0),
+                        _parameter("duration_s", "number", "s", 60.0),
+                        _parameter("temperature_setpoint_c", "number", "degC", 35.0),
                     ],
                     "input_bindings": [_sample_input_binding()],
                     "depends_on": ["condition"],
+                    "required_policy_tags": [],
+                },
+                {
+                    "step_id": "clean",
+                    "operation_id": "clean-electrode",
+                    "minimum_evidence_class": "simulator",
+                    "parameters": [
+                        _parameter("use_acid", "boolean", "1", True),
+                        _parameter("acid_dwell_s", "number", "s", 0.1),
+                    ],
+                    "input_bindings": [_sample_input_binding()],
+                    "depends_on": ["deposit"],
                     "required_policy_tags": [],
                 },
                 {
@@ -121,19 +133,7 @@ def _coverage_requirement(
                     "minimum_evidence_class": "simulator",
                     "parameters": [_parameter("current_density_a_cm2", "number", "A/cm^2", 0.020)],
                     "input_bindings": [_sample_input_binding()],
-                    "depends_on": ["deposit"],
-                    "required_policy_tags": [],
-                },
-                {
-                    "step_id": "clean",
-                    "operation_id": "clean-electrode",
-                    "minimum_evidence_class": "simulator",
-                    "parameters": [
-                        _parameter("rinse_volume_ml", "number", "mL", 6.0),
-                        _parameter("ultrasound_s", "number", "s", 30.0),
-                    ],
-                    "input_bindings": [_sample_input_binding()],
-                    "depends_on": ["measure"],
+                    "depends_on": ["clean"],
                     "required_policy_tags": [],
                 },
             ],
@@ -191,8 +191,8 @@ def test_one_sample_stays_on_the_ot2_deck_across_instruments():
         "dispense",
         "condition",
         "deposit",
-        "measure",
         "clean",
+        "measure",
     ]
     for binding in result.virtual_sdl.operation_bindings:
         assert binding.selected_facility_id == "ot2-liquid-handling"
@@ -206,7 +206,7 @@ def test_one_sample_stays_on_the_ot2_deck_across_instruments():
 def _run_coverage_campaign(
     tmp_path: Path,
     *,
-    current_a: float = 0.002827,
+    current_a: float = -0.002827,
     chemical: str = "Ni",
 ):
     registry = load_capability_registry(REGISTRY)
@@ -224,21 +224,44 @@ def _run_coverage_campaign(
         if event.observation is None:
             continue
         for channel in event.observation.channels:
-            for name in ("deposited_mass_g", "overpotential_v"):
-                if channel.name.endswith(name) and channel.value is not None:
-                    summary[name] = float(channel.value)
+            for name in (
+                "deposited_mass_g",
+                "overpotential_v",
+                "volume_applied_ml",
+                "instrument.temperature_observed_c",
+                "instrument.residual_volume_ml",
+                "commanded_charge_c",
+            ):
+                if channel.name == name:
+                    summary[name] = channel.value
     return summary
 
 
-def test_coverage_campaign_compiles_and_runs_with_zero_lineage_findings(tmp_path: Path):
-    """Five instrument actions preserve sample identity on the single SDL1 deck."""
+def test_coverage_campaign_fails_closed_on_unknown_physical_response(tmp_path: Path):
+    """Source commands do not manufacture the physical observations required by proof."""
 
     result = _run_coverage_campaign(tmp_path)
 
-    assert result["execution_status"] == "passed"
-    assert result["valid"] is True
+    assert result["execution_status"] == "failed"
+    assert result["valid"] is False
     assert result["event_count"] == 12
-    assert result["validation_reasons"] == []
+    assert any(
+        reason["code"] == "PROOF_OUTPUT_UNAVAILABLE" for reason in result["validation_reasons"]
+    )
+    for name in (
+        "deposited_mass_g",
+        "overpotential_v",
+        "volume_applied_ml",
+        "instrument.temperature_observed_c",
+        "instrument.residual_volume_ml",
+    ):
+        assert result[name] is None
+    assert result["commanded_charge_c"] == pytest.approx(-0.002827 * 60)
+    from dynamical.campaign import read_trace
+    from dynamical.samples import check_invariants
+
+    events = read_trace(tmp_path / "trace.ndjson")
+    assert check_invariants(events) == []
 
 
 def test_sample_declared_at_removed_station_holds_before_run():
@@ -354,16 +377,18 @@ def test_cross_surface_identity_binds_one_composition_everywhere(tmp_path: Path)
 
     import json as json_module
 
+    from test_runtime_pack import FASTCAT_LAB, _model_backed_requirement
+
     from dynamical.replay import replay_trace
 
-    registry = load_capability_registry(REGISTRY)
-    composition = compose_virtual_sdl(_coverage_requirement(), registry)
+    registry = load_capability_registry(FASTCAT_LAB / "registry.yaml")
+    composition = compose_virtual_sdl(_model_backed_requirement(), registry)
     assert composition.status == "COMPILED", composition.reason_codes
     expected = composition.composition_sha256
 
     packs = {
         target: compile_facility(
-            MANIFEST, target, tmp_path / target, composition_result=composition
+            FASTCAT_LAB / "facility.yaml", target, tmp_path / target, composition_result=composition
         ).output_dir
         for target in ("openusd", "isaac")
     }
@@ -398,11 +423,16 @@ def test_tampered_sample_state_digest_fails_validation(tmp_path: Path):
 
     import json as json_module
 
-    registry = load_capability_registry(REGISTRY)
-    composition = compose_virtual_sdl(_coverage_requirement(), registry)
+    from test_runtime_pack import FASTCAT_LAB, _model_backed_requirement
+
+    registry = load_capability_registry(FASTCAT_LAB / "registry.yaml")
+    composition = compose_virtual_sdl(_model_backed_requirement(), registry)
     assert composition.status == "COMPILED", composition.reason_codes
     compiled = compile_facility(
-        MANIFEST, "openusd", tmp_path / "compiled", composition_result=composition
+        FASTCAT_LAB / "facility.yaml",
+        "openusd",
+        tmp_path / "compiled",
+        composition_result=composition,
     ).output_dir
     contract = load_compiled_campaign_contract(compiled)
     trace_path = tmp_path / "trace.ndjson"
@@ -433,21 +463,50 @@ def test_tampered_sample_state_digest_fails_validation(tmp_path: Path):
     )
 
 
-def test_deposition_condition_changes_the_measured_activity(tmp_path: Path):
-    """The measurement must be evidence about the film this campaign deposited.
+@pytest.mark.parametrize("current_a", [0.002827, -0.001, 0.0])
+def test_non_source_deposition_current_holds_during_composition(current_a):
+    result = compose_virtual_sdl(
+        _coverage_requirement(current_a=current_a), load_capability_registry(REGISTRY)
+    )
+    assert result.status == "HOLD"
+    assert any(
+        reason.code == "VALUE_OUT_OF_RANGE"
+        and reason.step_id == "deposit"
+        and reason.provider_id == "ac-squidstat-simulator"
+        for reason in result.reasons
+    )
 
-    Two coupled checks: changing the deposition current changes the deposited
-    mass the trace reports, and changing the dispensed precursor chemistry
-    changes the measured overpotential -- the measurement is a function of the
-    sample the campaign made, not of its own requested parameters. A campaign
-    whose measurement cannot see its own process is ordered choreography, not
-    a coupled multi-instrument SDL.
-    """
-    nickel = _run_coverage_campaign(tmp_path, current_a=0.002827, chemical="Ni")
-    low_current = _run_coverage_campaign(tmp_path / "low", current_a=0.001000, chemical="Ni")
-    iron = _run_coverage_campaign(tmp_path / "iron", chemical="Fe")
 
-    assert nickel["deposited_mass_g"] > low_current["deposited_mass_g"] * 2
-    # The fitted response orders these two chemistries distinctly.
-    assert iron["overpotential_v"] != nickel["overpotential_v"]
-    assert iron["overpotential_v"] < nickel["overpotential_v"]
+def test_well_cleaning_preserves_deposition_commands_and_existing_film():
+    from dynamical.instruments import InstrumentRequest
+    from dynamical.instruments.ac_cleaning import clean_electrode
+    from dynamical.samples import Sample
+
+    sample = Sample(
+        id="well-1",
+        station_id="ot2-liquid-handling",
+        custody_state="held",
+        quantity=0,
+        unit="1",
+        created_by_step_id="recorded-measurement",
+        state={
+            "deposited_mass_g": 0.002,
+            "deposition_commanded_current_a": -0.002827,
+            "deposition_precursor_commanded.Ni_ml": 0.5,
+            "electrolyte_commanded.Ni_ml": 0.5,
+        },
+    )
+    result = clean_electrode(
+        InstrumentRequest(
+            parameters={"use_acid": True, "acid_dwell_s": 0.1}, inputs={}, sample=sample
+        )
+    )
+    assert result.reasons == []
+    assert result.sample is not None
+    assert result.sample.state == {
+        key: value
+        for key, value in sample.state.items()
+        if not key.startswith("electrolyte_commanded.")
+    }
+    assert result.outputs["instrument.residual_volume_ml"] is None
+    assert result.outputs["instrument.acid_commanded_ml"] == 0.5

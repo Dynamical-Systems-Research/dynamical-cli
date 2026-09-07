@@ -29,7 +29,7 @@ MANIFEST = REFERENCE_LAB / "facility.yaml"
 # channel works: validate_action/_validate_channel only check that the name is
 # in the compiled schema's declared vocabulary and that provider_id/evidence_class
 # match the producing action -- they do not tie a channel name to one action kind).
-MARKER_CHANNEL = "arduino.conditioning_duration_s"
+MARKER_CHANNEL = "arduino.ultrasound_commanded_s"
 
 
 def _json(path: Path) -> dict[str, object]:
@@ -124,19 +124,15 @@ def _canonical_writer(
     writer.add("campaign_start", 0.0)
     logical_time = 0.0
     for index, action in enumerate(pack["campaign"]["actions"]):
-        # Values inside both of "condition"'s declared pre_action envelopes (0-1800 s,
-        # 0-100 %), so the happy-path writer below produces genuinely passed constraints
-        # rather than "unavailable" ones -- campaign.py's validate_events (exercised via
-        # replay_trace) requires a failed constraint to carry a failed campaign status,
-        # which an "unavailable" pre_action measurement paired with a "passed" campaign_end
-        # would violate. Both conditioning actions use these envelope measurements.
+        # This fixture records the admitted 30 s ultrasound and 35 C setpoint
+        # commands; it does not claim an observed temperature or elapsed time.
         action_constraints = runtime.constraint_evidence(
             action,
             pack,
             phase="pre_action",
             channels=[
-                {"name": "arduino.conditioning_duration_s", "value": 60.0},
-                {"name": "arduino.conditioning_setpoint_percent", "value": 80.0},
+                {"name": "arduino.ultrasound_commanded_s", "value": 30.0},
+                {"name": "arduino.temperature_setpoint_c", "value": 35.0},
             ],
         )
         writer.add(
@@ -148,7 +144,7 @@ def _canonical_writer(
         logical_time += 1.0
         evidence = runtime.write_snapshot(
             evidence_dir / f"observation-{index:03d}.json",
-            {"action_id": action["action_id"], MARKER_CHANNEL: 60.0},
+            {"action_id": action["action_id"], MARKER_CHANNEL: 30.0},
             provider_id=action["provider_id"],
             evidence_class=action["evidence_class"],
         )
@@ -156,7 +152,7 @@ def _canonical_writer(
             action,
             pack,
             phase="post_action",
-            channels=[{"name": MARKER_CHANNEL, "value": 60.0}],
+            channels=[{"name": MARKER_CHANNEL, "value": 30.0}],
         )
         writer.add(
             "observation",
@@ -169,7 +165,7 @@ def _canonical_writer(
                 "channels": [
                     {
                         "name": MARKER_CHANNEL,
-                        "value": 60.0,
+                        "value": 30.0,
                         "unit": "s",
                         "quality": "valid",
                         "origin": "backend_state",
@@ -527,7 +523,7 @@ def test_direct_embodied_replay_rejects_path_escape_and_forged_campaign(
         for event in forged
         if isinstance(event.get("action"), dict) and event["action"].get("kind") == "condition"
     )
-    condition["action"]["parameters"]["duration_s"] = 999.0
+    condition["action"]["parameters"]["duration_s"] = 15.0
     trace.write_text(
         "".join(json.dumps(event, sort_keys=True) + "\n" for event in forged),
         encoding="utf-8",

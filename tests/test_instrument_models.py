@@ -8,8 +8,6 @@ from dynamical import instruments
 from dynamical.instruments import InstrumentRequest
 from dynamical.samples import Sample
 
-FARADAY = 96485.332_12  # C/mol, CODATA
-
 
 def _request(sample=None, **parameters):
     return InstrumentRequest(parameters=parameters, inputs={}, sample=sample)
@@ -18,7 +16,7 @@ def _request(sample=None, **parameters):
 def _deposited_sample(
     thickness_um: float = 1.0, composition: dict[str, float] | None = None
 ) -> Sample:
-    """A sample carrying a recorded deposit, as the potentiostat leaves it."""
+    """A fixture carrying independently recorded deposit properties."""
     state: dict[str, float] = {"deposited_thickness_um": thickness_um}
     for metal, fraction in (composition or {}).items():
         state[f"deposited_fraction_{metal}"] = fraction
@@ -33,28 +31,46 @@ def _deposited_sample(
     )
 
 
-def test_faraday_mass_matches_the_closed_form():
+@pytest.mark.parametrize("duration", [10.0, 60.0])
+def test_deposition_records_cathodic_commands_without_inventing_a_film(duration):
     model = instruments.resolve("electrodeposit-constant-current", "ac-squidstat-simulator")
-    result = model(_request(current_a=0.002827, duration_s=600.0))
-    charge = 0.002827 * 600.0
-    expected = charge * 58.6934 / (2 * FARADAY)  # nickel, n=2
-    assert result.outputs["deposited_mass_g"] == pytest.approx(expected, rel=1e-9)
-    assert result.outputs["charge_c"] == pytest.approx(charge)
-    assert result.uncertainty["deposited_mass_g"] > 0.0
+    result = model(
+        _request(
+            _bath_sample(), current_a=-0.002827, duration_s=duration, temperature_setpoint_c=35.0
+        )
+    )
+    assert result.outputs["commanded_charge_c"] == pytest.approx(-0.002827 * duration)
+    assert result.outputs["current_density_a_cm2"] == pytest.approx(-0.010)
+    assert result.outputs["deposited_mass_g"] is None
+    assert result.outputs["deposited_thickness_um"] is None
+    assert "deposited_thickness_um" not in result.sample.state
+    assert result.sample.state["deposition_commanded"] == 1.0
+    assert result.uncertainty == {}
+    assert result.reasons == []
 
 
-def test_deposition_refuses_current_outside_the_envelope():
+@pytest.mark.parametrize(
+    "current,duration,temperature",
+    [
+        (0.002827, 60, 35),
+        (-0.002827, 600, 35),
+        (-0.002827, 60, 25),
+        (float("nan"), 60, 35),
+        (-0.002827, float("inf"), 35),
+    ],
+)
+def test_deposition_refuses_unadmitted_commands_without_state_mutation(
+    current, duration, temperature
+):
     model = instruments.resolve("electrodeposit-constant-current", "ac-squidstat-simulator")
-    result = model(_request(current_a=5.0, duration_s=10.0))
+    sample = _bath_sample()
+    result = model(
+        _request(sample, current_a=current, duration_s=duration, temperature_setpoint_c=temperature)
+    )
     assert any(r.code == "PARAMETER_OUT_OF_ENVELOPE" for r in result.reasons)
-
-
-def test_deposition_thickness_and_current_density_are_derived_consistently():
-    model = instruments.resolve("electrodeposit-constant-current", "ac-squidstat-simulator")
-    result = model(_request(current_a=0.002827, duration_s=600.0))
-    assert result.outputs["current_density_a_cm2"] == pytest.approx(0.010, rel=1e-6)
-    assert result.outputs["deposited_thickness_um"] > 0.0
-    assert result.uncertainty["deposited_thickness_um"] > 0.0
+    assert all(value is None for value in result.outputs.values())
+    assert result.sample is None
+    assert sample.state == {}
 
 
 def test_fitted_overpotential_is_monotonic_in_current_density():
@@ -106,59 +122,118 @@ def test_oer_responds_to_the_deposited_composition():
     assert iron.reasons == [] and manganese.reasons == []
 
 
-def test_dispense_with_a_named_chemical_accumulates_electrolyte_state():
+def test_pipette_commands_accumulate_only_nominal_inventory_and_admit_koh():
     model = instruments.resolve("dispense-electrolyte", "ac-ot2-simulator")
-    sample = _deposited_sample()
-    first = model(_request(sample, volume_ml=2.0, chemical="Ni"))
-    assert first.sample is not None
-    accumulated = first.sample.state["electrolyte.Ni_ml"]
-    assert accumulated == pytest.approx(first.outputs["volume_applied_ml"])
-    second = model(_request(first.sample, volume_ml=1.0, chemical="Fe"))
-    assert second.sample.state["electrolyte.Ni_ml"] == pytest.approx(accumulated)
-    assert second.sample.state["electrolyte.Fe_ml"] > 0.0
+    first = model(_request(_bath_sample(), volume_ml=2.0009, chemical="Ni"))
+    assert first.sample.state["electrolyte_commanded.Ni_ml"] == 2.0
+    assert first.outputs["volume_commanded_ml"] == 2.0
+    assert first.outputs["volume_applied_ml"] is None
+    second = model(_request(first.sample, volume_ml=1.0, chemical="KOH"))
+    assert second.sample.state == {
+        "electrolyte_commanded.Ni_ml": 2.0,
+        "electrolyte_commanded.KOH_ml": 1.0,
+    }
+    assert second.uncertainty == {}
+    assert second.applied_parameters == {"volume_ml": None, "chemical": None}
 
 
-def test_dispense_refuses_an_unadmitted_chemical():
+@pytest.mark.parametrize(
+    "volume,chemical",
+    [(1.0, "Pt"), (4.0, "Ni"), (-1.0, "Ni"), (float("nan"), "Ni"), (float("inf"), "Ni")],
+)
+def test_dispense_refuses_invalid_commands_without_inventory_changes(volume, chemical):
     model = instruments.resolve("dispense-electrolyte", "ac-ot2-simulator")
-    result = model(_request(_deposited_sample(), volume_ml=1.0, chemical="Pt"))
+    sample = _bath_sample()
+    result = model(_request(sample, volume_ml=volume, chemical=chemical))
     assert any(r.code == "PARAMETER_OUT_OF_ENVELOPE" for r in result.reasons)
     assert result.sample is None
+    assert sample.state == {}
+    assert result.outputs["volume_commanded_ml"] is None
+    assert result.outputs["volume_applied_ml"] is None
 
 
-def test_deposition_records_composition_from_the_electrolyte():
-    model = instruments.resolve("electrodeposit-constant-current", "ac-squidstat-simulator")
-    sample = Sample(
-        id="sample-under-test",
-        station_id="squidstat-echem",
-        custody_state="held",
-        quantity=1.0,
-        unit="1",
-        created_by_step_id="dispense",
-        state={"electrolyte.Ni_ml": 3.0, "electrolyte.Fe_ml": 1.0, "electrolyte.NaCi_ml": 2.0},
+def test_pipette_refuses_cumulative_nominal_well_overflow():
+    model = instruments.resolve("dispense-electrolyte", "ac-ot2-simulator")
+    first = model(_request(_bath_sample(), volume_ml=3.0, chemical="Ni"))
+    refused = model(_request(first.sample, volume_ml=1.0, chemical="Fe"))
+    assert refused.sample is None
+    assert any(r.code == "PARAMETER_OUT_OF_ENVELOPE" for r in refused.reasons)
+    assert first.sample.state == {"electrolyte_commanded.Ni_ml": 3.0}
+
+
+def test_commanded_precursors_are_not_measured_film_composition():
+    dispense = instruments.resolve("dispense-electrolyte", "ac-ot2-simulator")
+    deposit = instruments.resolve("electrodeposit-constant-current", "ac-squidstat-simulator")
+    oer = instruments.resolve("measure-oer", "ac-oer-simulator")
+    sample = dispense(_request(_bath_sample(), volume_ml=3.0, chemical="Ni")).sample
+    result = deposit(
+        _request(sample, current_a=-0.002827, duration_s=60, temperature_setpoint_c=35)
     )
-    result = model(_request(sample, current_a=0.002827, duration_s=600.0))
-    state = result.sample.state
-    assert state["deposited_fraction_Ni"] == pytest.approx(0.75)
-    assert state["deposited_fraction_Fe"] == pytest.approx(0.25)
-    assert state["deposited_complexing_NaCi"] == pytest.approx(0.5)
+    assert result.sample.state["deposition_precursor_commanded.Ni_ml"] == 3.0
+    assert "deposited_fraction_Ni" not in result.sample.state
+    measurement = oer(_request(result.sample, current_density_a_cm2=0.020))
+    assert measurement.outputs["overpotential_v"] is None
+    assert any(r.code == "SAMPLE_STATE_UNAVAILABLE" for r in measurement.reasons)
 
 
-def test_cleaning_clears_process_state_and_stays_in_envelope():
+def test_new_deposition_invalidates_previous_film_observations():
+    prior = _deposited_sample(composition={"Ni": 1.0})
+    deposit = instruments.resolve("electrodeposit-constant-current", "ac-squidstat-simulator")
+    oer = instruments.resolve("measure-oer", "ac-oer-simulator")
+    result = deposit(_request(prior, current_a=-0.002827, duration_s=60, temperature_setpoint_c=35))
+    assert not any(key.startswith("deposited_") for key in result.sample.state)
+    assert prior.state["deposited_thickness_um"] == 1.0
+    measurement = oer(_request(result.sample, current_density_a_cm2=0.020))
+    assert measurement.outputs["overpotential_v"] is None
+    assert any(reason.code == "SAMPLE_STATE_UNAVAILABLE" for reason in measurement.reasons)
+
+
+@pytest.mark.parametrize(
+    "acid,dwell,water,drain,ultrasound",
+    [
+        (True, 30.0, 2.0, 14.0, 25.0),
+        (True, 0.1, 2.0, 14.0, 25.0),
+        (False, 0.0, 1.0, 8.0, 10.0),
+    ],
+)
+def test_well_cleaning_preserves_deposit_and_exposes_unknown_residual(
+    acid, dwell, water, drain, ultrasound
+):
     model = instruments.resolve("clean-electrode", "ac-cleaning-simulator")
     dirty = _deposited_sample(composition={"Ni": 1.0}).model_copy(
-        update={"state": {"deposited_thickness_um": 1.0, "electrolyte.Ni_ml": 2.0}}
+        update={
+            "state": {
+                "deposited_thickness_um": 1.0,
+                "deposited_fraction_Ni": 1.0,
+                "electrolyte_commanded.Ni_ml": 2.0,
+                "deposition_commanded": 1.0,
+            }
+        }
     )
-    result = model(_request(dirty, rinse_volume_ml=6.0, ultrasound_s=60.0))
+    result = model(_request(dirty, use_acid=acid, acid_dwell_s=dwell))
     assert result.reasons == []
-    assert result.sample is not None
-    assert result.sample.state == {}
-    assert result.outputs["instrument.rinse_volume_ml"] == pytest.approx(6.0)
+    assert result.sample.state == {
+        "deposited_thickness_um": 1.0,
+        "deposited_fraction_Ni": 1.0,
+        "deposition_commanded": 1.0,
+    }
+    assert result.outputs["instrument.water_commanded_ml"] == water
+    assert result.outputs["instrument.acid_commanded_ml"] == (0.5 if acid else 0)
+    assert result.outputs["instrument.drain_commanded_ml"] == drain
+    assert result.outputs["instrument.ultrasound_commanded_s"] == ultrasound
+    assert result.outputs["instrument.residual_volume_ml"] is None
+    assert result.uncertainty == {}
 
 
-def test_cleaning_refuses_an_out_of_envelope_rinse_volume():
+@pytest.mark.parametrize("acid,dwell", [(False, 30), (True, 600), (True, float("nan")), (1, 30)])
+def test_cleaning_refuses_unadmitted_sequence_without_resetting_state(acid, dwell):
     model = instruments.resolve("clean-electrode", "ac-cleaning-simulator")
-    result = model(_request(_deposited_sample(), rinse_volume_ml=50.0))
+    sample = _deposited_sample()
+    result = model(_request(sample, use_acid=acid, acid_dwell_s=dwell))
     assert any(r.code == "PARAMETER_OUT_OF_ENVELOPE" for r in result.reasons)
+    assert result.sample is None
+    assert all(value is None for value in result.outputs.values())
+    assert sample.state["deposited_thickness_um"] == 1.0
 
 
 def test_cell_loading_seats_the_electrode_and_writes_cell_state():
@@ -177,48 +252,38 @@ def test_cell_loading_refuses_an_empty_cell_id():
     assert result.outputs == {}
 
 
-def test_dispense_reports_requested_and_applied_volume():
-    model = instruments.resolve("dispense-electrolyte", "ac-ot2-simulator")
-    result = model(_request(volume_ml=3.8951234))
-    assert result.outputs["volume_requested_ml"] == pytest.approx(3.8951234)
-    assert result.outputs["volume_applied_ml"] != result.outputs["volume_requested_ml"]
-    assert result.applied_parameters == {"volume_ml": result.outputs["volume_applied_ml"]}
-    assert result.uncertainty["volume_applied_ml"] > 0.0
-
-
-def test_dispense_refuses_a_volume_above_the_reservoir_envelope():
-    model = instruments.resolve("dispense-electrolyte", "ac-ot2-simulator")
-    result = model(_request(volume_ml=100.0))
-    assert any(r.code == "PARAMETER_OUT_OF_ENVELOPE" for r in result.reasons)
-
-
-def test_aliquot_reports_requested_and_applied_volume():
-    model = instruments.resolve("aliquot-to-well", "ac-ot2-simulator")
+@pytest.mark.parametrize("operation", ["dispense-electrolyte", "aliquot-to-well"])
+def test_pipette_operations_report_commands_without_measured_delivery(operation):
+    model = instruments.resolve(operation, "ac-ot2-simulator")
     result = model(_request(volume_ml=3.895))
-    assert result.outputs["volume_requested_ml"] == pytest.approx(3.895)
-    assert result.applied_parameters == {"volume_ml": result.outputs["volume_applied_ml"]}
-    assert result.uncertainty["volume_applied_ml"] > 0.0
+    assert result.outputs == {
+        "volume_requested_ml": 3.895,
+        "volume_commanded_ml": 3.895,
+        "volume_applied_ml": None,
+    }
+    assert result.applied_parameters == {"volume_ml": None}
+    assert result.uncertainty == {}
 
 
-def test_aliquot_refuses_a_volume_above_the_well_envelope():
-    model = instruments.resolve("aliquot-to-well", "ac-ot2-simulator")
-    result = model(_request(volume_ml=10.0))
-    assert any(r.code == "PARAMETER_OUT_OF_ENVELOPE" for r in result.reasons)
-
-
-def test_condition_ultrasonic_declares_uncertainty_and_stays_in_envelope():
+@pytest.mark.parametrize("duration", [5, 15, 30])
+def test_arduino_records_temperature_and_timed_relay_commands(duration):
     model = instruments.resolve("condition-ultrasonic", "ac-arduino-simulator")
-    result = model(_request(duration_s=300.0, setpoint_percent=80.0))
-    assert result.outputs["instrument.conditioning_duration_s"] == pytest.approx(300.0)
-    assert result.uncertainty["instrument.conditioning_duration_s"] > 0.0
-    assert result.uncertainty["instrument.conditioning_setpoint_percent"] > 0.0
+    result = model(_request(duration_s=duration, temperature_setpoint_c=35))
+    assert result.outputs == {
+        "instrument.ultrasound_commanded_s": duration,
+        "instrument.temperature_setpoint_c": 35,
+        "instrument.temperature_observed_c": None,
+    }
+    assert result.uncertainty == {}
     assert result.reasons == []
 
 
-def test_condition_ultrasonic_refuses_an_out_of_envelope_duration():
+@pytest.mark.parametrize("duration,temperature", [(10000, 35), (30, 80), (float("inf"), 35)])
+def test_arduino_refuses_unadmitted_commands(duration, temperature):
     model = instruments.resolve("condition-ultrasonic", "ac-arduino-simulator")
-    result = model(_request(duration_s=10_000.0))
+    result = model(_request(duration_s=duration, temperature_setpoint_c=temperature))
     assert any(r.code == "PARAMETER_OUT_OF_ENVELOPE" for r in result.reasons)
+    assert all(value is None for value in result.outputs.values())
 
 
 def test_transfer_materializes_a_new_sample_when_none_is_in_custody():
@@ -323,3 +388,46 @@ def test_twin_fails_closed_off_basis_and_out_of_domain():
     out_of_domain = twin(_request(sample=unknown, current_density_a_cm2=0.010))
     assert out_of_domain.outputs["overpotential_v"] is None
     assert any(r.code == "PARAMETER_OUT_OF_ENVELOPE" for r in out_of_domain.reasons)
+
+
+@pytest.mark.parametrize(
+    "operation,provider,parameters,command_port,expected",
+    [
+        (
+            "dispense-electrolyte",
+            "ac-ot2-simulator",
+            {"volume_ml": 1.0, "chemical": "Ni"},
+            "volume_commanded_ml",
+            1.0,
+        ),
+        (
+            "condition-ultrasonic",
+            "ac-arduino-simulator",
+            {"duration_s": 30, "temperature_setpoint_c": 35},
+            "instrument.temperature_setpoint_c",
+            35,
+        ),
+        (
+            "electrodeposit-constant-current",
+            "ac-squidstat-simulator",
+            {"current_a": -0.002827, "duration_s": 60, "temperature_setpoint_c": 35},
+            "commanded_charge_c",
+            -0.002827 * 60,
+        ),
+        (
+            "clean-electrode",
+            "ac-cleaning-simulator",
+            {"use_acid": True, "acid_dwell_s": 0.1},
+            "instrument.water_commanded_ml",
+            2.0,
+        ),
+    ],
+)
+def test_command_bookkeeping_does_not_claim_physically_applied_parameters(
+    operation, provider, parameters, command_port, expected
+):
+    model = instruments.resolve(operation, provider)
+    result = model(_request(_bath_sample(), **parameters))
+    assert result.applied_parameters == {name: None for name in parameters}
+    assert result.outputs[command_port] == pytest.approx(expected)
+    assert result.reasons == []
