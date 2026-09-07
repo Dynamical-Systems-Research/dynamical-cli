@@ -152,3 +152,30 @@ change; earlier canary conclusions retain their stated limits.
 
 Verification after the scope revision: 326 tests passed, eight optional Isaac/USD
 checks skipped; build and documentation diff checks passed.
+
+## Obsolete estimator removal
+
+The estimator, registration, unused SDL1 binding, calibration directory and
+obsolete tests are removed. Failed results remain in Git history. The release
+scope is now [reference-workflow-release-scope.md](reference-workflow-release-scope.md).
+SDL1 composition hashes intentionally change with the embedded facility records;
+all FastCat bundle and predictor bytes remain identical.
+
+Fresh canary `RUN-20260907T160300Z-49faa3e8` ran on wheel
+`8324a2f09151219aaf922f9258a647e58fa2c43109222f98c43b446122d51c0f` and exited 0.
+Nine candidate arms preserved the supplied fractions, 600 s synthesis, 10 mA/cm²,
+frozen predictions and constant intervals; all traces validated. A template smoke
+was recorded separately. Both 26-check isolation proofs passed. An operator check
+inside the installed wheel confirmed the removed estimator cannot resolve while
+SDL1's protocol and FastCat's predictor remain available.
+
+Interpretation remains qualified: the report invents a “95%-style” interval,
+interprets overlap as statistical indistinguishability, and overstates a single
+lead measurement as a ranking test. It investigated preflight setup before
+proceeding. No improved learning, stopping or physical validity is established.
+
+Checks: 315 tests passed, eight optional Isaac/USD skips; lint, format, lock,
+build and CI passed. SDL1 traceability retains 368 evidence rows and 1,639
+software/unknown declarations. This run cost $0.013358552; total accounted
+budget is $3.269985077 of $10. The relay is stopped. Host permissions prevent
+termination of the idle container; no privileged workaround was used.
