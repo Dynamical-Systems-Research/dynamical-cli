@@ -1,225 +1,50 @@
-# AMPERE-2 calibration revision — follow-on scope
+# Reference workflow release scope
 
-Status: scoped after the six reference-lab fixes; no refitting, new physical data
-collection or successful calibration is claimed. The release requirement remains
-successful calibration of every reference facility's claimed physical behavior.
-Version 0.1.21 is staged, not releasable under the current evidence.
+On 2026-09-07, Jarrod approved narrowing the release to the evidence available
+from open sources. This supersedes the earlier requirement to calibrate every
+physical behavior and defers the AMPERE-2 revision. Version 0.1.21 stays staged
+until review is complete and publication is explicitly approved.
 
-## Why an AC-hosted bench does not validate this predictor
+## What ships
 
-AC supplies the SDL1 hardware/control workflow represented by the pinned source
-profile. The AMPERE-2 response model is Dynamical's ordinary-least-squares fit to
-a separate DTU measurement dataset; it is not an AC-supplied calibrated model.
-Hardware provenance and correct source commands do not establish its predictive
-accuracy. [Model origin and implementation](../dynamical/instruments/ac_oer.py#L1),
-[historical dataset/protocol](../dynamical/bundle/reference-lab/calibration/ampere2-oer/frozen_protocol.json#L5).
+- **SDL1: source-verified virtual workflow.** Published geometry, commands,
+  electrode roles and measurement analysis trace to pinned AC sources. Unknown
+  delivery, temperature, film properties and electrochemical responses remain
+  explicit. Source fidelity does not certify an installed bench.
+- **FastCat: bounded empirical predictor.** A separate frozen OER prediction
+  table, limited to its admitted conditions. The 54-composition pool evaluation
+  reports 48.4 mV MAE and 90.7% coverage with a fixed ±104.969 mV interval.
+  Original validation was 22.2 mV on 27 compositions; 43 pool labels are single
+  runs. The historical `calibrated_twin` label applies to that predictor only.
+- **AMPERE-2: preserved failed evidence, no admitted operation.** Its MAE and
+  ranking failures remain visible. Neither revised wording nor passing software
+  checks changes those results or the failed FastCat interval gate.
 
-The preserved report records MAE 0.3812627 V against a 0.05 V gate and Spearman
-−0.187938 against 0.7. Both failed. Sigma 1.8073715 V makes the observed two-sigma
-coverage of 1.0 uninformative about useful precision. These values must remain
-visible even if a later model succeeds.
-[Failed gates](../dynamical/bundle/reference-lab/calibration/ampere2-oer/calibration_report.json#L131),
-[uncertainty erratum](../dynamical/bundle/reference-lab/calibration/ampere2-oer/ERRATA.md#L25).
+## Release acceptance
 
-The current evidence identifies several defects, without establishing how much
-of the error each caused:
+1. Facility fields and protocol stages trace to pinned sources or explicitly
+   identified software conventions and unknowns. No fabricated measurements.
+2. Public examples compose against the correct facility, run, validate and replay;
+   unsupported physical claims fail closed with usable recovery information.
+3. Tests and source integrity checks pass. Behavior changes receive a closed
+   canary on the revised wheel; its conclusions stay limited to what it exercised.
+4. Documentation uses the two scopes above consistently. Keep the existing schema,
+   provider contracts and tested prompt; add no calibration or evaluation subsystem.
 
-| Defect or competing explanation | Evidence | What would resolve it |
-|---|---|---|
-| Target/protocol mismatch | Historical fit uses 20/50 mA/cm²; SDL1 headline is corrected potential at 10 mA/cm² after its full protocol | Establish matched substrate, conditioning, activation, reference scale, iR correction and aggregation; do not transfer FastCat protocol or labels |
-| Split leakage and unknown chronology | Raw-string condition keys split two identical conditions; file mtimes do not establish pre-outcome freezing | Canonical physical-condition groups and an independently verifiable freeze/reveal record |
-| QC/compliance artifacts | Historical erratum identifies compliance-rail rows inflating sigma | Predeclare QC and instrument-compliance treatment before fitting/evaluation; retain excluded rows and reasons |
-| Inadequate or unidentifiable representation | Rank 9 of 11; Mn/Cu not separately identified, while deposition conditions are absent from the fitted response inputs | Fit-only identifiability/ablation checks and comparison with simple baselines; no causal attribution from the old failed test |
-| Domain declaration exceeds enforcement | The failed estimator is no longer admitted to either facility; direct calls enforce the two current points but not fit-composition membership | Implement and test exact supported-condition admission and explicit out-of-domain refusal |
+Users connecting physical equipment must establish its configuration, calibration,
+response validity and execution authority for their use. The reference examples
+provide a reproducible baseline, not that physical qualification.
 
-Sources: [protocol domain/model](../dynamical/bundle/reference-lab/calibration/ampere2-oer/frozen_protocol.json#L11),
-[SDL1 observable](../dynamical/bundle/reference-lab/protocols/sdl1-oer.json#L271),
-[leakage/chronology/identifiability](../dynamical/bundle/reference-lab/calibration/ampere2-oer/ERRATA.md#L10),
-[legacy admission and response](../dynamical/instruments/ac_oer.py#L59).
-A corrected split may improve or worsen metrics; its result is unknown.
+## Deferred AMPERE revision
 
-## Five work packages, in order
+Revisit only when protocol-matched independent evidence becomes available.
+Freeze the target, domain, QC, uncertainty and acceptance criteria before outcome
+access; develop on separate evidence and preserve every validation result.
+The exhausted FastCat outcomes cannot supply a new independent test. No physical
+acquisition, fitting or new validation program is required for this release.
 
-1. **Freeze the claim and decision rubric.** Specify the physical decisions the
-   prediction must support, observable, protocol, substrate/electrode roles,
-   conditions, units, reference, correction and aggregation. Decide whether the
-   revision supplies SDL1's 10 mA/cm² headline or remains a separately bounded
-   20/50 mA/cm² AMPERE estimator. The latter alone cannot satisfy full SDL1
-   calibration. Declare accuracy, ordering, uncertainty coverage and useful
-   interval-width criteria before any new evaluation. Keep the old thresholds
-   and failed result intact; no thresholds are approved or weakened by this
-   scope. Use meaningful simple prediction baselines and measured repeatability
-   where available. Do not call workflow completion or twin argmin learning.
-
-2. **Establish admissible evidence and independence.** Inventory permitted data
-   provenance, exposure history, units, replicates, instrument metadata and
-   protocol compatibility without accessing protected outcome roots. Normalize
-   numerically equivalent condition values before grouping; all replicates,
-   current steps and time points from one physical condition stay together.
-   Predeclare QC, missingness, compliance rails and exclusions. Identify truly
-   independent physical validation runs and preserve their separation from
-   model selection. No untouched matching validation cohort is established by
-   this scope. If none is available, stop for new authorized evidence; do not
-   recycle inspected rows as held-out validation or use mtimes as a freeze proof.
-
-3. **Revise only against fit/development evidence.** Implement the source-faithful
-   target extractor and enforce the supported physical domain, with tests for
-   reference/units, aggregation, condition equivalence and refusal. Check
-   identifiability and compare a small predeclared set of candidate models with
-   simple baselines. Features must be available at prediction time. Separate
-   epistemic prediction limits from physical measurement uncertainty. Reject
-   fabricated delivery, film composition, temperature or CV/EIS observations.
-   The old fit's exact causal failure decomposition is not assumed.
-
-4. **Freeze and evaluate once on independent evidence.** Bind code, data lineage,
-   grouping, extractor, model, uncertainty procedure, thresholds and evaluation
-   design in a verifiable pre-outcome receipt. Model development must not access
-   the validation outcomes. Report every planned metric, interval precision,
-   cohort size, single/replicated labels, exclusions and failures with artifact
-   hashes. If a gate fails, preserve it and keep admission/release denied. Further
-   development needs a new evaluation plan and genuinely independent evidence;
-   renaming the split or rerunning the same outcomes does not provide it.
-
-5. **Revise the report and admission only after evidence supports them.** Add a
-   separately identified revision report, with an explicit comparison to the
-   preserved failed report and a precise explanation of any changed target or
-   cohort. Grant only the validated domain through existing admission mechanisms.
-   Run full project checks and a closed canary against the actual revised wheel;
-   separately judge execution, source fidelity, predictive validity and agent
-   interpretation. Release remains blocked until every facility-level dependency
-   below is met and Jarrod explicitly approves public release actions.
-
-## Full-facility calibration dependencies
-
-A successful AMPERE fit alone is insufficient for the user's release requirement.
-Software IDs and command bookkeeping need verification; every claimed physical
-response needs appropriate independent calibration evidence. The present bundle
-explicitly lacks the following physical qualifications:
-
-| Claimed behavior to qualify | Required evidence before a calibrated claim |
-|---|---|
-| Pipette delivery and rinse/drain | Recorded delivered quantities, repeatability, destination/stock identity, residuals and uncertainty over the admitted conditions |
-| Temperature and timed ultrasound | Reference-linked temperature/readback and actual exposure/timing records; controller setpoint is not achieved temperature or acoustic dose |
-| Deposition | Delivered current/charge and temperature, substrate/area, film state and run history; precursor ratios are not deposited stoichiometry |
-| Cleaning between deposition and test | Film retention/change and carryover measurements under the specified sequence; preserving state history does not prove unchanged film chemistry |
-| OER activation/CV/EIS/staircase | Protocol-matched measured responses, reference identity/scale, resistance extraction and iR-corrected headline, with repeatability and calibrated response validity |
-| Geometry or embodied execution, if claimed | Measured placement/clearance or actual execution evidence; schematic poses and mesh provenance are insufficient |
-| FastCat facility | Preserve its frozen table/constant interval and original 27-versus-pool 54 distinction. No untouched FastCat cohort remains; any stronger or full-facility claim needs separately admissible independent evidence, not reuse of exhausted outcomes |
-
-Current boundaries are documented in the
-[traceability guide](../dynamical/bundle/TRACEABILITY.md),
-[SDL1 field table](../dynamical/bundle/reference-lab/field-traceability.json),
-[FastCat field table](../dynamical/bundle/fastcat/field-traceability.json), and
-[FastCat aggregate report](../dynamical/bundle/fastcat/calibration/fastcat-oer/calibration_report.json#L14).
-This table specifies evidence requirements; it does not claim those measurements
-exist or authorize their collection.
-
-## Physical evidence acquisition scope
-
-The following is a proposed qualification plan, not an upstream measurement
-record or an authorization to operate a bench. The deliverable is a reproducible
-evidence package tied to the public facility and model revisions. Neither access
-to a matching physical bench nor an independent validation custodian has been
-established. Public source code and geometry cannot fill those gaps.
-
-**Resolve the measurement identity first.** For SDL1, obtain run-specific records
-of KOH concentration, mounted reference electrode and potential scale, electrode
-area and preparation, Squidstat identity/firmware/API version, instrument limits,
-and the vendor meaning of EIS `number_of_runs=0`. Record deviations from the
-pinned protocol; do not silently repair it and call the resulting data matched.
-The current [protocol setup and unknowns](../dynamical/bundle/reference-lab/protocols/sdl1-oer.json)
-explicitly leave these items unresolved. The target remains upstream corrected
-potential at 10 mA/cm²; any converted overpotential needs its own documented
-reference conversion and equilibrium-potential convention.
-
-| Evidence package | Proposed measurements and retained records | Qualification boundary |
-|---|---|---|
-| Delivered liquids | Gravimetric delivery checks with recorded balance uncertainty and liquid density/temperature; source/destination identity, stroke sequence, rinse/drain residuals and repeat runs across the claimed range | Qualifies delivered volume and residual claims only within tested liquids, volumes and hardware conditions; nominal inventory arithmetic is a separate software check |
-| Temperature and ultrasound | Independently checked well-temperature time series alongside Arduino setpoints/readback; recorded switch-on/off times and exposure sequence | Timing does not establish acoustic power or dose. An acoustic-response claim requires a separate measurement method and qualification |
-| Electrical delivery | Instrument calibration records and checks against characterized electrical loads over the claimed current, voltage and impedance range; actual current/voltage/time traces, saturation and compliance flags | Instrument performance is necessary but does not validate electrode kinetics or a materials-response model |
-| Deposition and cleaning history | Matched substrate/area and preparation records; delivered charge, bath temperature and composition; repeated pre/post-cleaning film characterization and carryover blanks using methods chosen for the claimed film property | Establishes whether cleaning changes the property being predicted. Do not infer deposited stoichiometry or film retention from precursor ratios or preserved software state |
-| Complete SDL1 response | Independent prepared samples run through deposition, cleaning and the 13-stage protocol; raw CV, EIS and staircase arrays, reference checks, temperature and full elapsed time; independently reproduced resistance and headline extraction | A headline-only predictor does not qualify absent CV/EIS response models or campaign-time predictions. Each claimed output needs its own validation result |
-| FastCat response and process | Separately acquired, protocol-matched physical runs with substrate, bath conditions, reference/correction conventions and replicate history recorded | New evidence must match FastCat's declared domain. It cannot qualify SDL1; SDL1 measurements cannot qualify FastCat by attribution alone |
-
-Select specific metrology and film-characterization procedures with the physical
-operator before acquisition. For measurement uncertainty reporting, use an
-explicit uncertainty budget; [NIST Technical Note 1297](https://doi.org/10.6028/NIST.tn.1297)
-is a methodological reference, not evidence that this bench is calibrated or
-certified. Preserve measurement uncertainty separately from model prediction
-intervals, and account for shared reference and batch errors when evaluating
-predictions against measurements.
-
-## Independent validation contract and evidence receipt
-
-Before model development, name a physical operator, a validation-data custodian
-and an evaluator who did not select the model. Independence here means that
-validation outcomes cannot inform feature selection, QC rules, model selection,
-interval tuning or acceptance thresholds. A separate institution is not assumed;
-access separation and a verifiable freeze/reveal history must be demonstrated.
-The custodian must attest to prior exposure and cohort eligibility without this
-work opening any protected outcome roots.
-
-Freeze condition groups before allocation: numerically equivalent recipes,
-replicates, current steps and time points stay together. Record substrate lots,
-bath batches, preparation days, operators and instrument sessions; block or hold
-out these factors according to the generalization claim. Randomize execution
-order where the physical protocol allows it. Repeated samples at a known
-condition estimate repeatability; they do not establish unseen-condition
-generalization. Time-series rows are not independent sample counts.
-
-Predeclare the acceptance table per claimed observable: domain, unit, maximum
-acceptable error, ordering requirement where relevant, coverage target, maximum
-useful interval width, baseline comparison, and uncertainty on each test metric.
-Derive tolerances from the physical decision the lab must support. Determine
-condition and replicate counts from development-only variance estimates and the
-precision needed for that decision, including a predeclared treatment of multiple
-gates. This scope does not invent numerical thresholds, sample counts, statistical
-power or a cost estimate. The historical AMPERE thresholds remain recorded;
-changing a target or criterion must be justified before new outcomes are seen.
-
-Each qualification package must contain:
-
-- Facility/protocol/model/extractor revisions and hashes, the frozen claim and
-  acceptance table, intended domain, split allocation and exposure attestation.
-- Run IDs, canonical condition IDs, batch/replicate relationships, material and
-  electrode identities, requested commands and independently recorded delivery,
-  instrument identities/calibration records, timestamps, raw units and arrays.
-- Reference conversion, resistance extraction, iR correction and aggregation
-  code; measurement uncertainty; all exclusions, missingness and compliance flags
-  with reasons, including failed runs rather than just successful labels.
-- Predictions and intervals frozen before outcome access; custodian receipt and
-  reveal record; evaluator reproduction of every planned metric and baseline,
-  cohort counts, failures and the exact domain qualified by the result.
-- A publishable evidence index with accessible permitted artifacts and digests.
-  If raw data cannot be published, disclose that reproducibility limit and the
-  independent access/audit arrangement; a digest alone is not validation.
-
-Obtain an operator-reviewed acquisition plan and quote only after the protocol,
-claim domain, measurement methods and statistical design are fixed. Required
-inputs are bench/operator access, metrology records, eligible independent runs,
-custody/evaluation arrangements and publication rights. None is supplied by the
-completed canaries. Existing public data may be considered only if its protocol
-compatibility and untouched validation status can be established; otherwise new
-authorized physical measurements are necessary.
-
-The final report must issue separate judgments for software execution, upstream
-source fidelity, instrument/measurement qualification, predictive validity and
-agent interpretation. All required physical qualifications must pass for release;
-an honest command-only interface or a successful canary does not substitute for
-them. Preserve the failed AMPERE result and FastCat interval gate alongside any
-new revision. No new CLI evaluation subsystem is needed for this scope.
-
-## Authority, resources and stopping conditions
-
-This deliverable scopes the follow-on only. New fitting, independent-data access,
-physical measurements, compute spending and implementation changes are not
-performed here. The $10 authorization covered the completed closed canaries;
-follow-on data/compute resources must be concretely budgeted before execution.
-Protected outcome roots remain off limits. No schema change, broad skill rewrite,
-CLI learning/scoring subsystem, value-estimation program or website work is added.
-
-A valid negative or inconclusive calibration result can close an evaluation, but
-cannot satisfy the successful-calibration release gate. Missing independent data,
-unverified reference/protocol, unidentifiable required effects or unmet physical
-calibration criteria keep that gate closed. Success must be earned by the new
-validation; it cannot be guaranteed by a plan or a report revision.
+Evidence: [source boundaries](../dynamical/bundle/TRACEABILITY.md),
+[SDL1 protocol](../dynamical/bundle/reference-lab/protocols/sdl1-oer.json),
+[AMPERE failures](../dynamical/bundle/reference-lab/calibration/ampere2-oer/calibration_report.json),
+[FastCat report](../dynamical/bundle/fastcat/calibration/fastcat-oer/calibration_report.json),
+and [software/canary validation](reference-lab-validation.md).

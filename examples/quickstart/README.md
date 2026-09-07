@@ -1,4 +1,4 @@
-# Simulator quickstart
+# SDL1 workflow quickstart
 
 This example records a 35 °C temperature setpoint and a 30 s ultrasound command
 for one sample in the stationary SDL1 well. These settings follow the
@@ -21,4 +21,4 @@ dynamical validate replay.ndjson --json
 A valid trace proves command bookkeeping and replay consistency. Applied
 parameters and observed temperature remain unavailable. A requirement for
 measured temperature or a physical conditioning effect cannot pass on this
-record. Full SDL1 response calibration remains a release prerequisite.
+record. This is a source-verified virtual workflow, not physical execution.

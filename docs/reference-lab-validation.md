@@ -1,8 +1,10 @@
 # Reference lab stack validation — 2026-09-07
 
-The fixes restore explicit evidence boundaries. They do not establish successful
-full-facility calibration or authorize release. AMPERE-2's failed gates and the
-failed FastCat interval gate remain failed. Version 0.1.21 is staged only.
+The release scope is a source-verified SDL1 virtual workflow and a separate
+bounded FastCat empirical predictor. Physical calibration is not a release
+prerequisite under the revised scope approved on 2026-09-07. AMPERE-2 remains
+unadmitted and both historical failed gates remain failed. Version 0.1.21 is
+staged; merge and publication still require explicit approval.
 
 The scientific objective remains learning an unfamiliar physical system through
 interventions capable of contradicting predictions. Completing a workflow,
@@ -100,8 +102,9 @@ These are retained interpretation failures, not silently corrected agent outputs
 
 Total accounted budget was $3.249088970 of $10, including retained reservations
 for calls without verified settlement. The owned relay was stopped after the
-final run. The failed calibration gates and full-facility release restriction
-remain unchanged. Subsequent validation-summary edits are outside the wheel;
+final run. The failed calibration gates remain unchanged. The full-facility
+release restriction was subsequently superseded by the scope above.
+Subsequent validation-summary edits are outside the wheel;
 its final bytes are rechecked after those edits.
 
 ## Public-prompt-only review canary
@@ -132,3 +135,20 @@ Each updated intermediate PR head also passed CI. The prompt-only run incurred
 $0.007537555 in authenticated provider charges over 18 requests. Total accounted
 budget is $3.256626525 of $10, including earlier unsettled reservations. The owned
 8991 relay was stopped. No calibration gate, merge or release was performed.
+
+## Approved workflow release scope
+
+The subsequent documentation revision adopts SDL1 as a source-verified virtual
+workflow and FastCat as a bounded empirical predictor. It removes physical
+bench calibration as a release prerequisite and defers AMPERE development.
+The public prompt, candidate inputs and skills are unchanged.
+
+Rebuilt wheel SHA256:
+`af5ff0900d0e3c1dc2128cd953fd622379c8d63a193afaf0c6841c0bc71da6c0`.
+Compared with the prompt-only canary wheel above, only `bundle/TRACEABILITY.md`,
+README-derived package metadata and the wheel RECORD changed. Runtime, contracts,
+models and skills are byte-identical. No new canary was run for this documentation
+change; earlier canary conclusions retain their stated limits.
+
+Verification after the scope revision: 326 tests passed, eight optional Isaac/USD
+checks skipped; build and documentation diff checks passed.

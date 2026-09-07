@@ -1,4 +1,4 @@
-# FastCat OER reference
+# FastCat bounded empirical predictor
 
 Use this example to ask:
 
@@ -60,10 +60,10 @@ finite comparison; it does not establish learning, a physical winner, or the
 accuracy of a prospective measurement. A proposed physical experiment must
 state the prediction and decision it would test.
 
-The calibrated-twin claim applies only to the frozen OER predictor, not the
-full facility, handling, geometry, motion, or time. Full reference-facility
-calibration remains a release prerequisite. This example has no physical
-execution authority.
+The historical `calibrated_twin` evidence label applies only to the bounded
+OER predictor. Pool coverage is 90.7% with the fixed ±104.969 mV interval.
+Handling, geometry, motion and time are not physically calibrated. Users must
+validate any connected bench; this example has no physical execution authority.
 
 `candidate-set.yaml` is a repository input for this example. It is not bundled
 in the Python package and does not add capabilities or providers to the

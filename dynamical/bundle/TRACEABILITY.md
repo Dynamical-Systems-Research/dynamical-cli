@@ -31,5 +31,6 @@ historical calibration stays visible, but its estimator is not admitted to eithe
 facility. Its frozen chronology assertion is explicitly superseded by the dated
 errata. FastCat retains its frozen table and constant interval; original validation
 and later pool evaluation remain distinct. Neither bundle establishes full physical
-facility calibration. Version 0.1.21 remains staged only; a successful calibration
-claim requires new admissible validation evidence.
+facility calibration. SDL1 is a source-verified virtual workflow; FastCat is a
+bounded empirical predictor. Release checks verify these declared scopes, not
+physical bench calibration. Users must validate any connected physical facility.

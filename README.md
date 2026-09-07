@@ -63,7 +63,7 @@ and
 [campaign template](https://github.com/Dynamical-Systems-Research/dynamical-cli/blob/main/examples/fastcat-oer/requirement.yaml).
 This example uses the separate DTU FastCat facility: select `--facility fastcat`
 for capability discovery and composition. The default `sdl1` facility describes
-the Acceleration Consortium bench's source-defined commands and protocol.
+a source-verified virtual workflow of the Acceleration Consortium bench.
 The agent then composes and validates one isolated arm for each candidate. It
 returns the validated campaign record, the limits of its evidence, and a
 proposed physical experiment or `HOLD`.
@@ -243,13 +243,18 @@ Simulation, calibrated-model output, replay, and physical measurement are
 different evidence classes. Validation checks structure and source records. It
 does not establish scientific truth.
 
-The FastCat OER predictor retains its historical calibration admission:
-22.2 mV MAE on the original 27-composition validation cohort, versus 48.4 mV on
-a distinct 54-composition pool evaluation with 43 single-run labels. Its
-constant 0.104969 V half-width targets 90% coverage. These figures do not
-calibrate the full FastCat or SDL1 facility. Full reference-facility calibration
-remains a release prerequisite; the [report](dynamical/bundle/fastcat/calibration/fastcat-oer/calibration_report.json)
-preserves both cohorts and the failed per-row interval gate.
+The reference bundles have two distinct scopes:
+
+- **SDL1: source-verified virtual workflow.** Commands, electrode roles and the
+  measurement protocol trace to pinned AC sources. Unavailable physical responses
+  remain explicit. AMPERE's failed predictor is not admitted.
+- **FastCat: bounded empirical predictor.** The frozen OER table reports 48.4 mV
+  MAE and 90.7% interval coverage on the 54-composition pool, with a fixed
+  ±104.969 mV interval. The original 27-composition validation MAE was 22.2 mV;
+  43 pool labels are single runs. See the [report](dynamical/bundle/fastcat/calibration/fastcat-oer/calibration_report.json).
+
+Neither is a calibrated physical bench. Users connecting hardware must validate
+its delivery and responses for their intended use and authorize physical work.
 
 A valid workflow, a finite comparison of predictions, and a prospective
 physical prediction are different claims. None alone demonstrates agent

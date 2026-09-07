@@ -2,10 +2,10 @@
 
 ## 0.1.21 (staged; not released)
 
-Correct the public reference labs against pinned source evidence. Release remains
-blocked by incomplete
-physical calibration; AMPERE-2 and the FastCat interval revision retain their
-failed results.
+Correct the public reference labs against pinned source evidence: SDL1 is a
+source-verified virtual workflow; FastCat is a separate bounded empirical
+predictor. Physical bench calibration is outside this release. AMPERE-2 and
+the FastCat interval revision retain their failed results.
 
 - Separate SDL1 and DTU FastCat facilities and registry IDs; SDL1 keeps only
   `ot2-liquid-handling`, FastCat uses `fastcat-process`. Remove the fictional
