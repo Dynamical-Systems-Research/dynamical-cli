@@ -47,27 +47,22 @@ def _identity() -> CampaignIdentity:
     )
 
 
-def _deposit_ordering_contract(current_a: float) -> CompiledCampaignContract:
+def _deposit_ordering_contract(duration_s: float) -> CompiledCampaignContract:
     """A transfer followed by a dependent electrodeposition, authored in that order.
 
-    Retargets the deleted thermal "agitate-then-heat" contract: the sample that
-    "transfer" moves into custody at "bench-a" is the very one "deposit" acts on
-    (sample_id threading -- the electrodeposition facility's real "prior outputs"
-    concept, since none of its registered instrument models read numeric
-    ``request.inputs`` the way the deleted thermal model did). Varying ``current_a``
-    between two full runs and comparing ``deposited_mass_g`` (Faraday's law, strictly
-    increasing in current) proves each run is genuinely re-executed against its own
-    authored parameters, not memoized or order-independent.
+    The synthetic transfer establishes custody; deposition acts on that sample.
+    Comparing signed commanded charge at the two upstream durations verifies
+    parameter-sensitive execution without claiming a film-mass response.
     """
 
-    digest = stable_hash({"test": "composed-deposit-ordering", "current_a": current_a})
+    digest = stable_hash({"test": "composed-deposit-ordering", "duration_s": duration_s})
     transfer_outputs = (
         ("instrument.sample_station_id", "1"),
         ("instrument.arrival_confirmed", "1"),
         ("sample.state.transferred", "1"),
     )
     deposit_outputs = (
-        ("charge_c", "C"),
+        ("commanded_charge_c", "C"),
         ("deposited_mass_g", "g"),
         ("deposited_thickness_um", "um"),
         ("current_density_a_cm2", "A/cm^2"),
@@ -106,15 +101,20 @@ def _deposit_ordering_contract(current_a: float) -> CompiledCampaignContract:
                 "name": "current_a",
                 "value_type": "number",
                 "required": True,
-                "minimum": 0.0,
-                "maximum": 0.010,
+                "minimum": -0.002827,
+                "maximum": -0.002827,
             },
             {
                 "name": "duration_s",
                 "value_type": "number",
                 "required": True,
-                "minimum": 0.0,
-                "maximum": 3600.0,
+                "enum": [10.0, 60.0],
+            },
+            {
+                "name": "temperature_setpoint_c",
+                "value_type": "number",
+                "required": True,
+                "enum": [35.0],
             },
         ],
     )
@@ -148,12 +148,13 @@ def _deposit_ordering_contract(current_a: float) -> CompiledCampaignContract:
             "selected_facility_id": "bench-a",
             "sample_id": "sample-1",
             "parameters": [
-                {"name": "current_a", "value": current_a},
-                {"name": "duration_s", "value": 600.0},
+                {"name": "current_a", "value": -0.002827},
+                {"name": "duration_s", "value": duration_s},
+                {"name": "temperature_setpoint_c", "value": 35.0},
             ],
             "inputs": [],
             "capability_contract": deposit_capability,
-            "duration": {"typical_s": 600.0},
+            "duration": {"typical_s": 0.0},
             "policy": {"safety_limit_ids": []},
         },
     )
@@ -185,13 +186,13 @@ def _deposit_ordering_contract(current_a: float) -> CompiledCampaignContract:
 
 def test_composed_runtime_executes_authored_order_and_prior_outputs(tmp_path: Path) -> None:
     low, _ = run_composed_campaign(
-        _deposit_ordering_contract(0.001),
-        tmp_path / "low-current.ndjson",
+        _deposit_ordering_contract(10.0),
+        tmp_path / "short-duration.ndjson",
         seed=3,
     )
     high, _ = run_composed_campaign(
-        _deposit_ordering_contract(0.009),
-        tmp_path / "high-current.ndjson",
+        _deposit_ordering_contract(60.0),
+        tmp_path / "long-duration.ndjson",
         seed=3,
     )
 
@@ -220,7 +221,11 @@ def test_composed_runtime_executes_authored_order_and_prior_outputs(tmp_path: Pa
     )
     low_values = {channel.name: channel.value for channel in low_deposit.channels}
     high_values = {channel.name: channel.value for channel in high_deposit.channels}
-    assert high_values["deposited_mass_g"] > low_values["deposited_mass_g"]
+    assert low_values["commanded_charge_c"] is None  # 10 s / 35 C is not the admitted recipe
+    assert high_values["commanded_charge_c"] == pytest.approx(-0.16962)
+    for values in (low_values, high_values):
+        assert values["deposited_mass_g"] is None
+        assert values["deposited_thickness_um"] is None
 
 
 def _transfer_contract() -> CompiledCampaignContract:
@@ -255,7 +260,7 @@ def _transfer_contract() -> CompiledCampaignContract:
         ("sample.state.transferred", "1"),
     )
     deposit_outputs = (
-        ("charge_c", "C"),
+        ("commanded_charge_c", "C"),
         ("deposited_mass_g", "g"),
         ("deposited_thickness_um", "um"),
         ("current_density_a_cm2", "A/cm^2"),
@@ -280,15 +285,20 @@ def _transfer_contract() -> CompiledCampaignContract:
                 "name": "current_a",
                 "value_type": "number",
                 "required": True,
-                "minimum": 0.0,
-                "maximum": 0.010,
+                "minimum": -0.002827,
+                "maximum": -0.002827,
             },
             {
                 "name": "duration_s",
                 "value_type": "number",
                 "required": True,
-                "minimum": 0.0,
-                "maximum": 3600.0,
+                "enum": [10.0, 60.0],
+            },
+            {
+                "name": "temperature_setpoint_c",
+                "value_type": "number",
+                "required": True,
+                "enum": [35.0],
             },
         ],
     )
@@ -328,12 +338,13 @@ def _transfer_contract() -> CompiledCampaignContract:
             "selected_facility_id": "bench-a",
             "sample_id": "sample-1",
             "parameters": [
-                {"name": "current_a", "value": 0.002827},
-                {"name": "duration_s", "value": 600.0},
+                {"name": "current_a", "value": -0.002827},
+                {"name": "duration_s", "value": 60.0},
+                {"name": "temperature_setpoint_c", "value": 35.0},
             ],
             "inputs": [],
             "capability_contract": deposit_capability,
-            "duration": {"typical_s": 600.0},
+            "duration": {"typical_s": 0.0},
             "policy": {"safety_limit_ids": []},
         },
     )

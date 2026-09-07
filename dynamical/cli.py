@@ -5,17 +5,25 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import shlex
 import sys
 from collections.abc import Sequence
-from importlib.resources import files
 from pathlib import Path
 
 from pydantic import ValidationError
 
 from . import __version__ as _VERSION
 from .compiler import compile_facility, validate_path
+from .installed import (
+    ALIASES,
+    SDL1,
+    facility_bundle,
+    facility_path,
+    registry_path,
+    requirement_facility,
+)
 
-REFERENCE_LAB = Path(str(files("dynamical").joinpath("bundle", "reference-lab")))
+REFERENCE_LAB = SDL1
 DEFAULT_REGISTRY = REFERENCE_LAB / "registry.yaml"
 DEFAULT_FACILITY = REFERENCE_LAB / "facility.yaml"
 RESTORE_EXAMPLE = (
@@ -70,11 +78,18 @@ def build_parser() -> argparse.ArgumentParser:
     capabilities_parser.add_argument(
         "--registry",
         type=Path,
-        default=DEFAULT_REGISTRY,
+        default=None,
         help=(
             "registry to inspect; a custom path is a proposal checked against the installed "
             "registry"
         ),
+    )
+
+    capabilities_parser.add_argument(
+        "--facility",
+        type=Path,
+        default=DEFAULT_FACILITY,
+        help="installed facility (sdl1 or fastcat) or proposal manifest path",
     )
 
     compile_parser = commands.add_parser(
@@ -120,14 +135,17 @@ def build_parser() -> argparse.ArgumentParser:
     compose_parser.add_argument(
         "--registry",
         type=Path,
-        default=DEFAULT_REGISTRY,
+        default=None,
         help="registry to use; a custom path is a proposal checked against installed authority",
     )
     compose_parser.add_argument(
         "--facility",
         type=Path,
-        default=DEFAULT_FACILITY,
-        help="facility to use; a custom path is a proposal checked against installed authority",
+        default=None,
+        help=(
+            "override the requirement-selected facility (sdl1 or fastcat), or proposal path "
+            "checked against installed authority"
+        ),
     )
 
     run_parser = commands.add_parser(
@@ -189,11 +207,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
+        if args.command in {"capabilities", "compose"} and not getattr(args, "schema", False):
+            if args.command == "compose" and args.facility is None:
+                args.facility = (
+                    requirement_facility(args.requirement)
+                    if args.requirement is not None and args.requirement.is_file()
+                    else DEFAULT_FACILITY
+                )
+            args.facility = facility_path(args.facility)
+            args.registry = registry_path(args.registry, args.facility)
         if args.command == "capabilities":
             from .composition import authority_hold_reasons, demote_untrusted_admissions
-            from .schema import load_capability_registry
+            from .schema import load_capability_registry, load_facility_manifest
 
-            installed_registry = load_capability_registry(DEFAULT_REGISTRY)
+            bundle = facility_bundle(load_facility_manifest(args.facility).facility.id)
+            installed_registry = load_capability_registry(bundle / "registry.yaml")
             proposed_registry = load_capability_registry(args.registry)
             registry, admission_reasons = demote_untrusted_admissions(
                 proposed_registry, installed_registry
@@ -210,7 +238,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             ]
             registry_role = (
                 "installed_authority"
-                if args.registry.resolve() == DEFAULT_REGISTRY.resolve()
+                if args.registry.resolve() == (bundle / "registry.yaml").resolve()
                 else "proposal"
             )
             registry_payload = registry.model_dump(mode="json", exclude_none=True)
@@ -240,9 +268,19 @@ def main(argv: Sequence[str] | None = None) -> int:
                     available = ", ".join(
                         sorted(item.operation_id for item in registry.capabilities)
                     )
+                    other_alias = "fastcat" if bundle == SDL1 else "sdl1"
+                    other_registry = load_capability_registry(
+                        ALIASES[other_alias] / "registry.yaml"
+                    )
+                    next_command = f"dynamical capabilities --facility {other_alias}"
+                    if any(
+                        item.operation_id == args.operation for item in other_registry.capabilities
+                    ):
+                        next_command += f" --operation {shlex.quote(args.operation)} --json"
                     raise ValueError(
                         f"unknown operation {args.operation!r}; available operations: {available}\n"
-                        "Example: dynamical capabilities --operation <operation-id> --json"
+                        "Installed facilities: sdl1, fastcat. Select the requirement's facility.\n"
+                        f"Next: {next_command}"
                     )
                 result = {
                     "schema_version": "dynamical.capability-detail.v1",
@@ -341,8 +379,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 # but every authority-bearing record they carry must be identical
                 # to the installed one; anything unknown or modified is a
                 # proposal and holds here.
-                installed_registry = load_capability_registry(DEFAULT_REGISTRY)
-                installed_facility = load_facility_manifest(DEFAULT_FACILITY)
+                bundle = facility_bundle(saved.sources.facility.facility.id)
+                installed_registry = load_capability_registry(bundle / "registry.yaml")
+                installed_facility = load_facility_manifest(bundle / "facility.yaml")
                 hold_reasons = authority_hold_reasons(
                     saved.sources.registry,
                     saved.sources.facility,
@@ -495,8 +534,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             # protected sources, which leaves no room in that result to also explain
             # *why* a provider was demoted -- so this CLI-only receipt field is the
             # one place PROVIDER_SELF_ADMITTED is legible to the agent.
-            installed_registry = load_capability_registry(DEFAULT_REGISTRY)
-            installed_facility = load_facility_manifest(DEFAULT_FACILITY)
+            supplied_facility = load_facility_manifest(args.facility)
+            bundle = facility_bundle(supplied_facility.facility.id)
+            installed_registry = load_capability_registry(bundle / "registry.yaml")
+            installed_facility = load_facility_manifest(bundle / "facility.yaml")
             supplied_registry = load_capability_registry(args.registry)
             # Modified or unknown authority-bearing records are proposals, not
             # authorities: they hold here with typed reasons before anything is
@@ -547,6 +588,31 @@ def main(argv: Sequence[str] | None = None) -> int:
                 installed_registry=installed_registry,
                 preflight_binding=preflight_binding,
             )
+            routing_hint = {}
+            if result.status == "HOLD":
+                alias = next(name for name, root in ALIASES.items() if root == bundle)
+                routing_hint = {
+                    "facility_id": installed_facility.facility.id,
+                    "installed_facilities": list(ALIASES),
+                    "next_command": f"dynamical capabilities --facility {alias}",
+                }
+                suggested = requirement_facility(args.requirement).parent
+                if suggested != bundle and args.registry == bundle / "registry.yaml":
+                    suggested_alias = next(
+                        name for name, root in ALIASES.items() if root == suggested
+                    )
+                    command = [
+                        "dynamical",
+                        "compose",
+                        str(args.requirement),
+                        "--facility",
+                        suggested_alias,
+                    ]
+                    if args.output is not None:
+                        command.extend(["-o", str(args.output)])
+                    if args.preflight is not None:
+                        command.extend(["--preflight", str(args.preflight)])
+                    routing_hint["next_command"] = shlex.join(command)
             untrusted_admissions = [
                 item.model_dump(mode="json", exclude_none=True) for item in self_admission_reasons
             ]
@@ -578,6 +644,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "claim_boundary": installed_facility.facility.claim_boundary,
                     "authority_anchor": "installed_bundle",
                 }
+                receipt.update(routing_hint)
                 if untrusted_admissions:
                     receipt["untrusted_admissions"] = untrusted_admissions
                 if result.sources is not None and result.sources.requirement.prospective_ref:
@@ -608,6 +675,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 payload["claim_boundary"] = installed_facility.facility.claim_boundary
                 payload["authority_anchor"] = "installed_bundle"
                 payload["validation_reasons"] = payload.pop("reasons", [])
+                payload.update(routing_hint)
                 if untrusted_admissions:
                     payload["untrusted_admissions"] = untrusted_admissions
                 _print_json(payload)

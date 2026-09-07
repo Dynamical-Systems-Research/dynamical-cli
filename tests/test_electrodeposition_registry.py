@@ -32,42 +32,14 @@ def _sample_input_binding(source_id: str = "campaign.sample-id") -> dict[str, ob
     }
 
 
-def _sample_step_output_binding(source_step_id: str) -> dict[str, object]:
-    """A step's ``sample.state`` input, bound to a prior transfer's produced sample state.
-
-    Only ``transfer-sample`` declares a ``sample.state.transferred`` output port (see the
-    registry's per-capability judgement on which operations produce vs. merely consume sample
-    state), so ``source_step_id`` must name a transfer step.
-    """
-
-    return {
-        "target_port_id": "sample.state",
-        "source_kind": "step_output",
-        "source_id": source_step_id,
-        "source_port_id": "sample.state.transferred",
-    }
-
-
 def _coverage_requirement(
     *,
-    to_squidstat_station: str = "squidstat-echem",
-    current_a: float = 0.002827,
+    current_a: float = -0.002827,
     chemical: str = "Ni",
 ) -> CampaignRequirement:
-    """A synthetic module-coverage campaign authored by this test harness.
+    """Exercise five SDL1 instruments on one stationary sample.
 
-    Ten steps exercise every admitted AC module at least once -- materialize
-    (transfer), dispense from a named stock, transfer, ultrasonic
-    conditioning, transfer, constant-current electrodeposition,
-    electrochemical-cell loading, OER measurement, transfer back, and
-    cleaning -- with arbitrary in-envelope parameters chosen here for
-    coverage, not as a recommended or optimal experiment.
-
-    ``to_squidstat_station`` names the workstation the pre-deposit transfer
-    reports as its destination; overriding it deliberately breaks the
-    sample's real path for the negative lineage test. ``chemical`` and
-    ``current_a`` let coupling tests vary the process whose result the
-    measurement must respond to.
+    Inputs follow source command points; physical material response remains unknown.
     """
 
     return CampaignRequirement.model_validate(
@@ -94,14 +66,6 @@ def _coverage_requirement(
                         "acceptance_rule": "overpotential_v is recorded",
                         "independent_verification_required": True,
                     },
-                    {
-                        "id": "custody-proof",
-                        "operation_id": "transfer-sample",
-                        "output_port_ids": ["sample.state.transferred"],
-                        "minimum_evidence_class": "simulator",
-                        "acceptance_rule": "sample identity is recorded after each transfer",
-                        "independent_verification_required": True,
-                    },
                 ],
             },
             "inputs": [
@@ -110,23 +74,10 @@ def _coverage_requirement(
                     "state_type": "sample_state",
                     "unit": "1",
                     "value": "sample-harness-01",
+                    "facility_id": "ot2-liquid-handling",
                 }
             ],
             "steps": [
-                {
-                    "step_id": "materialize",
-                    "operation_id": "transfer-sample",
-                    "minimum_evidence_class": "simulator",
-                    "parameters": [
-                        _parameter("to_station", "string", "1", "ot2-liquid-handling"),
-                        _parameter("sample_id", "string", "1", "sample-harness-01"),
-                        _parameter("quantity", "number", "1", 3.895),
-                        _parameter("unit", "string", "1", "mL"),
-                    ],
-                    "input_bindings": [_sample_input_binding()],
-                    "depends_on": [],
-                    "required_policy_tags": [],
-                },
                 {
                     "step_id": "dispense",
                     "operation_id": "dispense-electrolyte",
@@ -135,19 +86,8 @@ def _coverage_requirement(
                         _parameter("volume_ml", "number", "mL", 3.0),
                         _parameter("chemical", "string", "1", chemical),
                     ],
-                    "input_bindings": [_sample_step_output_binding("materialize")],
-                    "depends_on": ["materialize"],
-                    "required_policy_tags": [],
-                },
-                {
-                    "step_id": "to-arduino",
-                    "operation_id": "transfer-sample",
-                    "minimum_evidence_class": "simulator",
-                    "parameters": [
-                        _parameter("to_station", "string", "1", "arduino-conditioning"),
-                    ],
                     "input_bindings": [_sample_input_binding()],
-                    "depends_on": ["dispense"],
+                    "depends_on": [],
                     "required_policy_tags": [],
                 },
                 {
@@ -155,20 +95,11 @@ def _coverage_requirement(
                     "operation_id": "condition-ultrasonic",
                     "minimum_evidence_class": "simulator",
                     "parameters": [
-                        _parameter("duration_s", "number", "s", 60.0),
-                        _parameter("setpoint_percent", "number", "%", 80.0),
+                        _parameter("duration_s", "number", "s", 30.0),
+                        _parameter("temperature_setpoint_c", "number", "degC", 35.0),
                     ],
-                    "input_bindings": [_sample_step_output_binding("to-arduino")],
-                    "depends_on": ["to-arduino"],
-                    "required_policy_tags": [],
-                },
-                {
-                    "step_id": "to-squidstat",
-                    "operation_id": "transfer-sample",
-                    "minimum_evidence_class": "simulator",
-                    "parameters": [_parameter("to_station", "string", "1", to_squidstat_station)],
                     "input_bindings": [_sample_input_binding()],
-                    "depends_on": ["condition"],
+                    "depends_on": ["dispense"],
                     "required_policy_tags": [],
                 },
                 {
@@ -177,18 +108,20 @@ def _coverage_requirement(
                     "minimum_evidence_class": "simulator",
                     "parameters": [
                         _parameter("current_a", "number", "A", current_a),
-                        _parameter("duration_s", "number", "s", 600.0),
+                        _parameter("duration_s", "number", "s", 60.0),
+                        _parameter("temperature_setpoint_c", "number", "degC", 35.0),
                     ],
-                    "input_bindings": [_sample_step_output_binding("to-squidstat")],
-                    "depends_on": ["to-squidstat"],
+                    "input_bindings": [_sample_input_binding()],
+                    "depends_on": ["condition"],
                     "required_policy_tags": [],
                 },
                 {
-                    "step_id": "load-cell",
-                    "operation_id": "load-electrochemical-cell",
+                    "step_id": "clean",
+                    "operation_id": "clean-electrode",
                     "minimum_evidence_class": "simulator",
                     "parameters": [
-                        _parameter("cell_id", "string", "1", "echem-cell-main-body"),
+                        _parameter("use_acid", "boolean", "1", True),
+                        _parameter("acid_dwell_s", "number", "s", 0.1),
                     ],
                     "input_bindings": [_sample_input_binding()],
                     "depends_on": ["deposit"],
@@ -198,32 +131,9 @@ def _coverage_requirement(
                     "step_id": "measure",
                     "operation_id": "measure-oer",
                     "minimum_evidence_class": "simulator",
-                    "parameters": [_parameter("current_density_a_cm2", "number", "A/cm^2", 0.020)],
+                    "parameters": [_parameter("protocol_id", "string", "1", "sdl1-oer-2c5a911")],
                     "input_bindings": [_sample_input_binding()],
-                    "depends_on": ["load-cell"],
-                    "required_policy_tags": [],
-                },
-                {
-                    "step_id": "to-ot2",
-                    "operation_id": "transfer-sample",
-                    "minimum_evidence_class": "simulator",
-                    "parameters": [
-                        _parameter("to_station", "string", "1", "ot2-liquid-handling"),
-                    ],
-                    "input_bindings": [_sample_input_binding()],
-                    "depends_on": ["measure"],
-                    "required_policy_tags": [],
-                },
-                {
-                    "step_id": "clean",
-                    "operation_id": "clean-electrode",
-                    "minimum_evidence_class": "simulator",
-                    "parameters": [
-                        _parameter("rinse_volume_ml", "number", "mL", 6.0),
-                        _parameter("ultrasound_s", "number", "s", 30.0),
-                    ],
-                    "input_bindings": [_sample_step_output_binding("to-ot2")],
-                    "depends_on": ["to-ot2"],
+                    "depends_on": ["clean"],
                     "required_policy_tags": [],
                 },
             ],
@@ -235,11 +145,16 @@ def _coverage_requirement(
 
 def _terminal_transfer_requirement(destination: str) -> CampaignRequirement:
     requirement = _coverage_requirement()
-    transfer = requirement.steps[0]
-    parameters = [
-        item.model_copy(update={"value": destination}) if item.name == "to_station" else item
-        for item in transfer.parameters
-    ]
+    transfer = requirement.steps[0].model_copy(
+        update={
+            "step_id": "legacy-transfer",
+            "operation_id": "transfer-sample",
+            "parameters": [],
+        }
+    )
+    parameters = [_parameter("to_station", "string", "1", destination)]
+    # Validate the deliberately unsupported historical operation through the public schema.
+    transfer = type(transfer).model_validate({**transfer.model_dump(), "parameters": parameters})
     proof = requirement.objective.proof_requirements[0].model_copy(
         update={
             "operation_id": "transfer-sample",
@@ -250,116 +165,52 @@ def _terminal_transfer_requirement(destination: str) -> CampaignRequirement:
     return requirement.model_copy(
         update={
             "objective": requirement.objective.model_copy(update={"proof_requirements": [proof]}),
-            "steps": [transfer.model_copy(update={"parameters": parameters})],
+            "steps": [transfer],
         }
     )
 
 
-def test_terminal_transfer_selects_its_supported_destination() -> None:
+@pytest.mark.parametrize(
+    "destination", ["squidstat-echem", "arduino-conditioning", "unsupported-station"]
+)
+def test_legacy_transfer_holds_for_removed_sdl1_topology(destination: str) -> None:
     result = compose_virtual_sdl(
-        _terminal_transfer_requirement("squidstat-echem"),
-        load_capability_registry(REGISTRY),
+        _terminal_transfer_requirement(destination), load_capability_registry(REGISTRY)
     )
-
-    assert result.status == "COMPILED", result.reason_codes
-    assert result.virtual_sdl is not None
-    binding = result.virtual_sdl.operation_bindings[0]
-    assert binding.selected_facility_id == "squidstat-echem"
-    assert result.virtual_sdl.transport_bindings == []
-
-
-def test_terminal_transfer_holds_for_an_unsupported_destination() -> None:
-    result = compose_virtual_sdl(
-        _terminal_transfer_requirement("unsupported-station"),
-        load_capability_registry(REGISTRY),
-    )
-
     assert result.status == "HOLD"
     assert result.virtual_sdl is None
-    assert "TRANSPORT_UNAVAILABLE" in result.reason_codes
-    assert any(
-        reason.code == "TRANSPORT_UNAVAILABLE" and reason.provider_id == "ac-transfer-simulator"
-        for reason in result.reasons
-    )
+    assert "MISSING_CAPABILITY" in result.reason_codes
 
 
-def test_one_sample_moves_through_three_workstations_by_explicit_transfer():
-    """Sample lineage across explicit transfers: one sample crosses three workstations via
-    ``transfer-sample`` steps (not the implicit cross-facility transport gate, which stays
-    inactive for this single-facility manifest). ``transfer-sample`` has ``kind: transport``;
-    composition must admit it as an ordinary step, subject to the same provider, envelope,
-    policy, cost and duration checks as any other operation.
-
-    The campaign declares its one sample as a ``sample_state`` campaign input (schema.py's
-    existing mechanism -- no bespoke "create sample" operation) and threads it through the
-    port graph: every step that acts on the sample consumes ``sample.state``; only
-    ``transfer-sample`` (a custody change, not a physics reading) produces a new one. The two
-    transfers each feed the very next step from their own output
-    (``to-arduino`` -> ``condition``, ``to-squidstat`` -> ``deposit``), so
-    ``dataflow_edges`` in the compiled trace is non-empty and reflects the sample's real path,
-    not just ``depends_on`` order.
-    """
-
-    registry = load_capability_registry(REGISTRY)
-    requirement = _coverage_requirement()
-
-    result = compose_virtual_sdl(requirement, registry)
-
+def test_one_sample_stays_on_the_ot2_deck_across_instruments():
+    result = compose_virtual_sdl(_coverage_requirement(), load_capability_registry(REGISTRY))
     assert result.status == "COMPILED", result.reason_codes
     assert result.virtual_sdl is not None
-    transfer_steps = [
-        binding
-        for binding in result.virtual_sdl.operation_bindings
-        if binding.operation_id == "transfer-sample"
-    ]
-    assert [item.step_id for item in transfer_steps] == [
-        "materialize",
-        "to-arduino",
-        "to-squidstat",
-        "to-ot2",
-    ]
-    for binding in transfer_steps:
-        assert binding.provider_id == "ac-transfer-simulator"
-    # The implicit cross-facility gate never fires here: neither transfer step declares a
-    # campaign-input-sourced binding with a facility_id, so there is nothing for
-    # _topology_bindings to cross-check against a different selected facility.
     assert result.virtual_sdl.transport_bindings == []
-    # campaign.py's _dataflow_edges (what the trace calls dataflow_edges) is built from exactly
-    # these step_output-sourced ResolvedInputBinding entries -- not from depends_on. Assert the
-    # port-level wiring directly: the sample's real path is a step_output chain through the two
-    # transfers, not merely dependency order.
-    bindings_by_step = {b.step_id: b for b in result.virtual_sdl.operation_bindings}
-    condition_sample_input = next(
-        item
-        for item in bindings_by_step["condition"].inputs
-        if item.target_port_id == "sample.state"
-    )
-    assert condition_sample_input.source_kind == "step_output"
-    assert (condition_sample_input.source_id, condition_sample_input.source_port_id) == (
-        "to-arduino",
-        "sample.state.transferred",
-    )
-    deposit_sample_input = next(
-        item for item in bindings_by_step["deposit"].inputs if item.target_port_id == "sample.state"
-    )
-    assert deposit_sample_input.source_kind == "step_output"
-    assert (deposit_sample_input.source_id, deposit_sample_input.source_port_id) == (
-        "to-squidstat",
-        "sample.state.transferred",
-    )
+    assert [b.step_id for b in result.virtual_sdl.operation_bindings] == [
+        "dispense",
+        "condition",
+        "deposit",
+        "clean",
+        "measure",
+    ]
+    for binding in result.virtual_sdl.operation_bindings:
+        assert binding.selected_facility_id == "ot2-liquid-handling"
+        sample_input = next(
+            item for item in binding.inputs if item.target_port_id == "sample.state"
+        )
+        assert sample_input.source_kind == "campaign_input"
+        assert sample_input.source_id == "campaign.sample-id"
 
 
 def _run_coverage_campaign(
     tmp_path: Path,
     *,
-    to_squidstat_station: str = "squidstat-echem",
-    current_a: float = 0.002827,
+    current_a: float = -0.002827,
     chemical: str = "Ni",
 ):
     registry = load_capability_registry(REGISTRY)
-    requirement = _coverage_requirement(
-        to_squidstat_station=to_squidstat_station, current_a=current_a, chemical=chemical
-    )
+    requirement = _coverage_requirement(current_a=current_a, chemical=chemical)
     composition = compose_virtual_sdl(requirement, registry)
     assert composition.status == "COMPILED", composition.reason_codes
 
@@ -373,38 +224,75 @@ def _run_coverage_campaign(
         if event.observation is None:
             continue
         for channel in event.observation.channels:
-            for name in ("deposited_mass_g", "overpotential_v"):
-                if channel.name.endswith(name) and channel.value is not None:
-                    summary[name] = float(channel.value)
+            for name in (
+                "deposited_mass_g",
+                "overpotential_v",
+                "volume_applied_ml",
+                "instrument.temperature_observed_c",
+                "instrument.residual_volume_ml",
+                "commanded_charge_c",
+                "potential_at_10ma_cm2_v",
+                "corrected_potential_at_10ma_cm2_v",
+                "ohmic_resistance_ohm",
+            ):
+                if channel.name == name:
+                    summary[name] = channel.value
     return summary
 
 
-def test_coverage_campaign_compiles_and_runs_with_zero_lineage_findings(tmp_path: Path):
-    """Lineage continuity end to end (positive direction): compose -> compile -> run ->
-    validate a multi-instrument coverage campaign. One sample honestly threads through three
-    workstations (dispense at ot2-liquid-handling, condition at arduino-conditioning,
-    deposit/measure at squidstat-echem) via instrument endpoints whose own ids
-    (``ac-opentron-model``, ``ac-oer-model``, ...) never equal any workstation id. A run
-    this honest must not be flagged for its own honesty: zero SAMPLE_* reasons, a clean
-    execution_status, and the full 14-event trace (start + 6 x (action, observation) + end).
-    """
+def test_coverage_campaign_fails_closed_on_unknown_physical_response(tmp_path: Path):
+    """Source commands do not manufacture the physical observations required by proof."""
 
     result = _run_coverage_campaign(tmp_path)
 
-    assert result["execution_status"] == "passed"
-    assert result["valid"] is True
-    assert result["event_count"] == 22
-    assert result["validation_reasons"] == []
+    assert result["execution_status"] == "failed"
+    assert result["valid"] is False
+    assert result["event_count"] == 12
+    assert any(
+        reason["code"] == "PROOF_OUTPUT_UNAVAILABLE" for reason in result["validation_reasons"]
+    )
+    for name in (
+        "deposited_mass_g",
+        "overpotential_v",
+        "volume_applied_ml",
+        "instrument.temperature_observed_c",
+        "instrument.residual_volume_ml",
+        "potential_at_10ma_cm2_v",
+        "corrected_potential_at_10ma_cm2_v",
+        "ohmic_resistance_ohm",
+    ):
+        assert result[name] is None
+    assert result["commanded_charge_c"] == pytest.approx(-0.002827 * 60)
+    from dynamical.campaign import read_trace
+    from dynamical.samples import check_invariants
 
-
-def test_coverage_campaign_retargeted_transfer_holds_before_run():
-    """A transfer to the wrong supported station must stop during composition."""
-
-    result = compose_virtual_sdl(
-        _coverage_requirement(to_squidstat_station="arduino-conditioning"),
-        load_capability_registry(REGISTRY),
+    events = read_trace(tmp_path / "trace.ndjson")
+    assert check_invariants(events) == []
+    measurement = next(
+        event.observation
+        for event in events
+        if event.observation and event.observation.provider_id == "ac-sdl1-oer-protocol"
+    )
+    assert (
+        next(
+            channel.value
+            for channel in measurement.channels
+            if channel.name == "current_density_a_cm2"
+        )
+        == 0.01
     )
 
+
+def test_sample_declared_at_removed_station_holds_before_run():
+    requirement = _coverage_requirement()
+    requirement = requirement.model_copy(
+        update={
+            "inputs": [
+                requirement.inputs[0].model_copy(update={"facility_id": "arduino-conditioning"})
+            ]
+        }
+    )
+    result = compose_virtual_sdl(requirement, load_capability_registry(REGISTRY))
     assert result.status == "HOLD"
     assert "TRANSPORT_REQUIRED" in result.reason_codes
 
@@ -421,14 +309,14 @@ def test_tampered_instrument_module_fails_closed_on_declared_hash(
     output as if the declared hash still bound it.
     """
 
-    import dynamical.instruments.ac_oer as ac_oer
+    import dynamical.instruments.ac_sdl1_oer as protocol_model
 
-    tampered = tmp_path / "ac_oer_tampered.py"
+    tampered = tmp_path / "ac_sdl1_oer_tampered.py"
     tampered.write_text(
-        Path(ac_oer.__file__).read_text(encoding="utf-8") + "\n# tampered\n",
+        Path(protocol_model.__file__).read_text(encoding="utf-8") + "\n# tampered\n",
         encoding="utf-8",
     )
-    monkeypatch.setattr(ac_oer, "__file__", str(tampered))
+    monkeypatch.setattr(protocol_model, "__file__", str(tampered))
 
     result = _run_coverage_campaign(tmp_path)
 
@@ -441,7 +329,7 @@ def test_tampered_instrument_module_fails_closed_on_declared_hash(
 
 def test_repeated_action_kinds_each_get_their_own_provider_binding(tmp_path: Path):
     """Provider bindings are keyed by action_id, not action kind. The coverage
-    campaign has four ``transfer-sample`` steps (kind ``transfer``); each must
+    campaign repeats ``dispense-electrolyte``; each dispense must
     have its own compiled binding, and every action must validate against its
     own binding -- not against whichever same-kind step compiled last."""
 
@@ -449,7 +337,22 @@ def test_repeated_action_kinds_each_get_their_own_provider_binding(tmp_path: Pat
     import json as json_module
 
     registry = load_capability_registry(REGISTRY)
-    composition = compose_virtual_sdl(_coverage_requirement(), registry)
+    requirement = _coverage_requirement()
+    second_dispense = requirement.steps[0].model_copy(
+        update={"step_id": "dispense-again", "depends_on": ["dispense-first"]}
+    )
+    condition = requirement.steps[1].model_copy(update={"depends_on": ["dispense-again"]})
+    requirement = requirement.model_copy(
+        update={
+            "steps": [
+                requirement.steps[0].model_copy(update={"step_id": "dispense-first"}),
+                second_dispense,
+                condition,
+                *requirement.steps[2:],
+            ]
+        }
+    )
+    composition = compose_virtual_sdl(requirement, registry)
     assert composition.status == "COMPILED", composition.reason_codes
     compiled = compile_facility(
         MANIFEST, "isaac", tmp_path / "isaac", composition_result=composition
@@ -458,13 +361,14 @@ def test_repeated_action_kinds_each_get_their_own_provider_binding(tmp_path: Pat
     campaign = json_module.loads((compiled / "runtime_campaign.json").read_text(encoding="utf-8"))
     bindings = campaign["provider_bindings"]
     action_ids = [a["action_id"] for a in campaign["actions"]]
-    transfer_ids = [a["action_id"] for a in campaign["actions"] if a["kind"] == "transfer"]
+    repeated_kind = campaign["actions"][0]["kind"]
+    dispense_ids = [a["action_id"] for a in campaign["actions"] if a["kind"] == repeated_kind]
 
     # One binding per action, not one collapsed entry per kind.
-    assert len(transfer_ids) >= 4, transfer_ids
+    assert dispense_ids == ["dispense-first", "dispense-again"]
     assert set(bindings) == set(action_ids)
-    assert all(tid in bindings for tid in transfer_ids)
-    assert "transfer" not in bindings  # the old kind-keyed collapse is gone
+    assert all(step_id in bindings for step_id in dispense_ids)
+    assert repeated_kind not in bindings  # the old kind-keyed collapse is gone
 
     # Every action validates against the verified pack via its own binding.
     spec = importlib.util.spec_from_file_location(
@@ -492,16 +396,18 @@ def test_cross_surface_identity_binds_one_composition_everywhere(tmp_path: Path)
 
     import json as json_module
 
+    from test_runtime_pack import FASTCAT_LAB, _model_backed_requirement
+
     from dynamical.replay import replay_trace
 
-    registry = load_capability_registry(REGISTRY)
-    composition = compose_virtual_sdl(_coverage_requirement(), registry)
+    registry = load_capability_registry(FASTCAT_LAB / "registry.yaml")
+    composition = compose_virtual_sdl(_model_backed_requirement(), registry)
     assert composition.status == "COMPILED", composition.reason_codes
     expected = composition.composition_sha256
 
     packs = {
         target: compile_facility(
-            MANIFEST, target, tmp_path / target, composition_result=composition
+            FASTCAT_LAB / "facility.yaml", target, tmp_path / target, composition_result=composition
         ).output_dir
         for target in ("openusd", "isaac")
     }
@@ -536,11 +442,16 @@ def test_tampered_sample_state_digest_fails_validation(tmp_path: Path):
 
     import json as json_module
 
-    registry = load_capability_registry(REGISTRY)
-    composition = compose_virtual_sdl(_coverage_requirement(), registry)
+    from test_runtime_pack import FASTCAT_LAB, _model_backed_requirement
+
+    registry = load_capability_registry(FASTCAT_LAB / "registry.yaml")
+    composition = compose_virtual_sdl(_model_backed_requirement(), registry)
     assert composition.status == "COMPILED", composition.reason_codes
     compiled = compile_facility(
-        MANIFEST, "openusd", tmp_path / "compiled", composition_result=composition
+        FASTCAT_LAB / "facility.yaml",
+        "openusd",
+        tmp_path / "compiled",
+        composition_result=composition,
     ).output_dir
     contract = load_compiled_campaign_contract(compiled)
     trace_path = tmp_path / "trace.ndjson"
@@ -571,21 +482,113 @@ def test_tampered_sample_state_digest_fails_validation(tmp_path: Path):
     )
 
 
-def test_deposition_condition_changes_the_measured_activity(tmp_path: Path):
-    """The measurement must be evidence about the film this campaign deposited.
+@pytest.mark.parametrize("current_a", [0.002827, -0.001, 0.0])
+def test_non_source_deposition_current_holds_during_composition(current_a):
+    result = compose_virtual_sdl(
+        _coverage_requirement(current_a=current_a), load_capability_registry(REGISTRY)
+    )
+    assert result.status == "HOLD"
+    assert any(
+        reason.code == "VALUE_OUT_OF_RANGE"
+        and reason.step_id == "deposit"
+        and reason.provider_id == "ac-squidstat-simulator"
+        for reason in result.reasons
+    )
 
-    Two coupled checks: changing the deposition current changes the deposited
-    mass the trace reports, and changing the dispensed precursor chemistry
-    changes the measured overpotential -- the measurement is a function of the
-    sample the campaign made, not of its own requested parameters. A campaign
-    whose measurement cannot see its own process is ordered choreography, not
-    a coupled multi-instrument SDL.
-    """
-    nickel = _run_coverage_campaign(tmp_path, current_a=0.002827, chemical="Ni")
-    low_current = _run_coverage_campaign(tmp_path / "low", current_a=0.001000, chemical="Ni")
-    iron = _run_coverage_campaign(tmp_path / "iron", chemical="Fe")
 
-    assert nickel["deposited_mass_g"] > low_current["deposited_mass_g"] * 2
-    # The fitted response orders these two chemistries distinctly.
-    assert iron["overpotential_v"] != nickel["overpotential_v"]
-    assert iron["overpotential_v"] < nickel["overpotential_v"]
+def test_well_cleaning_preserves_deposition_commands_and_existing_film():
+    from dynamical.instruments import InstrumentRequest
+    from dynamical.instruments.ac_cleaning import clean_electrode
+    from dynamical.samples import Sample
+
+    sample = Sample(
+        id="well-1",
+        station_id="ot2-liquid-handling",
+        custody_state="held",
+        quantity=0,
+        unit="1",
+        created_by_step_id="recorded-measurement",
+        state={
+            "deposited_mass_g": 0.002,
+            "deposition_commanded_current_a": -0.002827,
+            "deposition_precursor_commanded.Ni_ml": 0.5,
+            "electrolyte_commanded.Ni_ml": 0.5,
+        },
+    )
+    result = clean_electrode(
+        InstrumentRequest(
+            parameters={"use_acid": True, "acid_dwell_s": 0.1}, inputs={}, sample=sample
+        )
+    )
+    assert result.reasons == []
+    assert result.sample is not None
+    assert result.sample.state == {
+        key: value
+        for key, value in sample.state.items()
+        if not key.startswith("electrolyte_commanded.")
+    }
+    assert result.outputs["instrument.residual_volume_ml"] is None
+    assert result.outputs["instrument.acid_commanded_ml"] == 0.5
+
+
+def _measurement_only_requirement(
+    *, operation_id="measure-oer", parameters=None, evidence="simulator"
+):
+    document = _coverage_requirement().model_dump(mode="json")
+    step = document["steps"][-1]
+    step["operation_id"] = operation_id
+    step["depends_on"] = []
+    step["minimum_evidence_class"] = evidence
+    if parameters is not None:
+        step["parameters"] = parameters
+    document["steps"] = [step]
+    document["objective"]["proof_requirements"][0]["operation_id"] = operation_id
+    document["objective"]["proof_requirements"][0]["minimum_evidence_class"] = evidence
+    return CampaignRequirement.model_validate(document)
+
+
+def test_sdl1_measurement_admits_only_the_fixed_source_protocol():
+    result = compose_virtual_sdl(
+        _measurement_only_requirement(), load_capability_registry(REGISTRY)
+    )
+    assert result.status == "COMPILED", result.reason_codes
+    assert result.virtual_sdl is not None
+    binding = result.virtual_sdl.operation_bindings[0]
+    assert binding.operation_id == "measure-oer"
+    assert binding.provider_id == "ac-sdl1-oer-protocol"
+    assert [(item.name, item.value) for item in binding.parameters] == [
+        ("protocol_id", "sdl1-oer-2c5a911")
+    ]
+
+
+@pytest.mark.parametrize("current", [0.01, 0.02, 0.2])
+def test_current_only_measurement_does_not_bypass_the_sdl1_protocol(current):
+    requirement = _measurement_only_requirement(
+        parameters=[_parameter("current_density_a_cm2", "number", "A/cm^2", current)]
+    )
+    result = compose_virtual_sdl(requirement, load_capability_registry(REGISTRY))
+    assert result.status == "HOLD"
+    assert result.virtual_sdl is None
+    assert {
+        reason.code for reason in result.reasons if reason.provider_id == "ac-sdl1-oer-protocol"
+    } == {"MISSING_PARAMETER", "UNKNOWN_PARAMETER"}
+
+
+@pytest.mark.parametrize("current", [0.01, 0.02, 0.05, 0.2])
+def test_unsupported_estimator_is_not_an_admitted_sdl1_operation(current):
+    requirement = _measurement_only_requirement(
+        operation_id="estimate-oer",
+        parameters=[_parameter("current_density_a_cm2", "number", "A/cm^2", current)],
+    )
+    result = compose_virtual_sdl(requirement, load_capability_registry(REGISTRY))
+    assert result.status == "HOLD"
+    assert "MISSING_CAPABILITY" in result.reason_codes
+
+
+def test_physical_sdl1_protocol_remains_unadmitted():
+    result = compose_virtual_sdl(
+        _measurement_only_requirement(evidence="physical"), load_capability_registry(REGISTRY)
+    )
+    assert result.status == "HOLD"
+    assert result.virtual_sdl is None
+    assert "PROVIDER_NOT_ADMITTED" in result.reason_codes

@@ -20,7 +20,7 @@ from dynamical.campaign import (
     stable_hash,
     validate_path,
 )
-from dynamical.cli import DEFAULT_FACILITY, DEFAULT_REGISTRY, main
+from dynamical.cli import main
 from dynamical.compiler import compile_facility
 from dynamical.composition import compose_files
 from dynamical.replay import replay_trace
@@ -28,6 +28,9 @@ from dynamical.restore import _prepare_restore
 from dynamical.schema import load_facility_manifest
 
 REPOSITORY = Path(__file__).resolve().parents[1]
+FASTCAT_LAB = REPOSITORY / "dynamical" / "bundle" / "fastcat"
+DEFAULT_FACILITY = FASTCAT_LAB / "facility.yaml"
+DEFAULT_REGISTRY = FASTCAT_LAB / "registry.yaml"
 
 
 @dataclass(frozen=True)
@@ -56,31 +59,61 @@ def _write_trace(path: Path, events: list[dict[str, object]]) -> None:
     path.write_text("".join(canonical_json(event) + "\n" for event in events), encoding="utf-8")
 
 
+def _bath_step(*, synthesis_time_s: float = 600.0) -> dict[str, object]:
+    return {
+        "step_id": "deposit-film",
+        "operation_id": "deposit-chemical-bath",
+        "minimum_evidence_class": "simulator",
+        "parameters": [
+            {"name": f"fraction_{element}", "value_type": "number", "unit": "1", "value": fraction}
+            for element, fraction in zip(
+                ("cr", "al", "fe", "co", "mn", "ni", "cu", "zn"),
+                (0.25, 0.0, 0.25, 0.05, 0.0, 0.45, 0.0, 0.0),
+                strict=True,
+            )
+        ]
+        + [
+            {
+                "name": "synthesis_time_s",
+                "value_type": "number",
+                "unit": "s",
+                "value": synthesis_time_s,
+            }
+        ],
+        "input_bindings": [
+            {
+                "target_port_id": "sample.state",
+                "source_kind": "campaign_input",
+                "source_id": "sample.state",
+            }
+        ],
+        "depends_on": [],
+        "required_policy_tags": ["simulation-only", "process-state-only"],
+    }
+
+
+def _parent_requirement() -> dict[str, object]:
+    # Explicit FastCat fixture: the public mixed-platform example migrates in PR 5.
+    value = _child_requirement("fastcat-restore-parent")
+    value["steps"][0]["depends_on"] = ["deposit-film"]
+    value["steps"].insert(0, _bath_step())
+    value["max_duration_s"] = 3600.0
+    return value
+
+
 def _child_requirement(name: str, *, counterfactual: bool = False) -> dict[str, object]:
     if counterfactual:
         operation_id, output_port, evidence_class = (
-            "load-electrochemical-cell",
-            "instrument.cell_seated",
+            "deposit-chemical-bath",
+            "bath_synthesis_time_s",
             "simulator",
         )
-        step = {
-            "step_id": "reload-cell",
-            "operation_id": operation_id,
-            "minimum_evidence_class": evidence_class,
-            "parameters": [
-                {"name": "cell_id", "value_type": "string", "unit": "1", "value": "cell-1"},
-                {"name": "seated", "value_type": "boolean", "unit": "1", "value": False},
-            ],
-            "input_bindings": [
-                {
-                    "target_port_id": "sample.state",
-                    "source_kind": "campaign_input",
-                    "source_id": "sample.state",
-                }
-            ],
-            "depends_on": [],
-            "required_policy_tags": ["simulation-only"],
-        }
+        step = _bath_step(synthesis_time_s=300.0)
+        step["step_id"] = "redeposit-film"
+        # A changed nominal composition must produce a distinct restored sample state.
+        for parameter in step["parameters"]:
+            if parameter["name"].startswith("fraction_"):
+                parameter["value"] = 1.0 if parameter["name"] == "fraction_ni" else 0.0
     else:
         operation_id, output_port, evidence_class = (
             "measure-oer",
@@ -134,12 +167,12 @@ def _child_requirement(name: str, *, counterfactual: bool = False) -> dict[str, 
                 "state_type": "sample_state",
                 "unit": "1",
                 "value": "fastcat-reference-01",
-                "facility_id": "squidstat-echem",
+                "facility_id": "fastcat-process",
             }
         ],
         "steps": [step],
         "max_cost_usd": 0.0,
-        "max_duration_s": 300.0,
+        "max_duration_s": 3600.0,
     }
 
 
@@ -148,7 +181,10 @@ def _compile_requirement(root: Path, name: str, value: dict[str, object]) -> tup
     composition = root / f"{name}.json"
     world = root / f"{name}-world"
     requirement.write_text(yaml.safe_dump(value, sort_keys=False), encoding="utf-8")
-    assert _invoke(["compose", str(requirement), "-o", str(composition)])[0] == 0
+    assert (
+        _invoke(["compose", str(requirement), "--facility", "fastcat", "-o", str(composition)])[0]
+        == 0
+    )
     assert _invoke(["compile", str(composition), "-o", str(world)])[0] == 0
     return requirement, world
 
@@ -156,11 +192,7 @@ def _compile_requirement(root: Path, name: str, value: dict[str, object]) -> tup
 @pytest.fixture(scope="module")
 def restore_lab(tmp_path_factory: pytest.TempPathFactory) -> RestoreLab:
     root = tmp_path_factory.mktemp("restore-lab")
-    parent_composition = root / "parent.json"
-    parent_world = root / "parent-world"
-    parent_requirement = REPOSITORY / "examples" / "fastcat-oer" / "requirement.yaml"
-    assert _invoke(["compose", str(parent_requirement), "-o", str(parent_composition)])[0] == 0
-    assert _invoke(["compile", str(parent_composition), "-o", str(parent_world)])[0] == 0
+    _, parent_world = _compile_requirement(root, "parent", _parent_requirement())
 
     control_requirement, control_world = _compile_requirement(
         root, "control", _child_requirement("control")
@@ -188,7 +220,7 @@ def restore_lab(tmp_path_factory: pytest.TempPathFactory) -> RestoreLab:
     at_event_id = next(
         event["event_id"]
         for event in parent_events
-        if (event.get("observation") or {}).get("frame_id") == "frame-after-load-cell"
+        if (event.get("observation") or {}).get("frame_id") == "frame-after-deposit-film"
     )
     return RestoreLab(
         parent_trace,
@@ -230,17 +262,20 @@ def _observation(events: list[dict[str, object]], frame_id: str) -> dict[str, ob
 
 
 def test_non_restore_simulate_and_replay_bytes_are_stable(tmp_path: Path) -> None:
+    # PR 3 changes this fixture's deposition contract: cathodic commands,
+    # explicit temperature, and unknown physical film outputs. PR 4 also records
+    # the admitted duration/temperature enums in the envelope receipt.
     simulated = tmp_path / "simulate.ndjson"
     replayed = tmp_path / "replay.ndjson"
     run_composed_campaign(_transfer_contract(), simulated, seed=5)
     replay_trace(simulated, replayed)
     assert (len(simulated.read_bytes()), _sha256(simulated)) == (
-        23_456,
-        "9233e23c8439ad675d914bf1018ad51de961e538d984833b7f12f199d44b7847",
+        23_685,
+        "bfc79b35ce5805f9a3af4162fddf272adab6832d1f988c411c95fd95ea84d783",
     )
     assert (len(replayed.read_bytes()), _sha256(replayed)) == (
-        24_278,
-        "47005005a11a9473b4ac5826d6b0a59af063509797240fb87bf894adece64462",
+        24_507,
+        "01a6603a4d29c3cfb558c0079762310b13867b206c9bc68bfebefdeeacb6695c",
     )
 
 
@@ -271,13 +306,13 @@ def test_restore_continuation_counterfactual_and_rejects_restored_source(
     code, stdout, _ = _invoke(_restore_args(restore_lab, restore_lab.counter_world, counter_trace))
     assert code == 0 and json.loads(stdout)["reused"] is False
     counter_events = [json.loads(line) for line in counter_trace.read_text().splitlines()]
-    counter_observation = _observation(counter_events, "frame-after-reload-cell")
-    seated_channel = next(
+    counter_observation = _observation(counter_events, "frame-after-redeposit-film")
+    duration_channel = next(
         channel
         for channel in counter_observation["observation"]["channels"]
-        if channel["name"] == "instrument.cell_seated"
+        if channel["name"] == "bath_synthesis_time_s"
     )
-    assert seated_channel["value"] is False
+    assert duration_channel["value"] == 300.0
     assert (
         counter_observation["provenance"]["sample_state_sha256"]
         != child_measurement["provenance"]["sample_state_sha256"]
@@ -621,11 +656,11 @@ def test_source_mutations_fail_before_output(
 def test_current_model_mismatch_breaks_exact_prefix_reproduction(
     restore_lab: RestoreLab, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from dynamical.instruments import ac_echem_cell
+    from dynamical.instruments import ac_bath
 
     changed_model = tmp_path / "changed_model.py"
     changed_model.write_text("# changed implementation\n", encoding="utf-8")
-    monkeypatch.setattr(ac_echem_cell, "__file__", str(changed_model))
+    monkeypatch.setattr(ac_bath, "__file__", str(changed_model))
     output = tmp_path / "must-not-exist.ndjson"
     code, _, stderr = _invoke(_restore_args(restore_lab, restore_lab.control_world, output))
     assert code == 2 and "source prefix differs" in stderr

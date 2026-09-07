@@ -3,13 +3,13 @@ schema_version: 0.1.0
 requirement_id: ultrasonic-conditioning-quickstart
 objective:
   id: check-conditioned-sample
-  statement: Transfer one sample and run one bounded ultrasonic conditioning program.
+  statement: Record temperature and timed-ultrasound commands for one sample in the SDL1 well.
   decision: Confirm that the simulator ran the declared steps and kept their source records.
   proof_requirements:
     - id: conditioning-proof
       operation_id: condition-ultrasonic
       output_port_ids:
-        - instrument.conditioning_duration_s
+        - instrument.ultrasound_commanded_s
       minimum_evidence_class: simulator
       acceptance_rule: The simulator trace and replay pass.
       independent_verification_required: true
@@ -18,28 +18,8 @@ inputs:
     state_type: sample_state
     unit: "1"
     value: sample-quickstart-01
-    facility_id: arduino-conditioning
+    facility_id: ot2-liquid-handling
 steps:
-  - step_id: transfer
-    operation_id: transfer-sample
-    minimum_evidence_class: simulator
-    parameters:
-      - name: to_station
-        value_type: string
-        unit: "1"
-        value: arduino-conditioning
-      - name: sample_id
-        value_type: string
-        unit: "1"
-        value: sample-quickstart-01
-    input_bindings:
-      - target_port_id: sample.state
-        source_kind: campaign_input
-        source_id: campaign.sample-id
-    depends_on: []
-    required_policy_tags:
-      - simulation-only
-      - custody-bookkeeping-only
   - step_id: condition
     operation_id: condition-ultrasonic
     minimum_evidence_class: simulator
@@ -47,18 +27,16 @@ steps:
       - name: duration_s
         value_type: number
         unit: s
-        value: 60.0
-      - name: setpoint_percent
+        value: 30.0
+      - name: temperature_setpoint_c
         value_type: number
-        unit: "%"
-        value: 80.0
+        unit: degC
+        value: 35.0
     input_bindings:
       - target_port_id: sample.state
-        source_kind: step_output
-        source_id: transfer
-        source_port_id: sample.state.transferred
-    depends_on:
-      - transfer
+        source_kind: campaign_input
+        source_id: campaign.sample-id
+    depends_on: []
     required_policy_tags:
       - simulation-only
 max_cost_usd: 0.0

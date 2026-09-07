@@ -27,19 +27,35 @@ Changes made by Dynamical: upstream STEP sources were tessellated to USD meshes 
 recorded tolerance for execution visualization and collision (not metrology);
 file names were normalized. No semantic changes to the geometry.
 
-## Electrochemical cell geometry
+## Opentrons OT-2
 
-The electrochemical cell body, cap, and foil base are redistributed as derived
-USD meshes:
+The Opentrons OT-2 body and tiprack have no admitted source geometry: the
+`Opentrons/ot2` repository at commit
+`ef9ede131ed1d64daf9a0df5b2140a0a8e56b632` carries no license (verified: no
+LICENSE file, no license or copyright string in its tree, GitHub license API
+returns 404).
+Dynamical redistributes no Opentrons-derived geometry; the OT-2 body and
+tiprack appear in compiled stages only as machine-labelled
+`execution_visualization_primitive` proxies.
 
-- Copyright (c) 2025 Sterling G. Baird
-- Source: repository commit `9b063f80a1166475b3249709f4fd3afdb3dadb5d`
-- License: MIT License
+## FastCat physical dataset
+
+The frozen FastCat OER prediction table and calibration evidence derive from
+*Multimetallic OER Catalyst Discovery Dataset from Autonomous Robotic Synthesis
+and Electrochemical Characterization*, version 1 (2025-06-27), by Nis
+Fisker-Bødker, Jin Hyun Chang, Enzo Raffaele Moretti, and Tejs Vegge.
+DOI [10.11583/DTU.28494185.v1](https://doi.org/10.11583/DTU.28494185.v1).
+
+Copyright (c) Technical University of Denmark, 2025. The DTU dataset record
+identifies the license as MIT; its README and plotting scripts carry the DTU
+copyright notice. This is a different platform from AC SDL1. Dynamical authored
+the fitted predictor and frozen prediction table; neither is AC model code.
+The raw dataset is not redistributed.
 
 ```
 MIT License
 
-Copyright (c) 2025 Sterling G. Baird
+Copyright (c) Technical University of Denmark, 2025
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -59,30 +75,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
-
-## Opentrons OT-2
-
-The Opentrons OT-2 body and tiprack have no admitted source geometry: the
-`Opentrons/ot2` repository at commit
-`ef9ede131ed1d64daf9a0df5b2140a0a8e56b632` carries no license (verified: no
-LICENSE file, no license or copyright string in its tree, GitHub license API
-returns 404).
-Dynamical redistributes no Opentrons-derived geometry; the OT-2 body and
-tiprack appear in compiled stages only as machine-labelled
-`execution_visualization_primitive` proxies.
-
-## AMPERE-2 physical dataset
-
-Calibration evidence in this repository is derived from physical
-chronopotentiometry measurements in:
-
-Nis Fisker-Bødker, *Dataset for Democratizing self-driving lab platform for
-electrodeposition of catalyst and electrochemical validation*, 2025.
-DOI [10.11583/DTU.27446925](https://doi.org/10.11583/DTU.27446925).
-License: MIT.
-
-The raw dataset (1.5 GB) is not redistributed here; the calibration evidence
-records its source URL, retrieval hashes, and extraction procedure.
 
 ## Non-endorsement
 

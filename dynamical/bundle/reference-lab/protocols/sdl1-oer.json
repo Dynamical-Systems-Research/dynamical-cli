@@ -1,0 +1,374 @@
+{
+  "protocol_id": "sdl1-oer-2c5a911",
+  "source_revision": "2c5a911",
+  "source_ref": "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L248-L539",
+  "claim_boundary": "Upstream commanded protocol and analysis description only; no simulated or measured electrochemical responses are supplied.",
+  "electrode_area": {
+    "value": 0.2827,
+    "unit": "cm^2",
+    "source_ref": "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/src/openTron_electrodeposition/parameters.py#L4"
+  },
+  "stages": [
+    {
+      "stage": 0,
+      "technique": "chronopotentiometry",
+      "parameters": {
+        "current_density_a_cm2": 0.2,
+        "current_a": 0.05654,
+        "duration_s": 60,
+        "sampling_interval_s": 0.05
+      },
+      "ir_corrected": false,
+      "source_ref": "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L249-L260",
+      "response": null
+    },
+    {
+      "stage": 1,
+      "technique": "cyclic_voltammetry",
+      "parameters": {
+        "start_voltage_v": 0.8,
+        "first_voltage_limit_v": 2.3,
+        "second_voltage_limit_v": 0.8,
+        "end_voltage_v": 0.8,
+        "scan_rate_v_s": 0.2,
+        "sampling_interval_s": 0.05,
+        "cycles": 25
+      },
+      "ir_corrected": false,
+      "source_ref": "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L262-L278",
+      "response": null
+    },
+    {
+      "stage": 2,
+      "technique": "cyclic_voltammetry",
+      "parameters": {
+        "start_voltage_v": 0.8,
+        "first_voltage_limit_v": 2.3,
+        "second_voltage_limit_v": 0.8,
+        "end_voltage_v": 0.8,
+        "scan_rate_v_s": 0.01,
+        "sampling_interval_s": 0.2,
+        "cycles": 2
+      },
+      "ir_corrected": false,
+      "source_ref": "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L280-L296",
+      "response": null
+    },
+    {
+      "stage": 3,
+      "technique": "potentiostatic_impedance",
+      "parameters": {
+        "start_frequency_hz": 500000,
+        "end_frequency_hz": 1,
+        "points_per_decade": 10,
+        "voltage_bias_v": 1.5,
+        "voltage_amplitude_v": 0.01,
+        "number_of_runs": 0
+      },
+      "ir_corrected": false,
+      "source_ref": "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L298-L324",
+      "response": null
+    },
+    {
+      "stage": 4,
+      "technique": "chronopotentiometry",
+      "parameters": {
+        "current_density_a_cm2": 0.1,
+        "current_a": 0.02827,
+        "duration_s": 70,
+        "sampling_interval_s": 0.05
+      },
+      "ir_corrected": true,
+      "source_ref": "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L327-L347",
+      "response": null
+    },
+    {
+      "stage": 5,
+      "technique": "chronopotentiometry",
+      "parameters": {
+        "current_density_a_cm2": 0.05,
+        "current_a": 0.014135,
+        "duration_s": 70,
+        "sampling_interval_s": 0.05
+      },
+      "ir_corrected": true,
+      "source_ref": "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L349-L369",
+      "response": null
+    },
+    {
+      "stage": 6,
+      "technique": "chronopotentiometry",
+      "parameters": {
+        "current_density_a_cm2": 0.02,
+        "current_a": 0.005654,
+        "duration_s": 70,
+        "sampling_interval_s": 0.05
+      },
+      "ir_corrected": true,
+      "source_ref": "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L371-L391",
+      "response": null
+    },
+    {
+      "stage": 7,
+      "technique": "chronopotentiometry",
+      "parameters": {
+        "current_density_a_cm2": 0.01,
+        "current_a": 0.002827,
+        "duration_s": 70,
+        "sampling_interval_s": 0.05
+      },
+      "ir_corrected": true,
+      "source_ref": "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L393-L424",
+      "response": null
+    },
+    {
+      "stage": 8,
+      "technique": "chronopotentiometry",
+      "parameters": {
+        "current_density_a_cm2": 0.005,
+        "current_a": 0.0014135,
+        "duration_s": 70,
+        "sampling_interval_s": 0.05
+      },
+      "ir_corrected": true,
+      "source_ref": "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L426-L447",
+      "response": null
+    },
+    {
+      "stage": 9,
+      "technique": "chronopotentiometry",
+      "parameters": {
+        "current_density_a_cm2": 0.002,
+        "current_a": 0.0005654,
+        "duration_s": 70,
+        "sampling_interval_s": 0.05
+      },
+      "ir_corrected": true,
+      "source_ref": "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L449-L469",
+      "response": null
+    },
+    {
+      "stage": 10,
+      "technique": "chronopotentiometry",
+      "parameters": {
+        "current_density_a_cm2": 0.001,
+        "current_a": 0.0002827,
+        "duration_s": 70,
+        "sampling_interval_s": 0.05
+      },
+      "ir_corrected": true,
+      "source_ref": "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L471-L491",
+      "response": null
+    },
+    {
+      "stage": 11,
+      "technique": "cyclic_voltammetry",
+      "parameters": {
+        "start_voltage_v": 0.8,
+        "first_voltage_limit_v": 2.3,
+        "second_voltage_limit_v": 0.8,
+        "end_voltage_v": 0.8,
+        "scan_rate_v_s": 0.01,
+        "sampling_interval_s": 0.2,
+        "cycles": 2
+      },
+      "ir_corrected": true,
+      "source_ref": "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L493-L515",
+      "response": null
+    },
+    {
+      "stage": 12,
+      "technique": "cyclic_voltammetry",
+      "parameters": {
+        "start_voltage_v": 0.8,
+        "first_voltage_limit_v": -0.2,
+        "second_voltage_limit_v": 0,
+        "end_voltage_v": -0.2,
+        "scan_rate_v_s": 0.01,
+        "sampling_interval_s": 0.2,
+        "cycles": 2
+      },
+      "ir_corrected": true,
+      "source_ref": "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L517-L539",
+      "response": null
+    }
+  ],
+  "current_derivation": {
+    "expression": "current_a = current_density_a_cm2 * electrode_area_cm2",
+    "source_refs": [
+      "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L252",
+      "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/src/openTron_electrodeposition/parameters.py#L4"
+    ],
+    "claim_boundary": "Derived commanded current, not a measured current."
+  },
+  "parameter_units": {
+    "source_refs": [
+      "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/src/openTron_electrodeposition/admiral.py#L289-L341",
+      "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/src/openTron_electrodeposition/admiral.py#L46-L69"
+    ],
+    "description": "Voltage in V, current in A, frequency in Hz, time in s, scan rate in V/s; density in A/cm^2 derives from the declared area."
+  },
+  "ohmic_resistance_extraction": {
+    "source_ref": "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L1736-L1767",
+    "input_stage": 3,
+    "real_column": "Real Impedance",
+    "imaginary_column": "Imaginary Impedance",
+    "ordered_operations": [
+      {
+        "operation": "select_first_rows",
+        "count": 10,
+        "source_ref": "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L1749-L1751"
+      },
+      {
+        "operation": "retain_rows_where_both_real_and_imaginary_are_nonzero",
+        "source_ref": "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L1756-L1757"
+      },
+      {
+        "operation": "select_index_of_minimum_absolute_imaginary",
+        "skipna": true,
+        "source_ref": "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L1759-L1764"
+      },
+      {
+        "operation": "return_real_at_selected_index_rounded",
+        "decimal_places": 3,
+        "unit": "ohm",
+        "source_ref": "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L1765-L1767"
+      }
+    ],
+    "value": null,
+    "claim_boundary": "No resistance is inferred without AC data. Empty or invalid selections must fail closed; no replacement resistance is invented.",
+    "metadata_column": "ohmic_resistance [ohm]",
+    "metadata_source_ref": "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L324"
+  },
+  "ir_correction": {
+    "expression": "E_corrected_V = E_WE_V - 0.9 * R_ohm * I_WE_A",
+    "factor": 0.9,
+    "input_voltage_column": "Working Electrode Voltage [V]",
+    "input_current_column": "Working Electrode Current [A]",
+    "output_column": "Corrected Working Electrode Voltage [V]",
+    "applied_stages": [
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12
+    ],
+    "source_refs": [
+      "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L205-L228",
+      "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/src/openTron_electrodeposition/parameters.py#L3",
+      "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L339-L343",
+      "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L361-L365",
+      "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L383-L387",
+      "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L405-L409",
+      "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L439-L443",
+      "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L461-L465",
+      "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L483-L487",
+      "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L507-L511",
+      "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L531-L535"
+    ]
+  },
+  "headline": {
+    "stage": 7,
+    "current_density_a_cm2": 0.01,
+    "duration_s": 70,
+    "quantity": "corrected potential",
+    "unit": "V",
+    "metadata_column": "corrected_potential_at_10mAcm2 [V]",
+    "statistic": "mean of final int(len(dc_data) / 3) rows of Corrected Working Electrode Voltage [V]",
+    "uncorrected_metadata_column": "potential_at_10mAcm2 [V]",
+    "source_ref": "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L393-L424",
+    "value": null,
+    "equilibrium_potential_subtracted_upstream": false,
+    "claim_boundary": "The upstream stored headline is an iR-corrected potential. Converting it to overpotential by subtracting an equilibrium potential is a Dynamical convention, not this upstream calculation."
+  },
+  "unknowns": [
+    {
+      "quantity": "reference_electrode_identity_and_potential_scale",
+      "value": null,
+      "source_refs": [
+        "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L248-L539",
+        "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/manuals/Canada%20Electrodeposition%20Bill%20of%20Materials%20(BOM).xlsx"
+      ],
+      "description": "The measurement code does not identify the reference scale. BOM worksheet 1 B53 lists Mini Hydroflex; this does not establish the electrode mounted during a particular run."
+    },
+    {
+      "quantity": "EIS_number_of_runs_zero_vendor_semantics",
+      "value": null,
+      "source_refs": [
+        "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L308",
+        "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/src/openTron_electrodeposition/admiral.py#L257-L287"
+      ],
+      "description": "Upstream passes number_of_runs=0 unchanged to appendElement. Vendor-library meaning of zero is not established here; it is not silently changed to one."
+    },
+    {
+      "quantity": "CV_EIS_and_CP_responses",
+      "value": null,
+      "source_ref": "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L248-L539",
+      "description": "Protocol commands are specified; measured response arrays and a validated response model are absent from this artifact."
+    }
+  ],
+  "setup": {
+    "electrolyte": {
+      "chemical": "KOH",
+      "volume_ml": 3.0,
+      "concentration": null,
+      "source_refs": [
+        "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/main.py#L134-L143",
+        "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L1950-L1958"
+      ],
+      "limitation": "Nominal pipette command; concentration and delivered volume are unverified."
+    },
+    "cell": {
+      "working_electrode": "stationary Ni tape",
+      "tool": "pipette-carried OER_electrode counter/reference tool",
+      "reference_identity": null,
+      "lowering_offset_from_well_top_mm": -28,
+      "lowering_speed_mm_s": 10,
+      "source_refs": [
+        "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L1548-L1593",
+        "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/manuals/Electric_diagram.pdf"
+      ],
+      "limitation": "Commanded placement, not verified clearance, contact or reference scale."
+    },
+    "temperature": {
+      "controller": "Arduino",
+      "cartridge": 1,
+      "setpoint_c": 35,
+      "measured_temperature_c": null,
+      "metadata_column": "well_temperature_during_electrochemical_measurements [C]",
+      "source_refs": [
+        "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/main.py#L134-L143",
+        "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L1596-L1598",
+        "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L2017-L2018"
+      ]
+    },
+    "instrument": {
+      "family": "Admiral Squidstat",
+      "source_instrument_name": "Plus1894",
+      "source_port": "COM5",
+      "channel": 0,
+      "hardware_current_limit_a": null,
+      "hardware_voltage_limit_v": null,
+      "source_refs": [
+        "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/main.py#L8-L9",
+        "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/src/openTron_electrodeposition/admiral.py#L33-L44"
+      ],
+      "limitation": "Source configuration only; no connected instrument or calibrated hardware limit is established."
+    }
+  },
+  "commanded_time": {
+    "cp_dwell_lower_bound_s": 550.0,
+    "derivation": "Activation 60 s plus seven staircase holds of 70 s.",
+    "campaign_duration_s": 550.0,
+    "convention": "Campaign clock accounts for the CP dwell lower bound only. CV, EIS, motion and settling time are additional and not included; this is not a prediction or measurement of full elapsed time.",
+    "actual_elapsed_s": null,
+    "source_refs": [
+      "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L251-L254",
+      "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L331-L479"
+    ]
+  }
+}

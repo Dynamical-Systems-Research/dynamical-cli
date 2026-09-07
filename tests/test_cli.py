@@ -6,6 +6,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
 import yaml
 from _fixtures import write_reference_requirement
 
@@ -16,10 +17,13 @@ from dynamical.composition import compose_files, write_composition_result
 REPOSITORY = Path(__file__).resolve().parents[1]
 REFERENCE_LAB = REPOSITORY / "dynamical" / "bundle" / "reference-lab"
 MANIFEST = REFERENCE_LAB / "facility.yaml"
+FASTCAT_LAB = REFERENCE_LAB.parent / "fastcat"
 
 
-def _write_measure_oer_requirement(path: Path) -> Path:
-    """One-step measure-oer requirement used by the authority attack tests."""
+def _write_oer_requirement(path: Path, *, lab: Path) -> Path:
+    """Request the attacked provider's actual operation and supported current point."""
+
+    operation_id = "measure-oer"
 
     requirement = {
         "document_type": "dynamical.campaign-requirement",
@@ -32,7 +36,7 @@ def _write_measure_oer_requirement(path: Path) -> Path:
             "proof_requirements": [
                 {
                     "id": "oer-proof",
-                    "operation_id": "measure-oer",
+                    "operation_id": operation_id,
                     "output_port_ids": ["overpotential_v"],
                     "minimum_evidence_class": "simulator",
                     "acceptance_rule": "overpotential_v is recorded",
@@ -51,16 +55,27 @@ def _write_measure_oer_requirement(path: Path) -> Path:
         "steps": [
             {
                 "step_id": "measure",
-                "operation_id": "measure-oer",
+                "operation_id": operation_id,
                 "minimum_evidence_class": "simulator",
-                "parameters": [
-                    {
-                        "name": "current_density_a_cm2",
-                        "value_type": "number",
-                        "unit": "A/cm^2",
-                        "value": 0.010,
-                    }
-                ],
+                "parameters": (
+                    [
+                        {
+                            "name": "protocol_id",
+                            "value_type": "string",
+                            "unit": "1",
+                            "value": "sdl1-oer-2c5a911",
+                        }
+                    ]
+                    if lab == REFERENCE_LAB
+                    else [
+                        {
+                            "name": "current_density_a_cm2",
+                            "value_type": "number",
+                            "unit": "A/cm^2",
+                            "value": 0.020 if lab == REFERENCE_LAB else 0.010,
+                        }
+                    ]
+                ),
                 "input_bindings": [
                     {
                         "target_port_id": "sample.state",
@@ -167,7 +182,7 @@ def test_compose_receipt_is_compact_and_saved_sources_are_self_contained(
     assert receipt["status"] == "COMPILED"
     assert receipt["composition_sha256"] == saved["composition_sha256"]
     assert saved["sources"]["requirement"]["requirement_id"] == (
-        "electrodeposition-transfer-and-conditioning-proof"
+        "electrodeposition-conditioning-proof"
     )
     assert saved["sources"]["registry"]["registry_id"].startswith("dynamical-")
     assert saved["sources"]["facility"]["facility"]["id"] == ("ac-electrodeposition-cell")
@@ -182,7 +197,7 @@ def test_hold_receipt_has_reasons_and_no_compile_instruction(tmp_path: Path, cap
     requirement = yaml.safe_load(
         write_reference_requirement(tmp_path / "requirement.yaml").read_text(encoding="utf-8")
     )
-    requirement["steps"][1]["minimum_evidence_class"] = "physical"
+    requirement["steps"][0]["minimum_evidence_class"] = "physical"
     hold_requirement = tmp_path / "physical.yaml"
     hold_requirement.write_text(yaml.safe_dump(requirement, sort_keys=False), encoding="utf-8")
 
@@ -192,7 +207,7 @@ def test_hold_receipt_has_reasons_and_no_compile_instruction(tmp_path: Path, cap
     assert receipt["status"] == "HOLD"
     assert receipt["reason_codes"]
     assert receipt["validation_reasons"]
-    assert "next_command" not in receipt
+    assert receipt["next_command"].startswith("dynamical capabilities --facility")
 
     assert main(["validate", str(composition), "--json"]) == 0
     validation = json.loads(capsys.readouterr().out)
@@ -243,13 +258,15 @@ def test_saved_composition_compiles_runs_and_validates_without_extra_flags(
         assert json.loads(capsys.readouterr().out)["valid"] is True
 
 
-def test_public_examples_keep_fastcat_provenance_lineage_and_hold(tmp_path: Path, capsys) -> None:
+def test_public_examples_use_their_own_facility_and_preserve_fastcat_provenance(
+    tmp_path: Path, capsys
+) -> None:
     def sha256(path: Path) -> str:
         return hashlib.sha256(path.read_bytes()).hexdigest()
 
-    report_path = REFERENCE_LAB / "calibration" / "fastcat-oer" / "calibration_report.json"
+    report_path = FASTCAT_LAB / "calibration" / "fastcat-oer" / "calibration_report.json"
     report = json.loads(report_path.read_text(encoding="utf-8"))
-    facility = yaml.safe_load(MANIFEST.read_text(encoding="utf-8"))
+    facility = yaml.safe_load((FASTCAT_LAB / "facility.yaml").read_text(encoding="utf-8"))
     adapter_hashes = {
         name: sha256(REPOSITORY / "dynamical" / "instruments" / name)
         for name in report["adapter_sha256"]
@@ -266,40 +283,37 @@ def test_public_examples_keep_fastcat_provenance_lineage_and_hold(tmp_path: Path
     )
     assert calibration["split_rule_sha256"] == sha256(report_path)
     assert calibration["fit_artifact_sha256"] == sha256(
-        REFERENCE_LAB / calibration["fit_artifact_ref"]
+        FASTCAT_LAB / calibration["fit_artifact_ref"]
     )
 
-    compositions: dict[str, dict[str, object]] = {}
-    for example in ("quickstart", "fastcat-oer"):
-        example_dir = REPOSITORY / "examples" / example
+    assert sha256(REPOSITORY / "examples/fastcat-oer/candidate-set.yaml") == (
+        "cc78580a0e614d11b5e8d48cc085897c83d9cf133e0acc16c47ed69cafb304ca"
+    )
+    for example, facility_alias, operation_ids in (
+        ("quickstart", "sdl1", ["condition-ultrasonic"]),
+        ("fastcat-oer", "fastcat", ["deposit-chemical-bath", "measure-oer"]),
+    ):
         composition = tmp_path / f"{example}.json"
-
-        assert main(["compose", str(example_dir / "requirement.yaml"), "-o", str(composition)]) == 0
-        assert json.loads(capsys.readouterr().out)["status"] == "COMPILED"
-        compositions[example] = json.loads(composition.read_text(encoding="utf-8"))
-
-    fastcat = compositions["fastcat-oer"]
-    assert fastcat["sources"]["requirement"]["inputs"][0]["facility_id"] == ("ot2-liquid-handling")
-    actual = []
-    for binding in fastcat["virtual_sdl"]["operation_bindings"]:
-        sample_input = binding["inputs"][0]
-        actual.append(
-            (
-                binding["step_id"],
-                binding["selected_facility_id"],
-                sample_input["source_kind"],
-                sample_input["source_id"],
+        requirement = REPOSITORY / "examples" / example / "requirement.yaml"
+        assert (
+            main(
+                ["compose", str(requirement), "--facility", facility_alias, "-o", str(composition)]
             )
+            == 0
         )
-        if sample_input["source_kind"] == "step_output":
-            assert sample_input["source_port_id"] == "sample.state.transferred"
-    assert actual == [
-        ("mount-sample", "ot2-liquid-handling", "campaign_input", "sample.state"),
-        ("deposit-film", "ot2-liquid-handling", "step_output", "mount-sample"),
-        ("move-to-echem", "squidstat-echem", "step_output", "mount-sample"),
-        ("load-cell", "squidstat-echem", "step_output", "move-to-echem"),
-        ("measure-oer-10ma", "squidstat-echem", "step_output", "move-to-echem"),
-    ]
+        assert json.loads(capsys.readouterr().out)["status"] == "COMPILED"
+        selected = json.loads(composition.read_text())["virtual_sdl"]["operation_bindings"]
+        assert [binding["operation_id"] for binding in selected] == operation_ids
+        world, trace = tmp_path / f"{example}-world", tmp_path / f"{example}.ndjson"
+        assert main(["compile", str(composition), "-o", str(world)]) == 0
+        capsys.readouterr()
+        assert main(["run", str(world), "-o", str(trace)]) == 0
+        capsys.readouterr()
+        assert main(["validate", str(trace), "--json"]) == 0
+        assert json.loads(capsys.readouterr().out)["valid"] is True
+        wrong_facility = "sdl1" if facility_alias == "fastcat" else "fastcat"
+        assert main(["compose", str(requirement), "--facility", wrong_facility]) == 1
+        assert json.loads(capsys.readouterr().out)["status"] == "HOLD"
 
     onboarding = REPOSITORY / "examples" / "provider-onboarding"
     registry = onboarding / "registry.pending.yaml"
@@ -372,8 +386,13 @@ def test_coordinated_authority_rehash_fails_closed(tmp_path: Path, capsys) -> No
     assert not (tmp_path / "compiled").exists()
 
 
-def test_self_admitted_physical_provider_is_demoted_not_trusted(tmp_path: Path, capsys) -> None:
-    """Attack repro: an agent flips every measure-oer provider to ``evidence_class:
+@pytest.mark.parametrize(
+    "lab,forged_id", [(REFERENCE_LAB, "ac-sdl1-oer-protocol"), (FASTCAT_LAB, "ac-oer-twin")]
+)
+def test_self_admitted_physical_provider_is_demoted_not_trusted(
+    tmp_path: Path, capsys, lab: Path, forged_id: str
+) -> None:
+    """Attack repro: an agent flips the targeted OER provider to ``evidence_class:
     physical`` in its own registry and passes that forged registry to both
     ``compose`` and ``compile``.
 
@@ -385,9 +404,9 @@ def test_self_admitted_physical_provider_is_demoted_not_trusted(tmp_path: Path, 
     compiled world, run, or validated trace is ever reachable.
     """
 
-    registry = yaml.safe_load((REFERENCE_LAB / "registry.yaml").read_text(encoding="utf-8"))
+    registry = yaml.safe_load((lab / "registry.yaml").read_text(encoding="utf-8"))
     for provider in registry["providers"]:
-        if provider["provider_id"] in {"ac-oer-simulator", "ac-oer-twin"}:
+        if provider["provider_id"] == forged_id:
             provider["evidence_class"] = "physical"
             provider["validity_envelope"].append(
                 {
@@ -402,11 +421,18 @@ def test_self_admitted_physical_provider_is_demoted_not_trusted(tmp_path: Path, 
     forged_registry.write_text(yaml.safe_dump(registry, sort_keys=False), encoding="utf-8")
 
     unchecked_requirement = write_reference_requirement(tmp_path / "unchecked-requirement.yaml")
-    unchecked = compose_files(unchecked_requirement, forged_registry, MANIFEST)
+    if lab == FASTCAT_LAB:
+        from test_restore import _child_requirement
+
+        unchecked_requirement.write_text(
+            yaml.safe_dump(_child_requirement("unchecked-bath", counterfactual=True)),
+            encoding="utf-8",
+        )
+    unchecked = compose_files(unchecked_requirement, forged_registry, lab / "facility.yaml")
     assert unchecked.status == "COMPILED"
     api_world = tmp_path / "api-registry-proposal-world"
     api_result = compile_facility(
-        MANIFEST,
+        lab / "facility.yaml",
         "openusd",
         api_world,
         composition_result=unchecked,
@@ -416,26 +442,39 @@ def test_self_admitted_physical_provider_is_demoted_not_trusted(tmp_path: Path, 
     assert main(["run", str(api_world), "-o", str(tmp_path / "api-registry-trace.ndjson")]) == 2
     assert "validation-only" in capsys.readouterr().err
 
-    assert main(["capabilities", "--registry", str(forged_registry), "--json"]) == 0
+    assert (
+        main(
+            [
+                "capabilities",
+                "--facility",
+                str(lab / "facility.yaml"),
+                "--registry",
+                str(forged_registry),
+                "--json",
+            ]
+        )
+        == 0
+    )
     inspected = json.loads(capsys.readouterr().out)
     assert inspected["registry_role"] == "proposal"
-    for forged_id in ("ac-oer-simulator", "ac-oer-twin"):
-        provider = next(
-            item
-            for operation in inspected["operations"]
-            for item in operation["providers"]
-            if item["provider_id"] == forged_id
-        )
-        assert provider["admission"] == "pending"
-        assert provider["proposed_admission"] == "admitted"
+    provider = next(
+        item
+        for operation in inspected["operations"]
+        for item in operation["providers"]
+        if item["provider_id"] == forged_id
+    )
+    assert provider["admission"] == "pending"
+    assert provider["proposed_admission"] == "admitted"
     assert any(item["code"] == "PROVIDER_SELF_ADMITTED" for item in inspected["validation_reasons"])
 
-    requirement_path = _write_measure_oer_requirement(tmp_path / "requirement.yaml")
+    requirement_path = _write_oer_requirement(tmp_path / "requirement.yaml", lab=lab)
     composition_path = tmp_path / "composition.json"
     compose_rc = main(
         [
             "compose",
             str(requirement_path),
+            "--facility",
+            str(lab / "facility.yaml"),
             "--registry",
             str(forged_registry),
             "-o",
@@ -447,11 +486,10 @@ def test_self_admitted_physical_provider_is_demoted_not_trusted(tmp_path: Path, 
     assert receipt["status"] == "HOLD"
     assert "PROVIDER_NOT_ADMITTED" in receipt["reason_codes"]
     untrusted = receipt["untrusted_admissions"]
-    for forged_id in ("ac-oer-simulator", "ac-oer-twin"):
-        assert any(
-            item["code"] == "PROVIDER_SELF_ADMITTED" and item["provider_id"] == forged_id
-            for item in untrusted
-        )
+    assert any(
+        item["code"] == "PROVIDER_SELF_ADMITTED" and item["provider_id"] == forged_id
+        for item in untrusted
+    )
 
     compiled_dir = tmp_path / "compiled"
     compile_rc = main(["compile", str(composition_path), "-o", str(compiled_dir)])
@@ -460,25 +498,32 @@ def test_self_admitted_physical_provider_is_demoted_not_trusted(tmp_path: Path, 
     assert not compiled_dir.exists()
 
 
-def test_known_provider_with_modified_safety_fields_is_not_trusted(tmp_path: Path, capsys) -> None:
+@pytest.mark.parametrize(
+    "lab,forged_id", [(REFERENCE_LAB, "ac-sdl1-oer-protocol"), (FASTCAT_LAB, "ac-oer-twin")]
+)
+def test_known_provider_with_modified_safety_fields_is_not_trusted(
+    tmp_path: Path, capsys, lab: Path, forged_id: str
+) -> None:
     """Named authority attack: a known, installed provider identity whose
     safety-bearing fields were changed must never compose or compile as
     admitted. The identity tuple still matches the installed record, so only
     a full authority-record comparison catches it."""
 
-    registry = yaml.safe_load((REFERENCE_LAB / "registry.yaml").read_text(encoding="utf-8"))
+    registry = yaml.safe_load((lab / "registry.yaml").read_text(encoding="utf-8"))
     for provider in registry["providers"]:
-        if provider["provider_id"] in {"ac-oer-simulator", "ac-oer-twin"}:
-            provider["policy"]["safety_limit_ids"] = []
+        if provider["provider_id"] == forged_id:
+            provider["policy"]["policy_tags"].append("forged-safety-policy")
     forged_registry = tmp_path / "registry.yaml"
     forged_registry.write_text(yaml.safe_dump(registry, sort_keys=False), encoding="utf-8")
 
-    requirement_path = _write_measure_oer_requirement(tmp_path / "requirement.yaml")
+    requirement_path = _write_oer_requirement(tmp_path / "requirement.yaml", lab=lab)
     composition_path = tmp_path / "composition.json"
     compose_rc = main(
         [
             "compose",
             str(requirement_path),
+            "--facility",
+            str(lab / "facility.yaml"),
             "--registry",
             str(forged_registry),
             "-o",
@@ -489,11 +534,10 @@ def test_known_provider_with_modified_safety_fields_is_not_trusted(tmp_path: Pat
     assert compose_rc == 1
     assert receipt["status"] == "HOLD"
     assert "PROVIDER_NOT_ADMITTED" in receipt["reason_codes"]
-    for forged_id in ("ac-oer-simulator", "ac-oer-twin"):
-        assert any(
-            item["code"] == "PROVIDER_AUTHORITY_MODIFIED" and item["provider_id"] == forged_id
-            for item in receipt["untrusted_admissions"]
-        )
+    assert any(
+        item["code"] == "PROVIDER_AUTHORITY_MODIFIED" and item["provider_id"] == forged_id
+        for item in receipt["untrusted_admissions"]
+    )
 
     compiled_dir = tmp_path / "compiled"
     compile_rc = main(["compile", str(composition_path), "-o", str(compiled_dir)])
@@ -511,7 +555,7 @@ def test_modified_model_hash_in_agent_facility_is_refused(tmp_path: Path, capsys
 
     facility = yaml.safe_load(MANIFEST.read_text(encoding="utf-8"))
     for binding in facility["model_bindings"]:
-        if binding["id"] == "ac-oer-model":
+        if binding["id"] == "ac-sdl1-oer-model":
             binding["implementation_sha256"] = "0" * 64
     forged_facility = tmp_path / "facility.yaml"
     forged_facility.write_text(yaml.safe_dump(facility, sort_keys=False), encoding="utf-8")

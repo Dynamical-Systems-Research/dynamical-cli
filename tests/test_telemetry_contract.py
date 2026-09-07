@@ -11,6 +11,7 @@ from dynamical import instruments
 from dynamical.campaign import (
     CampaignValidationError,
     CompiledCampaignContract,
+    _envelope_in_force,
     read_trace,
     run_composed_campaign,
     stable_hash,
@@ -49,8 +50,8 @@ def _constraint(
 def _coverage_contract() -> CompiledCampaignContract:
     """A hand-built multi-instrument contract that exercises the telemetry
     contract deterministically: it uses the real registered instrument models
-    and the real declared parameter units and constraint bounds across a
-    representative instrument sequence, built directly (as
+    and declared parameter units with explicit test constraint bounds across a
+    synthetic instrument sequence, built directly (as
     ``_deposit_ordering_contract``/``_transfer_contract`` in
     test_campaign_contract.py do) rather than through composition. The step
     order is harness-selected coverage, not a recommended experiment.
@@ -71,7 +72,7 @@ def _coverage_contract() -> CompiledCampaignContract:
                 "unit": "mL",
                 "required": True,
                 "minimum": 0.0,
-                "maximum": 25.0,
+                "maximum": 3.895,
             },
             {
                 "name": "chemical",
@@ -82,6 +83,7 @@ def _coverage_contract() -> CompiledCampaignContract:
         ],
         [
             {"id": "volume_requested_ml", "unit": "mL"},
+            {"id": "volume_commanded_ml", "unit": "mL"},
             {"id": "volume_applied_ml", "unit": "mL"},
         ],
     )
@@ -105,21 +107,20 @@ def _coverage_contract() -> CompiledCampaignContract:
                 "value_type": "number",
                 "unit": "s",
                 "required": True,
-                "minimum": 0.0,
-                "maximum": 1800.0,
+                "enum": [5.0, 15.0, 30.0],
             },
             {
-                "name": "setpoint_percent",
+                "name": "temperature_setpoint_c",
                 "value_type": "number",
-                "unit": "%",
-                "required": False,
-                "minimum": 0.0,
-                "maximum": 100.0,
+                "unit": "degC",
+                "required": True,
+                "enum": [35.0],
             },
         ],
         [
-            {"id": "instrument.conditioning_duration_s", "unit": "s"},
-            {"id": "instrument.conditioning_setpoint_percent", "unit": "%"},
+            {"id": "instrument.ultrasound_commanded_s", "unit": "s"},
+            {"id": "instrument.temperature_setpoint_c", "unit": "degC"},
+            {"id": "instrument.temperature_observed_c", "unit": "degC"},
         ],
     )
     deposit_capability = _capability(
@@ -130,43 +131,31 @@ def _coverage_contract() -> CompiledCampaignContract:
                 "value_type": "number",
                 "unit": "A",
                 "required": True,
-                "minimum": 0.0,
-                "maximum": 0.010,
+                "minimum": -0.002827,
+                "maximum": -0.002827,
             },
             {
                 "name": "duration_s",
                 "value_type": "number",
                 "unit": "s",
                 "required": True,
-                "minimum": 0.0,
-                "maximum": 3600.0,
+                "enum": [10.0, 60.0],
+            },
+            {
+                "name": "temperature_setpoint_c",
+                "value_type": "number",
+                "unit": "degC",
+                "required": True,
+                "enum": [35.0],
             },
         ],
         [
-            {"id": "charge_c", "unit": "C"},
+            {"id": "commanded_charge_c", "unit": "C"},
             {"id": "deposited_mass_g", "unit": "g"},
             {"id": "deposited_thickness_um", "unit": "um"},
             {"id": "current_density_a_cm2", "unit": "A/cm^2"},
         ],
     )
-    measure_capability = _capability(
-        "measure-oer",
-        [
-            {
-                "name": "current_density_a_cm2",
-                "value_type": "number",
-                "unit": "A/cm^2",
-                "required": True,
-                "minimum": 0.0001,
-                "maximum": 0.10,
-            }
-        ],
-        [
-            {"id": "overpotential_v", "unit": "V"},
-            {"id": "current_density_a_cm2", "unit": "A/cm^2"},
-        ],
-    )
-
     bindings = (
         {
             "step_id": "to-arduino",
@@ -191,7 +180,7 @@ def _coverage_contract() -> CompiledCampaignContract:
             "endpoint_id": "ac-opentron-model",
             "sample_id": "sample-1",
             "parameters": [
-                {"name": "volume_ml", "value": 3.895},
+                {"name": "volume_ml", "value": 3.8949},
                 {"name": "chemical", "value": "Ni"},
             ],
             "inputs": [],
@@ -207,8 +196,8 @@ def _coverage_contract() -> CompiledCampaignContract:
             "endpoint_id": "ac-arduino-model",
             "sample_id": "sample-1",
             "parameters": [
-                {"name": "duration_s", "value": 60.0},
-                {"name": "setpoint_percent", "value": 80.0},
+                {"name": "duration_s", "value": 30.0},
+                {"name": "temperature_setpoint_c", "value": 35.0},
             ],
             "inputs": [],
             "capability_contract": condition_capability,
@@ -241,8 +230,9 @@ def _coverage_contract() -> CompiledCampaignContract:
             "endpoint_id": "ac-potentiostat-model",
             "sample_id": "sample-1",
             "parameters": [
-                {"name": "current_a", "value": 0.002827},
-                {"name": "duration_s", "value": 600.0},
+                {"name": "current_a", "value": -0.002827},
+                {"name": "duration_s", "value": 60.0},
+                {"name": "temperature_setpoint_c", "value": 35.0},
             ],
             "inputs": [],
             "capability_contract": deposit_capability,
@@ -250,18 +240,18 @@ def _coverage_contract() -> CompiledCampaignContract:
             "policy": {"safety_limit_ids": ["current-envelope", "deposition-duration-envelope"]},
         },
         {
-            "step_id": "measure",
-            "operation_id": "measure-oer",
-            "provider_id": "ac-oer-simulator",
+            "step_id": "condition-after-deposit",
+            "operation_id": "condition-ultrasonic",
+            "provider_id": "ac-arduino-simulator",
             "evidence_class": "simulator",
-            "endpoint_id": "ac-oer-model",
+            "endpoint_id": "ac-arduino-model",
             "sample_id": "sample-1",
-            "parameters": [{"name": "current_density_a_cm2", "value": 0.010}],
-            # A synthetic step_output edge (deposit's own echoed current density
-            # feeding measure's) so the dataflow-edges test exercises a real
-            # producer/consumer pair. The real registry declares no input_ports
-            # for either operation; this is illustrative wiring for the
-            # telemetry mechanism, not a claim about the real registry's data.
+            "parameters": [
+                {"name": "duration_s", "value": 5.0},
+                {"name": "temperature_setpoint_c", "value": 35.0},
+            ],
+            # Synthetic numeric wiring exercises producer/consumer telemetry;
+            # the conditioning model does not consume this input as a control.
             "inputs": [
                 {
                     "target_port_id": "material.current_density_a_cm2",
@@ -271,9 +261,9 @@ def _coverage_contract() -> CompiledCampaignContract:
                     "source_port_id": "current_density_a_cm2",
                 }
             ],
-            "capability_contract": measure_capability,
+            "capability_contract": condition_capability,
             "duration": {"typical_s": 120.0},
-            "policy": {"safety_limit_ids": ["oer-current-density-envelope"]},
+            "policy": {"safety_limit_ids": ["conditioning-duration-envelope"]},
         },
     )
 
@@ -285,56 +275,49 @@ def _coverage_contract() -> CompiledCampaignContract:
             **deposit_capability,
             "provider_id": "ac-potentiostat-model",
         },
-        "measure-oer": {**measure_capability, "provider_id": "ac-oer-model"},
     }
     channel_units = {
         "volume_requested_ml": "mL",
+        "volume_commanded_ml": "mL",
         "volume_applied_ml": "mL",
         "instrument.sample_station_id": "1",
         "instrument.arrival_confirmed": "1",
         "sample.state.transferred": "1",
-        "instrument.conditioning_duration_s": "s",
-        "instrument.conditioning_setpoint_percent": "%",
-        "charge_c": "C",
+        "instrument.ultrasound_commanded_s": "s",
+        "instrument.temperature_setpoint_c": "degC",
+        "instrument.temperature_observed_c": "degC",
+        "commanded_charge_c": "C",
         "deposited_mass_g": "g",
         "deposited_thickness_um": "um",
         "current_density_a_cm2": "A/cm^2",
-        "overpotential_v": "V",
     }
     constraint_by_id = {
         "dispense-volume-envelope": _constraint(
             "ot2.dispense_volume_requested_ml",
             "mL",
             0.0,
-            25.0,
+            3.895,
             constrained_parameter_name="volume_ml",
         ),
         "conditioning-duration-envelope": _constraint(
             "arduino.conditioning_duration_s",
             "s",
             0.0,
-            1800.0,
+            30.0,
             constrained_parameter_name="duration_s",
         ),
         "conditioning-setpoint-envelope": _constraint(
-            "arduino.conditioning_setpoint_percent",
-            "%",
-            0.0,
-            100.0,
-            constrained_parameter_name="setpoint_percent",
+            "arduino.temperature_setpoint_c",
+            "degC",
+            35.0,
+            35.0,
+            constrained_parameter_name="temperature_setpoint_c",
         ),
         "current-envelope": _constraint(
-            "squidstat.current_a", "A", 0.0, 0.010, constrained_parameter_name="current_a"
+            "squidstat.current_a", "A", -0.002827, -0.002827, constrained_parameter_name="current_a"
         ),
         "deposition-duration-envelope": _constraint(
-            "squidstat.duration_s", "s", 0.0, 3600.0, constrained_parameter_name="duration_s"
-        ),
-        "oer-current-density-envelope": _constraint(
-            "squidstat.current_density_a_cm2",
-            "A/cm^2",
-            0.0001,
-            0.10,
-            constrained_parameter_name="current_density_a_cm2",
+            "squidstat.duration_s", "s", 10.0, 60.0, constrained_parameter_name="duration_s"
         ),
     }
 
@@ -435,11 +418,19 @@ def test_requested_and_applied_parameters_are_distinguishable(completed_trace_pa
     events = read_trace(completed_trace_path)
     actions = [e.action for e in events if e.action is not None]
     dispense = next(a for a in actions if a.kind == "dispense-electrolyte")
-    assert dispense.parameters["volume_ml"]["requested"] is not None
-    assert dispense.parameters["volume_ml"]["applied"] is not None
-    assert (
-        dispense.parameters["volume_ml"]["requested"] != dispense.parameters["volume_ml"]["applied"]
+    assert dispense.parameters["volume_ml"]["requested"] == 3.8949
+    assert dispense.parameters["volume_ml"]["applied"] is None
+    frame = next(
+        e.observation
+        for e in events
+        if e.observation and e.observation.frame_id == "frame-after-dispense"
     )
+    values = {channel.name: channel.value for channel in frame.channels}
+    assert values == {
+        "volume_requested_ml": 3.8949,
+        "volume_commanded_ml": 3.8949,
+        "volume_applied_ml": None,
+    }
 
 
 @pytest.mark.parametrize(
@@ -540,7 +531,24 @@ def test_observations_carry_typed_uncertainty(completed_trace_path):
         for channel in frame.channels
         if channel.uncertainty["value"] is not None
     ]
-    assert reported, "at least one channel must report a numeric uncertainty"
+    physical_unknowns = {
+        "volume_applied_ml",
+        "instrument.temperature_observed_c",
+        "deposited_mass_g",
+        "deposited_thickness_um",
+    }
+    unknown_channels = [
+        channel
+        for frame in frames
+        for channel in frame.channels
+        if channel.name in physical_unknowns
+    ]
+    assert {channel.name for channel in unknown_channels} == physical_unknowns
+    for channel in unknown_channels:
+        assert channel.value is None
+        assert channel.quality == "unavailable"
+        assert channel.uncertainty["value"] is None
+        assert channel.uncertainty["origin"]
     for channel in reported:
         assert channel.uncertainty["value"] >= 0.0
         assert channel.uncertainty["kind"] in {"declared", "propagated", "measured"}
@@ -551,10 +559,41 @@ def test_envelope_in_force_is_recorded(completed_trace_path):
     events = read_trace(completed_trace_path)
     actions = [e for e in events if e.action is not None]
     assert actions[0].provenance["envelope_in_force"]
+    condition = next(event for event in actions if event.action.action_id == "condition")
+    assert condition.provenance["envelope_in_force"]["duration_s"]["enum"] == [5.0, 15.0, 30.0]
+    assert condition.provenance["envelope_in_force"]["temperature_setpoint_c"]["enum"] == [35.0]
+    dispense = next(event for event in actions if event.action.action_id == "dispense")
+    assert dispense.provenance["envelope_in_force"]["volume_ml"] == {
+        "unit": "mL",
+        "minimum": 0.0,
+        "maximum": 3.895,
+    }
 
 
-def test_consumed_cost_and_duration_are_actuals(completed_trace_path):
+def test_fixed_protocol_selector_is_preserved_in_envelope_receipt():
+    envelope = _envelope_in_force(
+        {
+            "parameters": [
+                {
+                    "name": "protocol_id",
+                    "value_type": "string",
+                    "unit": "1",
+                    "enum": ["fixture-fixed-protocol"],
+                }
+            ]
+        }
+    )
+    assert envelope["protocol_id"] == {
+        "unit": "1",
+        "minimum": None,
+        "maximum": None,
+        "enum": ["fixture-fixed-protocol"],
+    }
+
+
+def test_consumed_cost_and_duration_are_simulator_bookkeeping(completed_trace_path):
     events = read_trace(completed_trace_path)
     end = events[-1].provenance
-    assert end["cost_consumed_usd"] >= 0.0
-    assert end["duration_consumed_s"] > 0.0
+    # These totals describe model execution, not measured physical cost or time.
+    assert end["cost_consumed_usd"] == 0.0
+    assert end["duration_consumed_s"] == 0.0

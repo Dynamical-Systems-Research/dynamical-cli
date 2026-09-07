@@ -29,19 +29,16 @@ ELECTRODEPOSITION_MANIFEST = REFERENCE_LAB / "facility.yaml"
 REFERENCE_REQUIREMENT = {
     "document_type": "dynamical.campaign-requirement",
     "schema_version": "0.1.0",
-    "requirement_id": "electrodeposition-transfer-and-conditioning-proof",
+    "requirement_id": "electrodeposition-conditioning-proof",
     "objective": {
         "id": "select-and-check-conditioned-sample",
-        "statement": (
-            "Transfer one sample to the ultrasonic conditioner and run one bounded "
-            "conditioning program."
-        ),
+        "statement": ("Run one bounded in-well conditioning program."),
         "decision": "Decide if the virtual result merits a later physical experiment.",
         "proof_requirements": [
             {
                 "id": "conditioning-proof",
                 "operation_id": "condition-ultrasonic",
-                "output_port_ids": ["instrument.conditioning_duration_s"],
+                "output_port_ids": ["instrument.ultrasound_commanded_s"],
                 "minimum_evidence_class": "simulator",
                 "acceptance_rule": "The simulator trace and replay pass.",
                 "independent_verification_required": True,
@@ -54,38 +51,10 @@ REFERENCE_REQUIREMENT = {
             "state_type": "sample_state",
             "unit": "1",
             "value": "sample-electrodeposition-01",
-            "facility_id": "arduino-conditioning",
+            "facility_id": "ot2-liquid-handling",
         },
     ],
     "steps": [
-        {
-            "step_id": "transfer",
-            "operation_id": "transfer-sample",
-            "minimum_evidence_class": "simulator",
-            "parameters": [
-                {
-                    "name": "to_station",
-                    "value_type": "string",
-                    "unit": "1",
-                    "value": "arduino-conditioning",
-                },
-                {
-                    "name": "sample_id",
-                    "value_type": "string",
-                    "unit": "1",
-                    "value": "sample-electrodeposition-01",
-                },
-            ],
-            "input_bindings": [
-                {
-                    "target_port_id": "sample.state",
-                    "source_kind": "campaign_input",
-                    "source_id": "campaign.sample-id",
-                }
-            ],
-            "depends_on": [],
-            "required_policy_tags": ["simulation-only", "custody-bookkeeping-only"],
-        },
         {
             "step_id": "condition",
             "operation_id": "condition-ultrasonic",
@@ -95,24 +64,23 @@ REFERENCE_REQUIREMENT = {
                     "name": "duration_s",
                     "value_type": "number",
                     "unit": "s",
-                    "value": 60.0,
+                    "value": 30.0,
                 },
                 {
-                    "name": "setpoint_percent",
+                    "name": "temperature_setpoint_c",
                     "value_type": "number",
-                    "unit": "%",
-                    "value": 80.0,
+                    "unit": "degC",
+                    "value": 35.0,
                 },
             ],
             "input_bindings": [
                 {
                     "target_port_id": "sample.state",
-                    "source_kind": "step_output",
-                    "source_id": "transfer",
-                    "source_port_id": "sample.state.transferred",
+                    "source_kind": "campaign_input",
+                    "source_id": "campaign.sample-id",
                 },
             ],
-            "depends_on": ["transfer"],
+            "depends_on": [],
             "required_policy_tags": ["simulation-only"],
         },
     ],
@@ -579,7 +547,9 @@ def _electrodeposition_capability_contract(
 
 @pytest.fixture
 def three_station_composition() -> _CompositionDocument:
-    """Three real AC SDL1 operations, deliberately unordered, with real dependency edges.
+    """Three SDL1 operation identities in a synthetic ordering harness.
+
+    Deliberately unordered, with real dependency edges.
 
     Grounded in the instrument models and endpoint ids declared in
     ``dynamical/bundle/reference-lab/registry.yaml``: dispense on the OT-2,
@@ -617,7 +587,7 @@ def three_station_composition() -> _CompositionDocument:
             "provider_id": "ac-ot2-simulator",
             "evidence_class": "simulator",
             "endpoint_id": "ac-opentron-model",
-            "parameters": [{"name": "volume_ml", "value": 20.0}],
+            "parameters": [{"name": "volume_ml", "value": 3.0}],
             "capability_contract": _electrodeposition_capability_contract(
                 "dispense-electrolyte",
                 [
@@ -627,7 +597,7 @@ def three_station_composition() -> _CompositionDocument:
                         "unit": "mL",
                         "required": True,
                         "minimum": 0.0,
-                        "maximum": 25.0,
+                        "maximum": 3.0,
                     }
                 ],
             ),
@@ -639,8 +609,9 @@ def three_station_composition() -> _CompositionDocument:
             "evidence_class": "simulator",
             "endpoint_id": "ac-potentiostat-model",
             "parameters": [
-                {"name": "current_a", "value": 0.002827},
-                {"name": "duration_s", "value": 600.0},
+                {"name": "current_a", "value": -0.002827},
+                {"name": "duration_s", "value": 60.0},
+                {"name": "temperature_setpoint_c", "value": 35.0},
             ],
             "capability_contract": _electrodeposition_capability_contract(
                 "electrodeposit-constant-current",
@@ -650,16 +621,22 @@ def three_station_composition() -> _CompositionDocument:
                         "value_type": "number",
                         "unit": "A",
                         "required": True,
-                        "minimum": 0.0,
-                        "maximum": 0.010,
+                        "minimum": -0.002827,
+                        "maximum": -0.002827,
                     },
                     {
                         "name": "duration_s",
                         "value_type": "number",
                         "unit": "s",
                         "required": True,
-                        "minimum": 0.0,
-                        "maximum": 3600.0,
+                        "enum": [10.0, 60.0],
+                    },
+                    {
+                        "name": "temperature_setpoint_c",
+                        "value_type": "number",
+                        "unit": "degC",
+                        "required": True,
+                        "enum": [35.0],
                     },
                 ],
             ),
@@ -811,7 +788,7 @@ def trace_with_complete_lineage() -> list[TraceEvent]:
 
 @pytest.fixture
 def compiled_electrodeposition_world(tmp_path: Path) -> Path:
-    """The shared electrodeposition reference requirement (transfer + condition),
+    """The shared electrodeposition reference requirement (in-well conditioning),
     composed and compiled for the ``isaac`` target -- a real compiled pack a live
     Isaac Sim run can open and execute, not a synthetic fixture.
     """
@@ -831,8 +808,7 @@ def compiled_electrodeposition_world(tmp_path: Path) -> Path:
 @pytest.fixture
 def compiled_electrodeposition_coverage_world(tmp_path: Path) -> Path:
     """A synthetic multi-instrument coverage campaign compiled for the ``isaac``
-    target -- one sample moving across workstations by explicit transfer
-    actions, exercising the mechanisms a live Kit run must prove: composition,
+    target -- one stationary sample on the OT-2 deck, exercising composition,
     multi-instrument execution, and continuous sample lineage. The step order
     and parameters are harness-selected coverage, not a recommended experiment.
 

@@ -1,0 +1,62 @@
+{
+  "adapter_sha256": {
+    "ac_bath.py": "90d8f58cde7a3630680a7356572466093e27fd22b880abc75a22dc112f658787",
+    "ac_oer_twin.py": "df5e4e9bed674729c384627fc860630da6db2bc0936ff346e0821b3b408305d2"
+  },
+  "domain": "the frozen prediction table only (72 compositions under the frozen per-pool conditioning); fail-closed outside",
+  "evidence_class": "calibrated_twin",
+  "interval": {
+    "coverage_target": 0.9,
+    "halfwidth_v": 0.104969,
+    "method": "split-conformal, one fixed pipeline"
+  },
+  "output": "overpotential_v = frozen E@10mA estimate - 1.229 V, at exactly 0.010 A/cm^2; the offset is a Dynamical convention, and this bundle does not independently establish the source reference scale",
+  "pool_evaluation": {
+    "cohort": "54 causal-pool compositions; distinct from the original 27-composition validation cohort",
+    "coverage_at_frozen_q": 0.9074074074074074,
+    "evaluation_role": "post-study evaluation; not a new calibration or an admission decision",
+    "interval_gate": {
+      "decision": "retain the frozen constant half-width",
+      "passed": false,
+      "per_row_coverage": 0.7592592592592593,
+      "width_error_bootstrap_lower_bound": -0.10402660917750857,
+      "width_error_spearman": 0.09718933233607131
+    },
+    "limitations": [
+      "The original validation MAE does not describe accuracy on these pool compositions.",
+      "FastCat data have been used for training, development, validation and pool evaluation; no untouched cohort remains for another held-out validation.",
+      "Single-run labels do not establish composition-specific measurement uncertainty."
+    ],
+    "mae_mv": 48.41002462489007,
+    "n_compositions": 54,
+    "replicated_labels": 11,
+    "single_run_labels": 43,
+    "source_record": {
+      "gate_freeze_commit": "0ccde542f87a4bf5522eac248060db7717d1920a",
+      "published_receipt_ref": "pool_evaluation_receipt.json",
+      "published_receipt_sha256": "ed494780e571b483c9814ecd482fbc266ce11de4d4ccc68b35cdca25c981a78b",
+      "study_commit": "e3f4a5193a39f115409a86b60273bf49a01a3ebb"
+    }
+  },
+  "provider_id": "ac-oer-twin",
+  "schema_version": "ac-oer-twin.calibration-report.v1",
+  "study_provenance_sha256": {
+    "artifact_sha256": "746aeda39b43667a085ef3785336ec885f4b000f9070ff776e00e687ed4b9b17",
+    "gate_u1_frozen_sha256": "2261e85b9af41ff5fbcc0be2cf8a19ced9242331acd916658f168feb6f875017",
+    "provider_protocol_sha256": "e3276e7acdb938be0a19a2426103865a5ccb9a7e43b18f21379e259c63a24e36",
+    "study_prediction_table_sha256": "6f2d0489e67a71bf26a5ed87551792b9d370ddf242fa7d6dd3482585df0b0b3b",
+    "task_reveal_receipt_sha256": "bedf80f00108c7712d97ffc376c2831e0798c25c18dd64b2199f4d7f4766c9a4",
+    "validation_receipt_sha256": "f576c0a37d2bcc8786b574eba22fdcfe461688bc43717b7b7f675f9abffc8f68"
+  },
+  "validation": {
+    "cohort": "one-time sealed 27-composition cohort (9 conditioning)",
+    "coverage_at_q": 0.963,
+    "gates_passed": "9/9 (predeclared, unweakened)",
+    "impr_vs_mean_lb_mv": 17.447,
+    "impr_vs_revgp_lb_mv": 12.715,
+    "mae_mv": 22.209,
+    "spearman": 0.86,
+    "spearman_lb": 0.739,
+    "top3_retrieval": 0.823
+  }
+}

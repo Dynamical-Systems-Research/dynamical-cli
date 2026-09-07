@@ -1,0 +1,251 @@
+document_type: dynamical.capability-registry
+schema_version: 0.1.0
+registry_id: dynamical-dtu-fastcat-capabilities-20260907
+capabilities:
+- operation_id: deposit-chemical-bath
+  kind: scientific
+  description: Record requested nominal precursor fractions and synthesis duration on the virtual sample.
+    The chemical-bath operation name is a Dynamical abstraction; no deposited film is measured.
+  input_ports:
+  - id: sample.state
+    state_type: sample_state
+    unit: '1'
+    required: true
+    description: The Ni-foam sample this bath deposition acts on. Deposition writes the recorded nominal
+      composition onto this state; no new sample.state identity is produced.
+  output_ports:
+  - id: deposited_fraction_Cr
+    state_type: number
+    unit: '1'
+    required: true
+    description: Nominal Cr precursor fraction echoed by the bath simulator; deposited stoichiometry is not measured.
+  - id: deposited_fraction_Al
+    state_type: number
+    unit: '1'
+    required: true
+    description: Nominal Al precursor fraction echoed by the bath simulator; deposited stoichiometry is not measured.
+  - id: deposited_fraction_Fe
+    state_type: number
+    unit: '1'
+    required: true
+    description: Nominal Fe precursor fraction echoed by the bath simulator; deposited stoichiometry is not measured.
+  - id: deposited_fraction_Co
+    state_type: number
+    unit: '1'
+    required: true
+    description: Nominal Co precursor fraction echoed by the bath simulator; deposited stoichiometry is not measured.
+  - id: deposited_fraction_Mn
+    state_type: number
+    unit: '1'
+    required: true
+    description: Nominal Mn precursor fraction echoed by the bath simulator; deposited stoichiometry is not measured.
+  - id: deposited_fraction_Ni
+    state_type: number
+    unit: '1'
+    required: true
+    description: Nominal Ni precursor fraction echoed by the bath simulator; deposited stoichiometry is not measured.
+  - id: deposited_fraction_Cu
+    state_type: number
+    unit: '1'
+    required: true
+    description: Nominal Cu precursor fraction echoed by the bath simulator; deposited stoichiometry is not measured.
+  - id: deposited_fraction_Zn
+    state_type: number
+    unit: '1'
+    required: true
+    description: Nominal Zn precursor fraction echoed by the bath simulator; deposited stoichiometry is not measured.
+  - id: bath_synthesis_time_s
+    state_type: number
+    unit: s
+    required: true
+    description: Nominal bath synthesis duration echoed by the simulator; physical delivery is not measured.
+  parameters:
+  - name: fraction_cr
+    value_type: number
+    unit: '1'
+    required: false
+    minimum: 0.0
+    maximum: 1.0
+  - name: fraction_al
+    value_type: number
+    unit: '1'
+    required: false
+    minimum: 0.0
+    maximum: 1.0
+  - name: fraction_fe
+    value_type: number
+    unit: '1'
+    required: false
+    minimum: 0.0
+    maximum: 1.0
+  - name: fraction_co
+    value_type: number
+    unit: '1'
+    required: false
+    minimum: 0.0
+    maximum: 1.0
+  - name: fraction_mn
+    value_type: number
+    unit: '1'
+    required: false
+    minimum: 0.0
+    maximum: 1.0
+  - name: fraction_ni
+    value_type: number
+    unit: '1'
+    required: false
+    minimum: 0.0
+    maximum: 1.0
+  - name: fraction_cu
+    value_type: number
+    unit: '1'
+    required: false
+    minimum: 0.0
+    maximum: 1.0
+  - name: fraction_zn
+    value_type: number
+    unit: '1'
+    required: false
+    minimum: 0.0
+    maximum: 1.0
+  - name: synthesis_time_s
+    value_type: number
+    unit: s
+    required: false
+    minimum: 0.0
+    maximum: 3600.0
+  required_conditions: []
+  possible_failures:
+  - the requested dopant fractions do not form a unit simplex
+  - no sample is in custody to deposit onto
+- operation_id: measure-oer
+  kind: scientific
+  description: Estimate OER overpotential from the FastCat film nominal composition using the frozen Dynamical
+    prediction table at exactly 0.010 A/cm^2. The 1.229 V offset is a Dynamical convention.
+  input_ports:
+  - id: sample.state
+    state_type: sample_state
+    unit: '1'
+    required: true
+    description: 'The sample this measurement reads from. A pure measurement: it does not transform, relocate,
+      or consume the sample, so no new sample.state is produced. The selected provider requires the deposited
+      film''s recorded precursor composition on this state.'
+  output_ports:
+  - id: overpotential_v
+    state_type: number
+    unit: V
+    required: true
+    description: Estimated OER overpotential, with the provider-declared uncertainty.
+  - id: current_density_a_cm2
+    state_type: number
+    unit: A/cm^2
+    required: true
+    description: Echoed current density the estimate was computed at.
+  parameters:
+  - name: current_density_a_cm2
+    value_type: number
+    unit: A/cm^2
+    required: true
+    minimum: 0.01
+    maximum: 0.01
+  required_conditions: []
+  possible_failures:
+  - the requested current density is outside the fitted basis envelope
+  - the measured sample carries no recorded deposit or precursor composition
+providers:
+- provider_id: ac-bath-simulator
+  operation_id: deposit-chemical-bath
+  evidence_class: simulator
+  endpoint_id: ac-bath-model
+  facility_ids:
+  - fastcat-process
+  availability:
+    available: true
+    observed_at: '2026-08-11T00:00:00Z'
+    availability_ref: dynamical/instruments/ac_bath.py
+  admission:
+    status: admitted
+    authority_id: dynamical-independent-verifier-fastcat-oer-20260811
+    authority_kind: independent_verifier
+    evidence_refs:
+    - dynamical/instruments/ac_bath.py
+    - dynamical/bundle/fastcat/calibration/fastcat-oer/calibration_report.json
+  validity_envelope:
+  - subject_kind: parameter
+    subject_id: synthesis_time_s
+    value_type: number
+    unit: s
+    minimum: 0.0
+    maximum: 3600.0
+  cost:
+    currency: USD
+    fixed: 0.0
+  duration:
+    minimum_s: 0.0
+    typical_s: 600.0
+    maximum_s: 3600.0
+  failures:
+  - code: simplex-violation
+    description: Dopant fractions must lie in [0, 1] and sum to one; violations are refused rather than
+      normalized.
+    recoverable: true
+  policy:
+    permitted: true
+    policy_tags:
+    - simulation-only
+    - process-state-only
+    safety_limit_ids: []
+    required_approval_ids: []
+  adapter_links:
+  - adapter_id: dynamical-ac-bath-python
+    adapter_version: 0.1.0
+    endpoint_ref: ac-bath-model
+- provider_id: ac-oer-twin
+  operation_id: measure-oer
+  evidence_class: calibrated_twin
+  endpoint_id: ac-oer-twin-model
+  facility_ids:
+  - fastcat-process
+  availability:
+    available: true
+    observed_at: '2026-08-11T00:00:00Z'
+    availability_ref: dynamical/instruments/ac_oer_twin.py
+  admission:
+    status: admitted
+    authority_id: dynamical-independent-verifier-fastcat-oer-20260811
+    authority_kind: independent_verifier
+    evidence_refs:
+    - dynamical/bundle/fastcat/calibration/fastcat-oer/calibration_report.json
+    - dynamical/bundle/fastcat/calibration/fastcat-oer/prediction_table.json
+    - dynamical/instruments/ac_oer_twin.py
+  validity_envelope:
+  - subject_kind: parameter
+    subject_id: current_density_a_cm2
+    value_type: number
+    unit: A/cm^2
+    minimum: 0.01
+    maximum: 0.01
+  cost:
+    currency: USD
+    fixed: 0.0
+  duration:
+    minimum_s: 0.0
+    typical_s: 60.0
+    maximum_s: 60.0
+  failures:
+  - code: outside-calibrated-domain
+    description: A deposited composition outside the frozen calibrated table is refused; the calibration
+      does not extend to it.
+    recoverable: true
+  policy:
+    permitted: true
+    policy_tags:
+    - calibrated-twin
+    - frozen-prediction-table
+    safety_limit_ids:
+    - oer-current-density-envelope
+    required_approval_ids: []
+  adapter_links:
+  - adapter_id: dynamical-ac-oer-twin-python
+    adapter_version: 0.1.0
+    endpoint_ref: ac-oer-twin-model

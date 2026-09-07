@@ -1,5 +1,53 @@
 # Changelog
 
+## 0.1.21
+
+Correct the public reference labs against pinned source evidence: SDL1 is a
+source-verified virtual workflow; FastCat is a separate bounded empirical
+predictor. Physical bench calibration is outside this release. The failed
+FastCat interval revision remains recorded.
+
+- Separate SDL1 and DTU FastCat facilities and registry IDs; SDL1 keeps only
+  `ot2-liquid-handling`, FastCat uses `fastcat-process`. Remove the fictional
+  transfer and cell-loading routes, echem-cell assets and geometry adapter.
+- Compose selects the installed facility from the requirement's declared source
+  workstation; `--facility` overrides selection. Registry defaults follow that
+  selection. HOLD and capability errors explain facility discovery and recovery.
+  Unknown-operation recovery lists capabilities when neither facility supports it.
+- Correct the SDL1 display name, Ni-tape working electrode and carried tool roles.
+  Remove the old workstation/asset IDs and label schematic geometry assumptions.
+- Replace ultrasound power percentage with Arduino temperature and timed-relay
+  commands. Admit the explicit 30 s / 35 C well-conditioning recipe and
+  cathodic −0.002827 A / 60 s deposition with Arduino temperature setup.
+- Replace cleaning volume/time parameters with `use_acid` and `acid_dwell_s`;
+  preserve deposit history. Pipettes dispense; pumps rinse/drain. Electrolyte
+  volume retains requested precision as a declared Dynamical bookkeeping convention;
+  upstream's integer-input limitation is explicit. Mixture aliquots truncate to integer µL.
+- Rename source-command output ports: ultrasound/temperature commands, nominal
+  pipette volume and `commanded_charge_c`. Unknown physical delivery, temperature,
+  deposited mass/thickness and residual liquid remain null. Source-command
+  parameters have `applied: null`; stationary sample provenance remains recorded
+  without inventing a sample-state write or quantity.
+- Replace SDL1 `measure-oer`'s free current parameter with a fixed `protocol_id`.
+  Bind setup, thirteen stages, reference/correction/aggregation and missing responses.
+  Account for 550 s of known CP dwell as a campaign-time lower bound; additional
+  CV/EIS and handling time remain unaccounted, and actual duration is unknown.
+- Remove the failed AMPERE estimator, registration, model binding and bundled
+  calibration records. The failed result remains in Git history; removal does
+  not reverse it. FastCat predictions and SDL1 protocol commands are unchanged.
+- Update provider policy tags and command envelopes. Receipts include enum bounds
+  when declared. Compiled action/channel enums remain facility-specific under
+  the existing schema; the schema format and open-vocabulary semantics are unchanged.
+  Both old pure-SDL1 and mixed-platform requirements may HOLD under corrected contracts.
+- Correct FastCat accuracy/attribution: original 27-composition MAE 22.2 mV;
+  later 54-composition MAE 48.4 mV with 43 single-run labels. Publish an aggregate
+  receipt with study revisions and digest. Frozen table and ±104.969 mV width are unchanged.
+- Correct example routing and stale skill instructions; remove the unsupported
+  reporting additions. Keep the public prompt and nine candidates unchanged.
+- Separate substantive field evidence from software/unknown declarations. Remove
+  circular citations and private paths from the public canary index; report
+  execution, source fidelity, predictive validity and agent interpretation separately.
+
 ## 0.1.20
 
 Closes gaps found by an audit of agent campaigns run with Dynamical (fatigue

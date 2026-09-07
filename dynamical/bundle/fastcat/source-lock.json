@@ -1,0 +1,7 @@
+{
+  "schema_version": "dynamical.source-lock.v1",
+  "notes": [
+    "No FastCat physical geometry or controller implementation is admitted. The sole marker is a Dynamical visualization convention; physical dimensions and layout are unknown. Dataset and frozen-predictor provenance are bound by facility.yaml calibration_evidence and calibration/fastcat-oer."
+  ],
+  "sources": []
+}

@@ -74,8 +74,12 @@ def test_live_kit_run_of_coverage_campaign_has_zero_lineage_findings(
     assert result.returncode == 0, result.stderr[-4000:]
 
     trace_validation = validate_path(trace)
-    assert trace_validation["execution_status"] == "passed"
-    assert trace_validation["valid"] is True
+    assert trace_validation["execution_status"] == "failed"
+    assert trace_validation["valid"] is False
+    assert any(
+        reason["code"] == "PROOF_OUTPUT_UNAVAILABLE"
+        for reason in trace_validation["validation_reasons"]
+    )
     events = [json.loads(line) for line in trace.read_text().splitlines() if line.strip()]
     overpotential = [
         channel
@@ -84,7 +88,7 @@ def test_live_kit_run_of_coverage_campaign_has_zero_lineage_findings(
         if channel["name"] == "squidstat.overpotential_v"
     ]
     assert len(overpotential) == 1
-    assert overpotential[0]["value"] is not None
+    assert overpotential[0]["value"] is None
     assert overpotential[0]["origin"] == "source_model"
 
     replay = replay_trace(
@@ -93,7 +97,7 @@ def test_live_kit_run_of_coverage_campaign_has_zero_lineage_findings(
         compiled_world=compiled_electrodeposition_coverage_world,
         runtime_receipt=run_dir / "runtime_evidence.json",
     )
-    assert replay["valid"] is True
+    assert replay["valid"] is False
 
 
 def test_compiled_instrument_runtime_returns_scientific_feedback(
@@ -118,7 +122,7 @@ def test_compiled_instrument_runtime_returns_scientific_feedback(
     overpotential = next(
         channel for channel in channels if channel["name"] == "squidstat.overpotential_v"
     )
-    assert overpotential["value"] is not None
+    assert overpotential["value"] is None
     assert overpotential["origin"] == "source_model"
 
     replay_state = {}
@@ -130,7 +134,7 @@ def test_compiled_instrument_runtime_returns_scientific_feedback(
                 for channel in snapshot["observation_channels"]
                 if channel["name"] == "squidstat.overpotential_v"
             )
-            target["value"] += 1.0
+            target["value"] = 0.25
             with pytest.raises(CampaignValidationError, match="admitted instrument runtime"):
                 _expected_snapshot_channels(snapshot, action, pack, replay_state)
             break
@@ -213,9 +217,7 @@ def _action_events_from_isaac_campaign(pack: dict) -> list:
     return events
 
 
-def _compile_coverage_isaac(
-    tmp_path: Path, *, to_squidstat_station: str = "squidstat-echem"
-) -> Path:
+def _compile_coverage_isaac(tmp_path: Path) -> Path:
     from test_electrodeposition_registry import MANIFEST, REGISTRY, _coverage_requirement
 
     from dynamical.compiler import compile_facility
@@ -223,7 +225,7 @@ def _compile_coverage_isaac(
     from dynamical.schema import load_capability_registry
 
     registry = load_capability_registry(REGISTRY)
-    requirement = _coverage_requirement(to_squidstat_station=to_squidstat_station)
+    requirement = _coverage_requirement()
     composition = compose_virtual_sdl(requirement, registry)
     assert composition.status == "COMPILED", composition.reason_codes
     return compile_facility(MANIFEST, "isaac", tmp_path, composition_result=composition).output_dir
@@ -231,7 +233,7 @@ def _compile_coverage_isaac(
 
 def _compile_coverage_isaac_with_narrowed_current_envelope(tmp_path: Path) -> Path:
     """The same compiled coverage isaac world, except ``current-envelope``'s own
-    declared bound is narrowed below the campaign's real ``current_a`` (0.002827 A).
+    declared bound excludes the campaign's cathodic ``current_a`` (-0.002827 A).
 
     Models a facility whose own safety interlock is tighter than the
     instrument's abstract admitted operating range -- a realistic scenario, not
@@ -257,7 +259,9 @@ def _compile_coverage_isaac_with_narrowed_current_envelope(tmp_path: Path) -> Pa
     narrowed_constraints = [
         (
             constraint.model_copy(
-                update={"bound": constraint.bound.model_copy(update={"maximum": 0.001})}
+                update={
+                    "bound": constraint.bound.model_copy(update={"minimum": -0.001, "maximum": 0.0})
+                }
             )
             if constraint.id == "current-envelope"
             else constraint
@@ -277,7 +281,7 @@ def test_live_kit_run_rejects_the_deposit_action_before_executing_an_unsafe_curr
 
     Every declared facility constraint is ``pre_action`` + ``reject`` (see
     ``dynamical/bundle/reference-lab/facility.yaml``), the live path this exercises:
-    ``current-envelope`` (narrowed below the campaign's real 0.002827 A current, see
+    ``current-envelope`` (narrowed below the campaign's real -0.002827 A current, see
     ``_compile_coverage_isaac_with_narrowed_current_envelope``) must reject the
     ``deposit`` action before Isaac ever submits it to the instrument, not execute it
     and merely record the violation. Before the fix, this ran to completion and wrote
@@ -328,11 +332,8 @@ def test_live_kit_run_rejects_the_deposit_action_before_executing_an_unsafe_curr
         event["action"]["action_id"] for event in events[:-1] if event["event_type"] == "action"
     ]
     assert earlier_action_ids == [
-        "materialize",
         "dispense",
-        "to-arduino",
         "condition",
-        "to-squidstat",
     ]
     observation_action_ids = {
         events[index - 1]["action"]["action_id"]
@@ -343,16 +344,9 @@ def test_live_kit_run_rejects_the_deposit_action_before_executing_an_unsafe_curr
 
 
 def test_coverage_campaign_compiles_for_isaac_with_zero_lineage_findings(tmp_path):
-    """Non-Kit companion to the live-Kit coverage test above, and the direct isaac-path
-    analog of ``test_electrodeposition_registry.py``'s
-    ``test_one_sample_moves_through_three_workstations_by_explicit_transfer`` /
-    ``test_coverage_campaign_compiles_and_runs_with_zero_lineage_findings``: one
-    sample moves through three workstations via explicit ``transfer-sample`` actions,
-    each carrying a real embedded ``sample_transition`` (see
-    ``_runtime_pack.py::runtime_campaign``, which calls the same registered
-    ``transfer.py`` instrument model ``campaign.py``'s composed path calls live), and
-    ``check_invariants`` finds nothing wrong with it -- proved without Isaac Sim
-    installed, since the lineage data is fixed entirely at compile time.
+    """Compiled actions preserve one stationary sample on SDL1's single deck.
+
+    This checks compiled custody bookkeeping without claiming embodied execution.
     """
     from dynamical.backends.compiled_runtime import verify_compiled_pack
     from dynamical.samples import check_invariants
@@ -374,11 +368,11 @@ def _compile_model_backed_isaac_world(destination: Path) -> Path:
 
     composition = compose_virtual_sdl(
         test_runtime_pack._model_backed_requirement(),
-        load_capability_registry("dynamical/bundle/reference-lab/registry.yaml"),
+        load_capability_registry(test_runtime_pack.FASTCAT_LAB / "registry.yaml"),
     )
     assert composition.status == "COMPILED", composition.reason_codes
     return compile_facility(
-        "dynamical/bundle/reference-lab/facility.yaml",
+        test_runtime_pack.FASTCAT_LAB / "facility.yaml",
         "isaac",
         destination,
         composition_result=composition,

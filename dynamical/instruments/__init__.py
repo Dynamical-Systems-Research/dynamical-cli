@@ -4,10 +4,9 @@ Registration happens by import. There is no plugin framework and no entry
 points: an instrument module is added to the imports at the bottom of this file
 and nothing in core execution changes.
 
-The trailing imports register the admitted AC SDL1 instrument models
-(liquid handling, ultrasonic conditioning, sample transfer, electrodeposition,
-cleaning, electrochemical-cell loading, OER measurement). No compatibility
-layers are registered here.
+The trailing imports register SDL1 source-command adapters, the source-defined
+SDL1 measurement protocol, and separately attributed DTU response models.
+Generic transport registration does not admit it to either reference facility.
 """
 
 from __future__ import annotations
@@ -62,10 +61,9 @@ from . import (  # noqa: E402,F401
     ac_arduino,
     ac_bath,
     ac_cleaning,
-    ac_echem_cell,
-    ac_oer,
     ac_oer_twin,
     ac_opentron,
     ac_potentiostat,
+    ac_sdl1_oer,
     transfer,
 )

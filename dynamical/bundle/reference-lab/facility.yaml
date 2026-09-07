@@ -2,39 +2,82 @@ document_type: dynamical.facility
 schema_version: 0.1.0
 facility:
   id: ac-electrodeposition-cell
-  name: AC SDL1 electrodeposition cell
+  name: AC SDL1 single-deck electrodeposition bench
   schema_version: 0.1.0
   frame:
     up_axis: Z
     length_unit: m
   workstation_ids:
   - ot2-liquid-handling
-  - arduino-conditioning
-  - squidstat-echem
   authoring_basis: derived
   source_refs:
   - uri: https://zenodo.org/records/15575908
     role: hardware-source
     revision: 0.0.2
-  - uri: https://github.com/AccelerationConsortium/echem-cell
+  - uri: https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L154-L199
+    role: workflow-source
+    revision: 2c5a911
+  - uri: https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/src/openTron_electrodeposition/parameters.py#L27-L56
+    role: workflow-source
+    revision: 2c5a911
+  - uri: https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/manuals/Canada%20Electrodeposition%20Bill%20of%20Materials%20(BOM).xlsx
     role: hardware-source
-    revision: 9b063f80a1166475b3249709f4fd3afdb3dadb5d
+    revision: 2c5a911
+  - uri: https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/manuals/Electric_diagram.pdf
+    role: electrode-wiring-source
+    revision: 2c5a911
+  - uri: https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L248-L539
+    role: measurement-protocol-source
+    revision: 2c5a911
   claim_boundary:
-  - AC SDL1 is one integrated bench with three controllers (OT-2 pipettor, Arduino relay/PID/ultrasound,
-    Admiral Squidstat). It is modelled as one facility with three workstations, not three separate facilities,
-    so no inter-facility transport gate is exercised by this manifest. Movement between workstations is
-    carried explicitly by the transfer-sample capability, and must appear in the trace.
-  - A compiled stage proves scene composition only. Embodied evidence needs a preserved real execution trace, render, replay, and inspection.
-  - The OT-2 body, the Arduino controller enclosure, the Squidstat instrument body, and the OT-2 tiprack
-    have no admitted source geometry and are represented as execution_visualization_primitive proxies,
-    not exact source geometry.
-  - The AC SDL1 archive contains no measured electrodeposition, OER, or conditioning data. The simulator
-    providers are idealizations with declared uncertainty. The ac-oer-twin provider uses separate FastCat
-    calibration evidence. Its calibrated claim applies only within its frozen limits.
-  - Per-asset dimensions_m values are coarse declarative bounds for visualization and collision, not metrology;
-    the assembly-well-cartridge-v44 world bounding box (132.5 x 190.5 x 113.7 mm) is the one figure directly
-    measured from the admitted conversion (see source-lock.json notes). The
-    referenced exact_source_geometry mesh, not this field, is the geometric record of truth.
+  - 'SDL1 uses one OT-2 deck. Deposition and OER testing act on the stationary Ni-tape working electrode at the
+    test-well bottom; the pipette carries the Ni counter-electrode tool, OER counter/reference tool, or flush tool
+    to the well. No sample transfer or separate electrochemical-cell loading is modeled. Source: example/experiment.py:154-199,1274-1430,1548-1734,2017-2066;
+    parameters.py:27-56; Electric_diagram.pdf page 1.'
+  - The geometry archive is AC-hosted SDL1 hardware at tag 0.0.2. FastCat is a separate DTU platform, with its own
+    facility bundle. No predictive instrument model in this SDL1 bundle was supplied by AC.
+  - Assets labelled execution_visualization_primitive are visualization markers with unknown physical shape and
+    placement. Their required dimensions_m, poses, colors and local frame are Dynamical display conventions, not
+    physical bounds, collision evidence or metrology. No asset mass is asserted.
+  - Admitted exact_source_geometry meshes preserve the source CAD geometry. Scene placements are schematic, not
+    measured deck coordinates. Except the recorded 132.5 x 190.5 x 113.7 mm well-cartridge mesh extent, dimensions_m
+    are display conventions; cleaning-cartridge and stock-rack values reproduce the upstream labware definition
+    footprints, not measured mesh extents. Exact source meshes, not dimensions_m, are the geometry record.
+  - Deck slot assignments and tool-rack positions come from example/experiment.py:154-199 and parameters.py:27-56.
+    Fourteen test wells are used (parameters.py:57-72); the fifteenth position is reserved for the temperature sensor
+    (README.md:97).
+  - The working electrode is nickel tape (BOM Ark1 B41); the nickel rod is the deposition counter tool (B52, Electric_diagram.pdf).
+    The OER tool combines counter and reference electrodes; the BOM lists Mini Hydroflex, platinum electrode and
+    platinum wire (B53-B55). Which reference electrode was physically mounted during a measured run is not established
+    by this code.
+  - The test well is temperature-controlled by the Arduino (example/experiment.py:2017-2018; src/arduino/main/main.ino:76-93,212-230).
+    Its inclusion establishes controller topology, not measured temperature accuracy or uniformity.
+  - This bundle supplies no measured SDL1 campaign rows or calibrated physical response predictions.
+  - A compiled stage proves scene composition only. Embodied evidence needs a preserved real execution trace, render,
+    replay, and inspection. No physical execution is claimed.
+  - Mixture aliquoting follows upstream integer-uL truncation. Fractional electrolyte volumes are Dynamical nominal
+    bookkeeping; the upstream range loop requires Python integer mL inputs (experiment.py:1433-1456), and the example
+    supplies integer 3. This extension does not establish upstream execution or measured delivery. Upstream pipette
+    strokes are at most 1000 uL. The 3.895 mL admission
+    cap follows the labware definition; parameters.py declares 3.9 mL and the main recipe uses 2.5 mL bath plus
+    a later 3 mL electrolyte fill. Command inventory is not measured delivered volume.
+  - The reference deposition command is cathodic -0.002827 A at a 35 degC setpoint for 60 s (the upstream function
+    also has a 10 s default), followed by 120 s OCP. Nominal precursor ratios are not measured film stoichiometry;
+    actual mass, thickness, temperature and delivered charge are unavailable.
+  - Cleaning retains deposit history while replacing nominal bath inventory, following the same-well sequence between
+    deposition and test. Neither perfect liquid removal nor unchanged film chemistry is established. Pumps rinse/drain
+    only; pipette dispensing is separate.
+  - 'The Arduino exposes temperature setpoint and timed ultrasound, not a power percentage. The admitted well-conditioning
+    command is the example recipe: cartridge 1, 30 s at a 35 C setpoint, not a verified continuous hardware envelope.
+    Unknown physical outputs are unavailable and carry no invented uncertainty. Except for the OER CP dwell lower
+    bound, duration/cost zero is unexecuted-physical-work bookkeeping; actual handling duration and cost remain
+    unknown.'
+  - measure-oer binds the full SDL1 source protocol, including 0.200 A/cm^2 activation and the 0.100,0.050,0.020,0.010,0.005,0.002,0.001
+    A/cm^2 staircase. These fixed source stages are admitted together, not as a continuous calibrated current envelope.
+    The last-third iR-corrected potential at 0.010 A/cm^2 is the upstream headline. Any 1.229 V overpotential offset
+    is a Dynamical convention; the mounted reference and compatible potential scale remain unverified.
+  - Squidstat hardware current/voltage limits and actual elapsed duration are unverified. Device channels have no
+    hardware bounds; deposition-only constraints do not describe the full OER protocol.
 workstations:
 - id: ot2-liquid-handling
   facility_id: ac-electrodeposition-cell
@@ -46,52 +89,17 @@ workstations:
   - ot2-test-plate
   - ot2-tool-rack
   - ot2-stock-reservoir-slot-11
-  - bench-transfer-mechanism
-  local_frame:
-    position_m:
-      x: 0.0
-      y: 0.0
-      z: 0.0
-    orientation:
-      w: 1.0
-      x: 0.0
-      y: 0.0
-      z: 0.0
-  bounds_m:
-    x: 0.7
-    y: 0.6
-    z: 0.65
-- id: arduino-conditioning
-  facility_id: ac-electrodeposition-cell
-  member_asset_ids:
   - arduino-controller-body
   - arduino-ultrasound-mount
-  local_frame:
-    position_m:
-      x: 1.0
-      y: 0.0
-      z: 0.0
-    orientation:
-      w: 1.0
-      x: 0.0
-      y: 0.0
-      z: 0.0
-  bounds_m:
-    x: 0.3
-    y: 0.3
-    z: 0.3
-- id: squidstat-echem
-  facility_id: ac-electrodeposition-cell
-  member_asset_ids:
   - squidstat-instrument-body
-  - echem-cell-main-body
-  - echem-cell-cap
-  - echem-cell-foil-base
-  - working-electrode-nickel
-  - counter-electrode-platinum
+  - deposition-counter-nickel-tool
+  - oer-counter-reference-tool
+  - working-electrode-nickel-tape
+  - flush-tool
+  - ag-reference-tool
   local_frame:
     position_m:
-      x: 1.6
+      x: 0.0
       y: 0.0
       z: 0.0
     orientation:
@@ -99,10 +107,6 @@ workstations:
       x: 0.0
       y: 0.0
       z: 0.0
-  bounds_m:
-    x: 0.45
-    y: 0.35
-    z: 0.35
 assets:
 - id: ot2-robot-body
   workstation_id: ot2-liquid-handling
@@ -129,12 +133,14 @@ assets:
       y: 0.0
       z: 0.0
   collision:
-    enabled: true
-    shape: box
+    enabled: false
+    shape: none
   manipulation_frames: {}
-  physical_properties:
-    mass_kg: 20.0
-  source_refs: []
+  physical_properties: {}
+  source_refs:
+  - uri: https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L154-L199
+    role: workflow-source
+    revision: 2c5a911
 - id: ot2-tiprack
   workstation_id: ot2-liquid-handling
   asset_kind: 'OT-2 deck slot 1: tiprack'
@@ -160,22 +166,24 @@ assets:
       y: 0.0
       z: 0.0
   collision:
-    enabled: true
-    shape: box
+    enabled: false
+    shape: none
   manipulation_frames: {}
-  physical_properties:
-    mass_kg: 0.2
-  source_refs: []
+  physical_properties: {}
+  source_refs:
+  - uri: https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L154-L199
+    role: workflow-source
+    revision: 2c5a911
 - id: ot2-cleaning-cartridge
   workstation_id: ot2-liquid-handling
-  asset_kind: 'OT-2 deck slot 3: cleaning cartridge, 2 wells, 25 x 59.7 x 24 mm'
+  asset_kind: 'OT-2 deck slot 3: cleaning cartridge; two wells; footprint from labware definition'
   geometry:
     representation: exact_source_geometry
     mesh_source_id: assets/assembly-cleaning-cartridge-v15.usdc
     dimensions_m:
-      x: 0.025
-      y: 0.0597
-      z: 0.024
+      x: 0.127
+      y: 0.085
+      z: 0.104
     display_color_rgb:
     - 0.55
     - 0.58
@@ -191,25 +199,30 @@ assets:
       y: 0.0
       z: 0.0
   collision:
-    enabled: true
-    shape: convex_hull
+    enabled: false
+    shape: none
   manipulation_frames: {}
-  physical_properties:
-    mass_kg: 0.05
+  physical_properties: {}
   source_refs:
   - uri: sources/ac-sdl1/assembly_cleaning_cartridge v15.step
     role: vendor-asset
     revision: 0.0.2
+  - uri: https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L154-L199
+    role: workflow-source
+    revision: 2c5a911
+  - uri: https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/src/opentron_labware/nis_2_wellplate_30000ul.json#L20-L45
+    role: labware-definition
+    revision: 2c5a911
 - id: ot2-stock-reservoir-slot-7
   workstation_id: ot2-liquid-handling
-  asset_kind: 'OT-2 deck slot 7: stock reservoir rack, 8 x 25 mL'
+  asset_kind: 'OT-2 deck slot 7: stock reservoir rack, 8 x 25 mL; vial-rack mesh correspondence is unverified, display only'
   geometry:
     representation: exact_source_geometry
     mesh_source_id: assets/vial-rack-v3.usdc
     dimensions_m:
-      x: 0.08
-      y: 0.12
-      z: 0.06
+      x: 0.12775
+      y: 0.0855
+      z: 0.0604
     display_color_rgb:
     - 0.55
     - 0.58
@@ -225,18 +238,23 @@ assets:
       y: 0.0
       z: 0.0
   collision:
-    enabled: true
-    shape: convex_hull
+    enabled: false
+    shape: none
   manipulation_frames: {}
-  physical_properties:
-    mass_kg: 0.3
+  physical_properties: {}
   source_refs:
   - uri: sources/ac-sdl1/vial_rack v3.step
     role: vendor-asset
     revision: 0.0.2
+  - uri: https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L154-L199
+    role: workflow-source
+    revision: 2c5a911
+  - uri: https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/src/opentron_labware/nis_8_reservoir_25000ul.json#L29-L42
+    role: labware-definition
+    revision: 2c5a911
 - id: ot2-test-plate
   workstation_id: ot2-liquid-handling
-  asset_kind: 'OT-2 deck slot 9: test plate, 15 wells, diameter 20 mm x 31 mm, 3895 uL'
+  asset_kind: 'OT-2 deck slot 9: test cartridge; 14 usable wells, one temperature-sensor position'
   geometry:
     representation: exact_source_geometry
     mesh_source_id: assets/assembly-well-cartridge-v44.usdc
@@ -259,15 +277,20 @@ assets:
       y: 0.0
       z: 0.0
   collision:
-    enabled: true
-    shape: convex_hull
+    enabled: false
+    shape: none
   manipulation_frames: {}
-  physical_properties:
-    mass_kg: 0.4
+  physical_properties: {}
   source_refs:
   - uri: sources/ac-sdl1/assembly_well_cartridge v44.step
     role: vendor-asset
     revision: 0.0.2
+  - uri: https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L154-L199
+    role: workflow-source
+    revision: 2c5a911
+  - uri: https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/src/openTron_electrodeposition/parameters.py#L57-L72
+    role: workflow-source
+    revision: 2c5a911
 - id: ot2-tool-rack
   workstation_id: ot2-liquid-handling
   asset_kind: 'OT-2 deck slot 10: tool rack'
@@ -293,25 +316,27 @@ assets:
       y: 0.0
       z: 0.0
   collision:
-    enabled: true
-    shape: convex_hull
+    enabled: false
+    shape: none
   manipulation_frames: {}
-  physical_properties:
-    mass_kg: 0.25
+  physical_properties: {}
   source_refs:
   - uri: sources/ac-sdl1/tool_cartridge_v7.step
     role: vendor-asset
     revision: 0.0.2
+  - uri: https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L154-L199
+    role: workflow-source
+    revision: 2c5a911
 - id: ot2-stock-reservoir-slot-11
   workstation_id: ot2-liquid-handling
-  asset_kind: 'OT-2 deck slot 11: stock reservoir rack, 8 x 25 mL'
+  asset_kind: 'OT-2 deck slot 11: stock reservoir rack, 8 x 25 mL; vial-rack mesh correspondence is unverified, display only'
   geometry:
     representation: exact_source_geometry
     mesh_source_id: assets/vial-rack-v3.usdc
     dimensions_m:
-      x: 0.08
-      y: 0.12
-      z: 0.06
+      x: 0.12775
+      y: 0.0855
+      z: 0.0604
     display_color_rgb:
     - 0.55
     - 0.58
@@ -327,47 +352,22 @@ assets:
       y: 0.0
       z: 0.0
   collision:
-    enabled: true
-    shape: convex_hull
-  manipulation_frames: {}
-  physical_properties:
-    mass_kg: 0.3
-  source_refs:
-  - uri: sources/ac-sdl1/vial_rack v3.step
-    role: vendor-asset
-    revision: 0.0.2
-- id: bench-transfer-mechanism
-  workstation_id: ot2-liquid-handling
-  asset_kind: bench sample-transfer mechanism (custody change only; no admitted geometry claimed)
-  geometry:
-    representation: execution_visualization_primitive
-    portable_primitive: capsule
-    dimensions_m:
-      x: 0.05
-      y: 0.05
-      z: 0.15
-    display_color_rgb:
-    - 0.6
-    - 0.6
-    - 0.6
-  pose:
-    position_m:
-      x: 0.35
-      y: 0.0
-      z: 0.625
-    orientation:
-      w: 1.0
-      x: 0.0
-      y: 0.0
-      z: 0.0
-  collision:
     enabled: false
     shape: none
   manipulation_frames: {}
   physical_properties: {}
-  source_refs: []
+  source_refs:
+  - uri: sources/ac-sdl1/vial_rack v3.step
+    role: vendor-asset
+    revision: 0.0.2
+  - uri: https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L154-L199
+    role: workflow-source
+    revision: 2c5a911
+  - uri: https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/src/opentron_labware/nis_8_reservoir_25000ul.json#L29-L42
+    role: labware-definition
+    revision: 2c5a911
 - id: arduino-controller-body
-  workstation_id: arduino-conditioning
+  workstation_id: ot2-liquid-handling
   asset_kind: Arduino relay/PID/ultrasound controller enclosure
   geometry:
     representation: execution_visualization_primitive
@@ -391,15 +391,17 @@ assets:
       y: 0.0
       z: 0.0
   collision:
-    enabled: true
-    shape: box
+    enabled: false
+    shape: none
   manipulation_frames: {}
-  physical_properties:
-    mass_kg: 0.5
-  source_refs: []
+  physical_properties: {}
+  source_refs:
+  - uri: https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/src/arduino/main/main.ino#L7-L14
+    role: controller-source
+    revision: 2c5a911
 - id: arduino-ultrasound-mount
-  workstation_id: arduino-conditioning
-  asset_kind: 1-well cartridge ultrasound mount
+  workstation_id: ot2-liquid-handling
+  asset_kind: Test-well ultrasound mount; schematic placement on the single deck
   geometry:
     representation: exact_source_geometry
     mesh_source_id: assets/1-well-cartridge-ultrasound-mount-v5.usdc
@@ -413,26 +415,25 @@ assets:
     - 0.62
   pose:
     position_m:
-      x: 0.1
-      y: 0.0
-      z: 0.015
+      x: 0.0
+      y: -0.1
+      z: 0.55
     orientation:
       w: 1.0
       x: 0.0
       y: 0.0
       z: 0.0
   collision:
-    enabled: true
-    shape: convex_hull
+    enabled: false
+    shape: none
   manipulation_frames: {}
-  physical_properties:
-    mass_kg: 0.1
+  physical_properties: {}
   source_refs:
   - uri: sources/ac-sdl1/1_well_catridge_ultrasound_mount v5.step
     role: vendor-asset
     revision: 0.0.2
 - id: squidstat-instrument-body
-  workstation_id: squidstat-echem
+  workstation_id: ot2-liquid-handling
   asset_kind: Admiral Squidstat potentiostat
   geometry:
     representation: execution_visualization_primitive
@@ -456,117 +457,17 @@ assets:
       y: 0.0
       z: 0.0
   collision:
-    enabled: true
-    shape: box
+    enabled: false
+    shape: none
   manipulation_frames: {}
-  physical_properties:
-    mass_kg: 3.0
-  source_refs: []
-- id: echem-cell-main-body
-  workstation_id: squidstat-echem
-  asset_kind: electrochemical cell main body
-  geometry:
-    representation: exact_source_geometry
-    mesh_source_id: assets/main-body-v5-wo-block-2.3-us.usdc
-    dimensions_m:
-      x: 0.06
-      y: 0.06
-      z: 0.05
-    display_color_rgb:
-    - 0.55
-    - 0.58
-    - 0.62
-  pose:
-    position_m:
-      x: 0.2
-      y: 0.0
-      z: 0.025
-    orientation:
-      w: 1.0
-      x: 0.0
-      y: 0.0
-      z: 0.0
-  collision:
-    enabled: true
-    shape: convex_hull
-  manipulation_frames: {}
-  physical_properties:
-    mass_kg: 0.15
+  physical_properties: {}
   source_refs:
-  - uri: sources/echem-cell/Main Body v5 wo Block 2.3 US.stl
-    role: vendor-asset
-    revision: 9b063f80a1166475b3249709f4fd3afdb3dadb5d
-- id: echem-cell-cap
-  workstation_id: squidstat-echem
-  asset_kind: electrochemical cell cap
-  geometry:
-    representation: exact_source_geometry
-    mesh_source_id: assets/cap-body-v5-3.3.usdc
-    dimensions_m:
-      x: 0.06
-      y: 0.06
-      z: 0.02
-    display_color_rgb:
-    - 0.55
-    - 0.58
-    - 0.62
-  pose:
-    position_m:
-      x: 0.2
-      y: 0.0
-      z: 0.06
-    orientation:
-      w: 1.0
-      x: 0.0
-      y: 0.0
-      z: 0.0
-  collision:
-    enabled: true
-    shape: convex_hull
-  manipulation_frames: {}
-  physical_properties:
-    mass_kg: 0.05
-  source_refs:
-  - uri: sources/echem-cell/Cap Body v5 3.3.stl
-    role: vendor-asset
-    revision: 9b063f80a1166475b3249709f4fd3afdb3dadb5d
-- id: echem-cell-foil-base
-  workstation_id: squidstat-echem
-  asset_kind: electrochemical cell foil base
-  geometry:
-    representation: exact_source_geometry
-    mesh_source_id: assets/foil-base-v5-1.3.usdc
-    dimensions_m:
-      x: 0.05
-      y: 0.05
-      z: 0.005
-    display_color_rgb:
-    - 0.55
-    - 0.58
-    - 0.62
-  pose:
-    position_m:
-      x: 0.2
-      y: 0.0
-      z: 0.0025
-    orientation:
-      w: 1.0
-      x: 0.0
-      y: 0.0
-      z: 0.0
-  collision:
-    enabled: true
-    shape: convex_hull
-  manipulation_frames: {}
-  physical_properties:
-    mass_kg: 0.02
-  source_refs:
-  - uri: sources/echem-cell/Foil Base v5 1.3.stl
-    role: vendor-asset
-    revision: 9b063f80a1166475b3249709f4fd3afdb3dadb5d
-- id: working-electrode-nickel
-  workstation_id: squidstat-echem
-  asset_kind: nickel working electrode
+  - uri: https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/main.py#L8-L9
+    role: controller-source
+    revision: 2c5a911
+- id: deposition-counter-nickel-tool
+  workstation_id: ot2-liquid-handling
+  asset_kind: Pipette-carried Ni deposition counter-electrode tool; parked at tool-rack A1
   geometry:
     representation: exact_source_geometry
     mesh_source_id: assets/nickel-electrode-v30.usdc
@@ -581,26 +482,34 @@ assets:
   pose:
     position_m:
       x: 0.18
-      y: 0.02
-      z: 0.05
+      y: 0.1
+      z: 0.6
     orientation:
       w: 1.0
       x: 0.0
       y: 0.0
       z: 0.0
   collision:
-    enabled: true
-    shape: convex_hull
+    enabled: false
+    shape: none
   manipulation_frames: {}
-  physical_properties:
-    mass_kg: 0.01
+  physical_properties: {}
   source_refs:
   - uri: sources/ac-sdl1/nickel_electrode v30.step
     role: vendor-asset
     revision: 0.0.2
-- id: counter-electrode-platinum
-  workstation_id: squidstat-echem
-  asset_kind: platinum counter electrode
+  - uri: https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/src/openTron_electrodeposition/parameters.py#L27-L56
+    role: workflow-source
+    revision: 2c5a911
+  - uri: https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/manuals/Canada%20Electrodeposition%20Bill%20of%20Materials%20(BOM).xlsx
+    role: hardware-source
+    revision: 2c5a911
+  - uri: https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/manuals/Electric_diagram.pdf
+    role: electrode-wiring-source
+    revision: 2c5a911
+- id: oer-counter-reference-tool
+  workstation_id: ot2-liquid-handling
+  asset_kind: Pipette-carried OER counter/reference tool; parked at tool-rack B2
   geometry:
     representation: exact_source_geometry
     mesh_source_id: assets/platinum-electrode-v46.usdc
@@ -615,23 +524,135 @@ assets:
   pose:
     position_m:
       x: 0.22
-      y: 0.02
-      z: 0.05
+      y: 0.12
+      z: 0.6
     orientation:
       w: 1.0
       x: 0.0
       y: 0.0
       z: 0.0
   collision:
-    enabled: true
-    shape: convex_hull
+    enabled: false
+    shape: none
   manipulation_frames: {}
-  physical_properties:
-    mass_kg: 0.01
+  physical_properties: {}
   source_refs:
   - uri: sources/ac-sdl1/platinum_electrode v46.step
     role: vendor-asset
     revision: 0.0.2
+  - uri: https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/src/openTron_electrodeposition/parameters.py#L27-L56
+    role: workflow-source
+    revision: 2c5a911
+  - uri: https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/manuals/Canada%20Electrodeposition%20Bill%20of%20Materials%20(BOM).xlsx
+    role: hardware-source
+    revision: 2c5a911
+  - uri: https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/manuals/Electric_diagram.pdf
+    role: electrode-wiring-source
+    revision: 2c5a911
+- id: working-electrode-nickel-tape
+  workstation_id: ot2-liquid-handling
+  asset_kind: Stationary Ni-tape working electrode at test-well bottom; visualization-only marker, physical
+    extent and exact pose unknown
+  geometry:
+    representation: execution_visualization_primitive
+    portable_primitive: cube
+    dimensions_m:
+      x: 0.01
+      y: 0.01
+      z: 0.01
+    display_color_rgb:
+    - 0.4
+    - 0.5
+    - 0.6
+  pose:
+    position_m:
+      x: 0
+      y: -0.1
+      z: 0.565
+    orientation:
+      w: 1.0
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  collision:
+    enabled: false
+    shape: none
+  manipulation_frames: {}
+  physical_properties: {}
+  source_refs:
+  - uri: https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/manuals/Canada%20Electrodeposition%20Bill%20of%20Materials%20(BOM).xlsx
+    role: hardware-source
+    revision: 2c5a911
+  - uri: https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/manuals/Electric_diagram.pdf
+    role: electrode-wiring-source
+    revision: 2c5a911
+- id: flush-tool
+  workstation_id: ot2-liquid-handling
+  asset_kind: Pipette-carried rinse/drain tool; parked at tool-rack B1; visualization-only marker. Upstream Flush_tool v11.step is not bundled; mesh extent is not recorded here and installed pose is unverified.
+  geometry:
+    representation: execution_visualization_primitive
+    portable_primitive: cube
+    dimensions_m:
+      x: 0.01
+      y: 0.01
+      z: 0.01
+    display_color_rgb:
+    - 0.4
+    - 0.5
+    - 0.6
+  pose:
+    position_m:
+      x: 0.22
+      y: 0.1
+      z: 0.6
+    orientation:
+      w: 1.0
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  collision:
+    enabled: false
+    shape: none
+  manipulation_frames: {}
+  physical_properties: {}
+  source_refs:
+  - uri: https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/src/openTron_electrodeposition/parameters.py#L27-L56
+    role: workflow-source
+    revision: 2c5a911
+  - uri: https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L895-L1125
+    role: workflow-source
+    revision: 2c5a911
+- id: ag-reference-tool
+  workstation_id: ot2-liquid-handling
+  asset_kind: Unused Ag-labelled pipette tool at B2; role unverified. CAD exists upstream but is not bundled; rendered
+    marker and pose are conventions.
+  geometry:
+    representation: execution_visualization_primitive
+    portable_primitive: cube
+    dimensions_m:
+      x: 0.01
+      y: 0.01
+      z: 0.01
+    display_color_rgb: [0.4, 0.5, 0.6]
+  pose:
+    position_m:
+      x: 0.18
+      y: 0.12
+      z: 0.6
+    orientation:
+      w: 1.0
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  collision:
+    enabled: false
+    shape: none
+  manipulation_frames: {}
+  physical_properties: {}
+  source_refs:
+  - uri: https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/src/openTron_electrodeposition/parameters.py#L27-L56
+    role: workflow-source
+    revision: 2c5a911
 devices:
 - id: ot2-device
   asset_id: ot2-robot-body
@@ -640,13 +661,23 @@ devices:
     value_type: number
     unit: mL
     minimum: 0.0
-    maximum: 25.0
+    maximum: 3.895
+  - id: ot2.dispense_volume_commanded_ml
+    value_type: number
+    unit: mL
+    minimum: 0.0
+    maximum: 3.895
   - id: ot2.dispense_volume_applied_ml
     value_type: number
     unit: mL
     minimum: 0.0
-    maximum: 25.0
+    maximum: 3.895
   - id: ot2.aliquot_volume_requested_ml
+    value_type: number
+    unit: mL
+    minimum: 0.0
+    maximum: 3.895
+  - id: ot2.aliquot_volume_commanded_ml
     value_type: number
     unit: mL
     minimum: 0.0
@@ -656,68 +687,21 @@ devices:
     unit: mL
     minimum: 0.0
     maximum: 3.895
-  - id: ot2.deposited_fraction_Cr
-    value_type: number
-    unit: '1'
-    minimum: 0.0
-    maximum: 1.0
-  - id: ot2.deposited_fraction_Al
-    value_type: number
-    unit: '1'
-    minimum: 0.0
-    maximum: 1.0
-  - id: ot2.deposited_fraction_Fe
-    value_type: number
-    unit: '1'
-    minimum: 0.0
-    maximum: 1.0
-  - id: ot2.deposited_fraction_Co
-    value_type: number
-    unit: '1'
-    minimum: 0.0
-    maximum: 1.0
-  - id: ot2.deposited_fraction_Mn
-    value_type: number
-    unit: '1'
-    minimum: 0.0
-    maximum: 1.0
-  - id: ot2.deposited_fraction_Ni
-    value_type: number
-    unit: '1'
-    minimum: 0.0
-    maximum: 1.0
-  - id: ot2.deposited_fraction_Cu
-    value_type: number
-    unit: '1'
-    minimum: 0.0
-    maximum: 1.0
-  - id: ot2.deposited_fraction_Zn
-    value_type: number
-    unit: '1'
-    minimum: 0.0
-    maximum: 1.0
-  - id: ot2.bath_synthesis_time_s
-    value_type: number
-    unit: s
-    minimum: 0.0
-    maximum: 3600.0
   capability_ids:
   - dispense-electrolyte-capability
   - aliquot-to-well-capability
-  - deposit-chemical-bath-capability
 - id: arduino-device
   asset_id: arduino-controller-body
   state_channels:
-  - id: arduino.conditioning_duration_s
+  - id: arduino.ultrasound_commanded_s
     value_type: number
     unit: s
-    minimum: 0.0
-    maximum: 1800.0
-  - id: arduino.conditioning_setpoint_percent
+  - id: arduino.temperature_setpoint_c
     value_type: number
-    unit: '%'
-    minimum: 0.0
-    maximum: 100.0
+    unit: degC
+  - id: arduino.temperature_observed_c
+    value_type: number
+    unit: degC
   capability_ids:
   - condition-ultrasonic-capability
 - id: squidstat-device
@@ -726,17 +710,12 @@ devices:
   - id: squidstat.current_a
     value_type: number
     unit: A
-    minimum: 0.0
-    maximum: 0.01
   - id: squidstat.duration_s
     value_type: number
     unit: s
-    minimum: 0.0
-    maximum: 3600.0
-  - id: squidstat.charge_c
+  - id: squidstat.commanded_charge_c
     value_type: number
     unit: C
-    minimum: 0.0
   - id: squidstat.deposited_mass_g
     value_type: number
     unit: g
@@ -748,157 +727,76 @@ devices:
   - id: squidstat.current_density_a_cm2
     value_type: number
     unit: A/cm^2
-    minimum: 0.0
-    maximum: 0.1
+    minimum: -0.01
+    maximum: 0.2
   - id: squidstat.overpotential_v
     value_type: number
     unit: V
-    minimum: 0.0
-  capability_ids:
-  - electrodeposit-constant-current-capability
-  - measure-oer-capability
+  - id: squidstat.potential_at_10ma_cm2_v
+    value_type: number
+    unit: V
+  - id: squidstat.corrected_potential_at_10ma_cm2_v
+    value_type: number
+    unit: V
+  - id: squidstat.ohmic_resistance_ohm
+    value_type: number
+    unit: ohm
+  capability_ids: [electrodeposit-constant-current-capability, measure-oer-capability]
 - id: cleaning-station-device
-  asset_id: ot2-cleaning-cartridge
+  asset_id: ot2-test-plate
   state_channels:
-  - id: cleaning.rinse_volume_ml
+  - id: cleaning.water_commanded_ml
     value_type: number
     unit: mL
-    minimum: 0.0
-    maximum: 12.0
-  - id: cleaning.ultrasound_s
+  - id: cleaning.acid_commanded_ml
+    value_type: number
+    unit: mL
+  - id: cleaning.drain_commanded_ml
+    value_type: number
+    unit: mL
+  - id: cleaning.ultrasound_commanded_s
     value_type: number
     unit: s
-    minimum: 0.0
-    maximum: 1800.0
-  capability_ids:
-  - clean-electrode-capability
-- id: cell-fixture-device
-  asset_id: echem-cell-main-body
-  state_channels:
-  - id: cell.cell_id
-    value_type: string
-    unit: '1'
-  - id: cell.cell_seated
-    value_type: boolean
-    unit: '1'
-  capability_ids:
-  - load-electrochemical-cell-capability
-agents:
-- id: transfer-agent
-  asset_id: bench-transfer-mechanism
-  capability_ids:
-  - transfer-sample-capability
-  action_endpoint_id: ac-transfer-action-endpoint
-  state_channels:
-  - id: transfer.sample_station_id
-    value_type: string
-    unit: '1'
-  - id: transfer.arrival_confirmed
-    value_type: boolean
-    unit: '1'
-  - id: transfer.sample_state_id
-    value_type: string
-    unit: '1'
+  - id: cleaning.residual_volume_ml
+    value_type: number
+    unit: mL
+  capability_ids: [clean-electrode-capability]
+agents: []
 capabilities:
-- id: deposit-chemical-bath-capability
-  provider_id: ot2-device
-  action_type: deposit
-  parameters:
-  - name: fraction_cr
-    value_type: number
-    unit: "1"
-    required: false
-    minimum: 0.0
-    maximum: 1.0
-  - name: fraction_al
-    value_type: number
-    unit: "1"
-    required: false
-    minimum: 0.0
-    maximum: 1.0
-  - name: fraction_fe
-    value_type: number
-    unit: "1"
-    required: false
-    minimum: 0.0
-    maximum: 1.0
-  - name: fraction_co
-    value_type: number
-    unit: "1"
-    required: false
-    minimum: 0.0
-    maximum: 1.0
-  - name: fraction_mn
-    value_type: number
-    unit: "1"
-    required: false
-    minimum: 0.0
-    maximum: 1.0
-  - name: fraction_ni
-    value_type: number
-    unit: "1"
-    required: false
-    minimum: 0.0
-    maximum: 1.0
-  - name: fraction_cu
-    value_type: number
-    unit: "1"
-    required: false
-    minimum: 0.0
-    maximum: 1.0
-  - name: fraction_zn
-    value_type: number
-    unit: "1"
-    required: false
-    minimum: 0.0
-    maximum: 1.0
-  - name: synthesis_time_s
-    value_type: number
-    unit: s
-    required: false
-    minimum: 0.0
-    maximum: 3600.0
-  observation_channel_ids:
-  - ot2.deposited_fraction_Cr
-  - ot2.deposited_fraction_Al
-  - ot2.deposited_fraction_Fe
-  - ot2.deposited_fraction_Co
-  - ot2.deposited_fraction_Mn
-  - ot2.deposited_fraction_Ni
-  - ot2.deposited_fraction_Cu
-  - ot2.deposited_fraction_Zn
-  - ot2.bath_synthesis_time_s
-  reported_output_port_ids:
-    ot2.deposited_fraction_Cr: deposited_fraction_Cr
-    ot2.deposited_fraction_Al: deposited_fraction_Al
-    ot2.deposited_fraction_Fe: deposited_fraction_Fe
-    ot2.deposited_fraction_Co: deposited_fraction_Co
-    ot2.deposited_fraction_Mn: deposited_fraction_Mn
-    ot2.deposited_fraction_Ni: deposited_fraction_Ni
-    ot2.deposited_fraction_Cu: deposited_fraction_Cu
-    ot2.deposited_fraction_Zn: deposited_fraction_Zn
-    ot2.bath_synthesis_time_s: bath_synthesis_time_s
 - id: dispense-electrolyte-capability
   provider_id: ot2-device
   action_type: dispense
   parameters:
   - name: volume_ml
     value_type: number
-    unit: mL
     required: true
+    unit: mL
     minimum: 0.0
-    maximum: 25.0
+    maximum: 3.895
   - name: chemical
     value_type: string
     required: false
-    enum: [Ni, Fe, Cr, Mn, Co, Zn, Cu, NH4OH, NaCi]
+    unit: '1'
+    enum:
+    - Ni
+    - Fe
+    - Cr
+    - Mn
+    - Co
+    - Zn
+    - Cu
+    - NH4OH
+    - NaCi
+    - KOH
   observation_channel_ids:
   - ot2.dispense_volume_requested_ml
+  - ot2.dispense_volume_commanded_ml
   - ot2.dispense_volume_applied_ml
   echoed_parameter_bindings:
     ot2.dispense_volume_requested_ml: volume_ml
   reported_output_port_ids:
     ot2.dispense_volume_requested_ml: volume_requested_ml
+    ot2.dispense_volume_commanded_ml: volume_commanded_ml
     ot2.dispense_volume_applied_ml: volume_applied_ml
   precondition_constraint_ids:
   - dispense-volume-envelope
@@ -909,21 +807,34 @@ capabilities:
   parameters:
   - name: volume_ml
     value_type: number
-    unit: mL
     required: true
+    unit: mL
     minimum: 0.0
     maximum: 3.895
   - name: chemical
     value_type: string
     required: false
-    enum: [Ni, Fe, Cr, Mn, Co, Zn, Cu, NH4OH, NaCi]
+    unit: '1'
+    enum:
+    - Ni
+    - Fe
+    - Cr
+    - Mn
+    - Co
+    - Zn
+    - Cu
+    - NH4OH
+    - NaCi
+    - KOH
   observation_channel_ids:
   - ot2.aliquot_volume_requested_ml
+  - ot2.aliquot_volume_commanded_ml
   - ot2.aliquot_volume_applied_ml
   echoed_parameter_bindings:
     ot2.aliquot_volume_requested_ml: volume_ml
   reported_output_port_ids:
     ot2.aliquot_volume_requested_ml: volume_requested_ml
+    ot2.aliquot_volume_commanded_ml: volume_commanded_ml
     ot2.aliquot_volume_applied_ml: volume_applied_ml
   precondition_constraint_ids:
   - aliquot-volume-envelope
@@ -934,28 +845,23 @@ capabilities:
   parameters:
   - name: duration_s
     value_type: number
-    unit: s
     required: true
-    minimum: 0.0
-    maximum: 1800.0
-  - name: setpoint_percent
+    unit: s
+    enum: [30.0]
+  - name: temperature_setpoint_c
     value_type: number
-    unit: '%'
-    required: false
-    minimum: 0.0
-    maximum: 100.0
-  observation_channel_ids:
-  - arduino.conditioning_duration_s
-  - arduino.conditioning_setpoint_percent
+    required: true
+    unit: degC
+    enum: [35.0]
+  observation_channel_ids: [arduino.ultrasound_commanded_s, arduino.temperature_setpoint_c, arduino.temperature_observed_c]
   echoed_parameter_bindings:
-    arduino.conditioning_duration_s: duration_s
-    arduino.conditioning_setpoint_percent: setpoint_percent
+    arduino.ultrasound_commanded_s: duration_s
+    arduino.temperature_setpoint_c: temperature_setpoint_c
   reported_output_port_ids:
-    arduino.conditioning_duration_s: instrument.conditioning_duration_s
-    arduino.conditioning_setpoint_percent: instrument.conditioning_setpoint_percent
-  precondition_constraint_ids:
-  - conditioning-duration-envelope
-  - conditioning-setpoint-envelope
+    arduino.ultrasound_commanded_s: instrument.ultrasound_commanded_s
+    arduino.temperature_setpoint_c: instrument.temperature_setpoint_c
+    arduino.temperature_observed_c: instrument.temperature_observed_c
+  precondition_constraint_ids: [conditioning-duration-envelope, conditioning-setpoint-envelope]
   postcondition_constraint_ids: []
 - id: electrodeposit-constant-current-capability
   provider_id: squidstat-device
@@ -963,152 +869,93 @@ capabilities:
   parameters:
   - name: current_a
     value_type: number
-    unit: A
     required: true
-    minimum: 0.0
-    maximum: 0.01
+    unit: A
+    enum: [-0.002827]
   - name: duration_s
     value_type: number
-    unit: s
     required: true
-    minimum: 0.0
-    maximum: 3600.0
-  observation_channel_ids:
-  - squidstat.current_a
-  - squidstat.duration_s
-  - squidstat.charge_c
-  - squidstat.deposited_mass_g
-  - squidstat.deposited_thickness_um
-  - squidstat.current_density_a_cm2
+    unit: s
+    enum: [60.0]
+  - name: temperature_setpoint_c
+    value_type: number
+    required: true
+    unit: degC
+    enum: [35.0]
+  observation_channel_ids: [squidstat.current_a, squidstat.duration_s, arduino.temperature_setpoint_c, squidstat.commanded_charge_c,
+    squidstat.deposited_mass_g, squidstat.deposited_thickness_um, squidstat.current_density_a_cm2]
   echoed_parameter_bindings:
     squidstat.current_a: current_a
     squidstat.duration_s: duration_s
+    arduino.temperature_setpoint_c: temperature_setpoint_c
   reported_output_port_ids:
-    squidstat.charge_c: charge_c
+    squidstat.commanded_charge_c: commanded_charge_c
     squidstat.deposited_mass_g: deposited_mass_g
     squidstat.deposited_thickness_um: deposited_thickness_um
     squidstat.current_density_a_cm2: current_density_a_cm2
-  precondition_constraint_ids:
-  - current-envelope
-  - deposition-duration-envelope
+  precondition_constraint_ids: [current-envelope, deposition-duration-envelope, deposition-temperature-envelope]
   postcondition_constraint_ids: []
 - id: measure-oer-capability
   provider_id: squidstat-device
   action_type: measure
   parameters:
-  - name: current_density_a_cm2
-    value_type: number
-    unit: A/cm^2
+  - name: protocol_id
+    value_type: string
+    unit: '1'
     required: true
-    minimum: 0.01
-    maximum: 0.05
+    enum:
+    - sdl1-oer-2c5a911
   observation_channel_ids:
   - squidstat.current_density_a_cm2
+  - squidstat.potential_at_10ma_cm2_v
+  - squidstat.corrected_potential_at_10ma_cm2_v
+  - squidstat.ohmic_resistance_ohm
   - squidstat.overpotential_v
-  echoed_parameter_bindings:
-    squidstat.current_density_a_cm2: current_density_a_cm2
+  echoed_parameter_bindings: {}
   reported_output_port_ids:
     squidstat.current_density_a_cm2: current_density_a_cm2
+    squidstat.potential_at_10ma_cm2_v: potential_at_10ma_cm2_v
+    squidstat.corrected_potential_at_10ma_cm2_v: corrected_potential_at_10ma_cm2_v
+    squidstat.ohmic_resistance_ohm: ohmic_resistance_ohm
     squidstat.overpotential_v: overpotential_v
-  precondition_constraint_ids:
-  - oer-current-density-envelope
-  postcondition_constraint_ids: []
-- id: transfer-sample-capability
-  provider_id: transfer-agent
-  action_type: transfer
-  parameters:
-  - name: to_station
-    value_type: string
-    required: true
-  observation_channel_ids:
-  - transfer.sample_station_id
-  - transfer.arrival_confirmed
-  - transfer.sample_state_id
-  reported_output_port_ids:
-    transfer.sample_station_id: instrument.sample_station_id
-    transfer.arrival_confirmed: instrument.arrival_confirmed
-    transfer.sample_state_id: sample.state.transferred
   precondition_constraint_ids: []
   postcondition_constraint_ids: []
 - id: clean-electrode-capability
   provider_id: cleaning-station-device
   action_type: clean
   parameters:
-  - name: rinse_volume_ml
-    value_type: number
-    unit: mL
-    required: true
-    minimum: 0.0
-    maximum: 12.0
-  - name: ultrasound_s
-    value_type: number
-    unit: s
-    required: false
-    minimum: 0.0
-    maximum: 1800.0
-  observation_channel_ids:
-  - cleaning.rinse_volume_ml
-  - cleaning.ultrasound_s
-  echoed_parameter_bindings:
-    cleaning.rinse_volume_ml: rinse_volume_ml
-    cleaning.ultrasound_s: ultrasound_s
-  reported_output_port_ids:
-    cleaning.rinse_volume_ml: instrument.rinse_volume_ml
-    cleaning.ultrasound_s: instrument.ultrasound_s
-  precondition_constraint_ids:
-  - cleaning-rinse-volume-envelope
-  - cleaning-ultrasound-envelope
-  postcondition_constraint_ids: []
-- id: load-electrochemical-cell-capability
-  provider_id: cell-fixture-device
-  action_type: load
-  parameters:
-  - name: cell_id
-    value_type: string
-    required: true
-  - name: seated
+  - name: use_acid
     value_type: boolean
-    required: false
-  - name: duration_s
-    value_type: duration
+    unit: '1'
+    required: true
+  - name: acid_dwell_s
+    value_type: number
+    required: true
     unit: s
-    required: false
-    minimum: 0.0
+    enum:
+    - 0.0
+    - 0.1
+    - 30.0
   observation_channel_ids:
-  - cell.cell_id
-  - cell.cell_seated
-  echoed_parameter_bindings:
-    cell.cell_id: cell_id
+  - cleaning.water_commanded_ml
+  - cleaning.acid_commanded_ml
+  - cleaning.drain_commanded_ml
+  - cleaning.ultrasound_commanded_s
+  - cleaning.residual_volume_ml
+  echoed_parameter_bindings: {}
   reported_output_port_ids:
-    cell.cell_id: instrument.cell_id
-    cell.cell_seated: instrument.cell_seated
+    cleaning.water_commanded_ml: instrument.water_commanded_ml
+    cleaning.acid_commanded_ml: instrument.acid_commanded_ml
+    cleaning.drain_commanded_ml: instrument.drain_commanded_ml
+    cleaning.ultrasound_commanded_s: instrument.ultrasound_commanded_s
+    cleaning.residual_volume_ml: instrument.residual_volume_ml
   precondition_constraint_ids: []
   postcondition_constraint_ids: []
 material_states: []
 model_bindings:
-- id: ac-bath-model
-  implementation_ref: dynamical/instruments/ac_bath.py
-  implementation_sha256: 90d8f58cde7a3630680a7356572466093e27fd22b880abc75a22dc112f658787
-  input_channel_map: {}
-  output_channel_map: {}
-  parameter_map:
-    evidence-class: simulator
-    physical-calibration: false
-  update_interval_s: 1.0
-  calibration_evidence_ids: []
-- id: ac-oer-twin-model
-  implementation_ref: dynamical/instruments/ac_oer_twin.py
-  implementation_sha256: 2298d5f9ab4f9aa1fe41f9baeb231f29be101a733a192a6bc2e8445fe2e03654
-  input_channel_map: {}
-  output_channel_map: {}
-  parameter_map:
-    evidence-class: calibrated_twin
-    physical-calibration: true
-  update_interval_s: 1.0
-  calibration_evidence_ids: [fastcat-oer-e10]
 - id: ac-opentron-model
   implementation_ref: dynamical/instruments/ac_opentron.py
-  implementation_sha256: 938b52c5b4943e0650eafbc615bc234c41919f33b3f9fbb4740b8655656b18e2
+  implementation_sha256: 6889670e4729e59302158240a39438daa4307c958dccf74de536834dc37329a8
   input_channel_map: {}
   output_channel_map: {}
   parameter_map:
@@ -1118,7 +965,7 @@ model_bindings:
   calibration_evidence_ids: []
 - id: ac-arduino-model
   implementation_ref: dynamical/instruments/ac_arduino.py
-  implementation_sha256: a5e99a0ea5ccf37e393770ac9104a7d9509003f72dca1dee6c440ce127627c57
+  implementation_sha256: 859eeb9551099fa8d423811f7b55e36eeba87d0ee1e3b43e54d0c50c8ef8adc0
   input_channel_map: {}
   output_channel_map: {}
   parameter_map:
@@ -1128,7 +975,7 @@ model_bindings:
   calibration_evidence_ids: []
 - id: ac-potentiostat-model
   implementation_ref: dynamical/instruments/ac_potentiostat.py
-  implementation_sha256: 8fc7c1054d4a844eab627269ba2db311f69c3331770596edaeacd96d480273ea
+  implementation_sha256: 8e109fd72da319994adfc7d09609afa7dd5c606c118724c639d52b894a0aded2
   input_channel_map: {}
   output_channel_map: {}
   parameter_map:
@@ -1136,39 +983,9 @@ model_bindings:
     physical-calibration: false
   update_interval_s: 1.0
   calibration_evidence_ids: []
-- id: ac-oer-model
-  implementation_ref: dynamical/instruments/ac_oer.py
-  implementation_sha256: 0f66718a5bf9ea457d7302da2bc3ba9ccf0c200d34ed70c5510e9640159c5f8d
-  input_channel_map: {}
-  output_channel_map: {}
-  parameter_map:
-    evidence-class: simulator
-    physical-calibration: false
-  update_interval_s: 1.0
-  calibration_evidence_ids: [ampere2-oer-cp-2050]
 - id: ac-cleaning-model
   implementation_ref: dynamical/instruments/ac_cleaning.py
-  implementation_sha256: 939f238f41ef4171468f3a1d635ae272b8f18fdea2351968c2aa380ae9d6f996
-  input_channel_map: {}
-  output_channel_map: {}
-  parameter_map:
-    evidence-class: simulator
-    physical-calibration: false
-  update_interval_s: 1.0
-  calibration_evidence_ids: []
-- id: ac-cell-loading-model
-  implementation_ref: dynamical/instruments/ac_echem_cell.py
-  implementation_sha256: adf2b0a196612cf3c070e284ae98ae43772e84522be98f207425c3b21d1ef751
-  input_channel_map: {}
-  output_channel_map: {}
-  parameter_map:
-    evidence-class: simulator
-    physical-calibration: false
-  update_interval_s: 1.0
-  calibration_evidence_ids: []
-- id: ac-transfer-model
-  implementation_ref: dynamical/instruments/transfer.py
-  implementation_sha256: 996d979a138d786b79177622ec1aa1dd140492ab71049a0ea6f13205e6cbafab
+  implementation_sha256: 9d78cd6cc23ff0fe8287a9db598a0811e6c1a04f95e02f1383d6be8278a9a2ec
   input_channel_map: {}
   output_channel_map: {}
   parameter_map:
@@ -1184,6 +1001,18 @@ model_bindings:
   parameter_map:
     verifier-owner: independent-runtime
   update_interval_s: 0.001
+  calibration_evidence_ids: []
+- id: ac-sdl1-oer-model
+  implementation_ref: dynamical/instruments/ac_sdl1_oer.py
+  implementation_sha256: 52d15ac9e804acd91634b90111855d07eaf3f511f651fb16d1a38f2f033cbfe7
+  input_channel_map: {}
+  output_channel_map: {}
+  parameter_map:
+    evidence-class: simulator
+    physical-calibration: false
+    protocol-ref: protocols/sdl1-oer.json
+    protocol-sha256: 5238b6230b5f5a13a8fc23f172fcb98276f10f2f7a10145a1d65fc9feb3bd9c2
+  update_interval_s: 1.0
   calibration_evidence_ids: []
 adapter_bindings:
 - id: ac-electrodeposition-isaac-adapter
@@ -1217,55 +1046,6 @@ adapter_bindings:
     trace_contract_version: 0.1.0
     preserve_observation_origin: true
 provider_admission_bindings:
-- id: admitted-ac-bath-deposit-chemical-bath
-  provider_id: ac-bath-simulator
-  operation_id: deposit-chemical-bath
-  evidence_classes:
-  - simulator
-  facility_ids:
-  - ot2-liquid-handling
-  endpoint_id: ac-bath-model
-  adapter_links:
-  - adapter_id: dynamical-ac-bath-python
-    adapter_version: 0.1.0
-    endpoint_ref: ac-bath-model
-  validity_envelope:
-  - subject_kind: parameter
-    subject_id: synthesis_time_s
-    value_type: number
-    unit: s
-    minimum: 0.0
-    maximum: 3600.0
-  safety_limit_ids: []
-  policy_tags:
-  - simulation-only
-  - process-state-only
-  required_approval_ids: []
-- id: admitted-ac-oer-twin-measure-oer
-  provider_id: ac-oer-twin
-  operation_id: measure-oer
-  evidence_classes:
-  - calibrated_twin
-  facility_ids:
-  - squidstat-echem
-  endpoint_id: ac-oer-twin-model
-  adapter_links:
-  - adapter_id: dynamical-ac-oer-twin-python
-    adapter_version: 0.1.0
-    endpoint_ref: ac-oer-twin-model
-  validity_envelope:
-  - subject_kind: parameter
-    subject_id: current_density_a_cm2
-    value_type: number
-    unit: A/cm^2
-    minimum: 0.010
-    maximum: 0.010
-  safety_limit_ids:
-  - oer-current-density-envelope
-  policy_tags:
-  - calibrated-twin
-  - frozen-prediction-table
-  required_approval_ids: []
 - id: admitted-ac-ot2-dispense-electrolyte
   provider_id: ac-ot2-simulator
   operation_id: dispense-electrolyte
@@ -1287,12 +1067,28 @@ provider_admission_bindings:
     value_type: number
     unit: mL
     minimum: 0.0
-    maximum: 25.0
+    maximum: 3.895
+  - subject_kind: parameter
+    subject_id: chemical
+    value_type: string
+    unit: '1'
+    enum:
+    - Ni
+    - Fe
+    - Cr
+    - Mn
+    - Co
+    - Zn
+    - Cu
+    - NH4OH
+    - NaCi
+    - KOH
   safety_limit_ids:
   - dispense-volume-envelope
   policy_tags:
   - simulation-only
-  - pump-calibration-unverified
+  - source-command-only
+  - physical-response-unavailable
   required_approval_ids: []
 - id: admitted-ac-ot2-aliquot-to-well
   provider_id: ac-ot2-simulator
@@ -1316,19 +1112,33 @@ provider_admission_bindings:
     unit: mL
     minimum: 0.0
     maximum: 3.895
+  - subject_kind: parameter
+    subject_id: chemical
+    value_type: string
+    unit: '1'
+    enum:
+    - Ni
+    - Fe
+    - Cr
+    - Mn
+    - Co
+    - Zn
+    - Cu
+    - NH4OH
+    - NaCi
+    - KOH
   safety_limit_ids:
   - aliquot-volume-envelope
   policy_tags:
   - simulation-only
-  - pump-calibration-unverified
+  - source-command-only
+  - physical-response-unavailable
   required_approval_ids: []
 - id: admitted-ac-arduino-condition-ultrasonic
   provider_id: ac-arduino-simulator
   operation_id: condition-ultrasonic
-  evidence_classes:
-  - simulator
-  facility_ids:
-  - arduino-conditioning
+  evidence_classes: [simulator]
+  facility_ids: [ot2-liquid-handling]
   endpoint_id: ac-arduino-model
   adapter_links:
   - adapter_id: dynamical-ac-arduino-python
@@ -1342,27 +1152,20 @@ provider_admission_bindings:
     subject_id: duration_s
     value_type: number
     unit: s
-    minimum: 0.0
-    maximum: 1800.0
+    enum: [30.0]
   - subject_kind: parameter
-    subject_id: setpoint_percent
+    subject_id: temperature_setpoint_c
     value_type: number
-    unit: '%'
-    minimum: 0.0
-    maximum: 100.0
-  safety_limit_ids:
-  - conditioning-duration-envelope
-  - conditioning-setpoint-envelope
-  policy_tags:
-  - simulation-only
+    unit: degC
+    enum: [35.0]
+  safety_limit_ids: [conditioning-duration-envelope, conditioning-setpoint-envelope]
+  policy_tags: [simulation-only, source-command-only, physical-response-unavailable]
   required_approval_ids: []
 - id: admitted-ac-squidstat-electrodeposit
   provider_id: ac-squidstat-simulator
   operation_id: electrodeposit-constant-current
-  evidence_classes:
-  - simulator
-  facility_ids:
-  - squidstat-echem
+  evidence_classes: [simulator]
+  facility_ids: [ot2-liquid-handling]
   endpoint_id: ac-potentiostat-model
   adapter_links:
   - adapter_id: dynamical-ac-potentiostat-python
@@ -1376,71 +1179,44 @@ provider_admission_bindings:
     subject_id: current_a
     value_type: number
     unit: A
-    minimum: 0.0
-    maximum: 0.01
+    enum: [-0.002827]
   - subject_kind: parameter
     subject_id: duration_s
     value_type: number
     unit: s
-    minimum: 0.0
-    maximum: 3600.0
-  safety_limit_ids:
-  - current-envelope
-  - deposition-duration-envelope
-  policy_tags:
-  - simulation-only
-  - not-fitted-to-measured-data
+    enum: [60.0]
+  - subject_kind: parameter
+    subject_id: temperature_setpoint_c
+    value_type: number
+    unit: degC
+    enum: [35.0]
+  safety_limit_ids: [current-envelope, deposition-duration-envelope, deposition-temperature-envelope]
+  policy_tags: [simulation-only, source-command-only, physical-response-unavailable]
   required_approval_ids: []
-- id: admitted-ac-oer-measure-oer
-  provider_id: ac-oer-simulator
+- id: admitted-ac-sdl1-measure-oer
+  provider_id: ac-sdl1-oer-protocol
   operation_id: measure-oer
   evidence_classes:
   - simulator
   facility_ids:
-  - squidstat-echem
-  endpoint_id: ac-oer-model
+  - ot2-liquid-handling
+  endpoint_id: ac-sdl1-oer-model
   adapter_links:
-  - adapter_id: dynamical-ac-oer-python
+  - adapter_id: dynamical-ac-sdl1-oer-python
     adapter_version: 0.1.0
-    endpoint_ref: ac-oer-model
-  - adapter_id: dynamical-ac-squidstat-control
-    adapter_version: 0.1.0
-    endpoint_ref: squidstat-device
+    endpoint_ref: ac-sdl1-oer-model
   validity_envelope:
   - subject_kind: parameter
-    subject_id: current_density_a_cm2
-    value_type: number
-    unit: A/cm^2
-    minimum: 0.020
-    maximum: 0.050
-  safety_limit_ids:
-  - oer-current-density-envelope
-  policy_tags:
-  - simulation-only
-  - fitted-model-calibration-gates-failed
-  required_approval_ids: []
-- id: admitted-ac-transfer-sample
-  provider_id: ac-transfer-simulator
-  operation_id: transfer-sample
-  evidence_classes:
-  - simulator
-  facility_ids:
-  - ot2-liquid-handling
-  - arduino-conditioning
-  - squidstat-echem
-  endpoint_id: ac-transfer-model
-  adapter_links:
-  - adapter_id: dynamical-ac-transfer-python
-    adapter_version: 0.1.0
-    endpoint_ref: ac-transfer-model
-  - adapter_id: dynamical-ac-transfer-agent-control
-    adapter_version: 0.1.0
-    endpoint_ref: transfer-agent
-  validity_envelope: []
+    subject_id: protocol_id
+    value_type: string
+    unit: '1'
+    enum:
+    - sdl1-oer-2c5a911
   safety_limit_ids: []
   policy_tags:
   - simulation-only
-  - custody-bookkeeping-only
+  - source-protocol-only
+  - physical-response-unavailable
   required_approval_ids: []
 - id: admitted-ac-cleaning-clean-electrode
   provider_id: ac-cleaning-simulator
@@ -1459,42 +1235,22 @@ provider_admission_bindings:
     endpoint_ref: cleaning-station-device
   validity_envelope:
   - subject_kind: parameter
-    subject_id: rinse_volume_ml
-    value_type: number
-    unit: mL
-    minimum: 0.0
-    maximum: 12.0
+    subject_id: use_acid
+    value_type: boolean
+    unit: '1'
   - subject_kind: parameter
-    subject_id: ultrasound_s
+    subject_id: acid_dwell_s
     value_type: number
     unit: s
-    minimum: 0.0
-    maximum: 1800.0
-  safety_limit_ids:
-  - cleaning-rinse-volume-envelope
-  - cleaning-ultrasound-envelope
-  policy_tags:
-  - simulation-only
-  required_approval_ids: []
-- id: admitted-ac-cell-loading-load-electrochemical-cell
-  provider_id: ac-cell-loading-simulator
-  operation_id: load-electrochemical-cell
-  evidence_classes:
-  - simulator
-  facility_ids:
-  - squidstat-echem
-  endpoint_id: ac-cell-loading-model
-  adapter_links:
-  - adapter_id: dynamical-ac-cell-loading-python
-    adapter_version: 0.1.0
-    endpoint_ref: ac-cell-loading-model
-  - adapter_id: dynamical-ac-squidstat-control
-    adapter_version: 0.1.0
-    endpoint_ref: cell-fixture-device
-  validity_envelope: []
+    enum:
+    - 0.0
+    - 0.1
+    - 30.0
   safety_limit_ids: []
   policy_tags:
   - simulation-only
+  - source-command-only
+  - physical-response-unavailable
   required_approval_ids: []
 constraints:
 - id: dispense-volume-envelope
@@ -1503,7 +1259,7 @@ constraints:
   operator: between
   bound:
     minimum: 0.0
-    maximum: 25.0
+    maximum: 3.895
   unit: mL
   enforcement: reject
   verifier_binding_id: bounded-constraint-verifier
@@ -1521,33 +1277,33 @@ constraints:
   constrained_parameter_name: volume_ml
 - id: conditioning-duration-envelope
   phase: pre_action
-  channel_id: arduino.conditioning_duration_s
+  channel_id: arduino.ultrasound_commanded_s
   operator: between
   bound:
-    minimum: 0.0
-    maximum: 1800.0
+    minimum: 30.0
+    maximum: 30.0
   unit: s
   enforcement: reject
   verifier_binding_id: bounded-constraint-verifier
   constrained_parameter_name: duration_s
 - id: conditioning-setpoint-envelope
   phase: pre_action
-  channel_id: arduino.conditioning_setpoint_percent
+  channel_id: arduino.temperature_setpoint_c
   operator: between
   bound:
-    minimum: 0.0
-    maximum: 100.0
-  unit: '%'
+    minimum: 35.0
+    maximum: 35.0
+  unit: degC
   enforcement: reject
   verifier_binding_id: bounded-constraint-verifier
-  constrained_parameter_name: setpoint_percent
+  constrained_parameter_name: temperature_setpoint_c
 - id: current-envelope
   phase: pre_action
   channel_id: squidstat.current_a
   operator: between
   bound:
-    minimum: 0.0
-    maximum: 0.01
+    minimum: -0.002827
+    maximum: -0.002827
   unit: A
   enforcement: reject
   verifier_binding_id: bounded-constraint-verifier
@@ -1557,138 +1313,24 @@ constraints:
   channel_id: squidstat.duration_s
   operator: between
   bound:
-    minimum: 0.0
-    maximum: 3600.0
+    minimum: 60.0
+    maximum: 60.0
   unit: s
   enforcement: reject
   verifier_binding_id: bounded-constraint-verifier
   constrained_parameter_name: duration_s
-- id: oer-current-density-envelope
+- id: deposition-temperature-envelope
   phase: pre_action
-  channel_id: squidstat.current_density_a_cm2
+  channel_id: arduino.temperature_setpoint_c
   operator: between
   bound:
-    minimum: 0.01
-    maximum: 0.05
-  unit: A/cm^2
+    minimum: 35.0
+    maximum: 35.0
+  unit: degC
   enforcement: reject
   verifier_binding_id: bounded-constraint-verifier
-  constrained_parameter_name: current_density_a_cm2
-- id: cleaning-rinse-volume-envelope
-  phase: pre_action
-  channel_id: cleaning.rinse_volume_ml
-  operator: between
-  bound:
-    minimum: 0.0
-    maximum: 12.0
-  unit: mL
-  enforcement: reject
-  verifier_binding_id: bounded-constraint-verifier
-  constrained_parameter_name: rinse_volume_ml
-- id: cleaning-ultrasound-envelope
-  phase: pre_action
-  channel_id: cleaning.ultrasound_s
-  operator: between
-  bound:
-    minimum: 0.0
-    maximum: 1800.0
-  unit: s
-  enforcement: reject
-  verifier_binding_id: bounded-constraint-verifier
-  constrained_parameter_name: ultrasound_s
-calibration_evidence:
-- id: fastcat-oer-e10
-  source_artifact_ref: https://doi.org/10.11583/DTU.28494185 (data.zip, MIT license, retrieved 2026-08-11)
-  source_sha256: 4238fe558e72c201403972a523e839dec3150bd1052f97ff25632d83ecab46db
-  applies_to_model_binding_id: ac-oer-twin-model
-  supported_channel_ids:
-  - squidstat.overpotential_v
-  - squidstat.current_density_a_cm2
-  condition_domain:
-    squidstat.current_density_a_cm2: exactly 0.010 A/cm^2 (calibrated basis; chronopotentiometry tail medians per the frozen protocol)
-    squidstat.overpotential_v: predicted only for the 72 frozen-table compositions under the frozen per-pool conditioning; one-time sealed validation passed 9/9 predeclared gates (MAE 22.2 mV)
-  validation_design: cross_condition
-  metrics:
-  - name: held-out-e10-mae
-    value: 0.022209
-    unit: V
-    split: independent_test
-    threshold: 0.045
-    comparator: le
-  - name: uncertainty-coverage-conformal90
-    value: 0.963
-    unit: '1'
-    split: independent_test
-    threshold: 0.85
-    comparator: ge
-  - name: candidate-order-spearman
-    value: 0.86
-    unit: '1'
-    split: independent_test
-    threshold: 0.35
-    comparator: ge
-  - name: top3-retrieval
-    value: 0.823
-    unit: '1'
-    split: independent_test
-    threshold: 0.45
-    comparator: ge
-  limitations:
-  - The calibrated basis is exactly 0.010 A/cm^2; no other current density is predicted.
-  - Predictions exist only for the 72 frozen-table compositions under the frozen per-pool conditioning; all other compositions are refused.
-  - Held-out labels are predominantly single physical runs; the certified replicate noise floor (20.8 mV median within-replicate SD) bounds achievable residuals.
-  - The interval half-width (0.104969 V at 90% target coverage) reflects split-conformal calibration on 22 development compositions.
-  split_rule_ref: calibration/fastcat-oer/calibration_report.json
-  split_rule_sha256: c4d79ebe0836575f09c09002560670e844e9532462c6fe617bd071fa629d8c79
-  fit_artifact_ref: calibration/fastcat-oer/prediction_table.json
-  fit_artifact_sha256: 098245794ec3925a16777b3df18eb9fcaf06816588f46cd562dbd8b957fb2728
-- id: ampere2-oer-cp-2050
-  source_artifact_ref: https://doi.org/10.11583/DTU.27446925 (Data.zip, MIT license, retrieved 2026-08-10)
-  source_sha256: 649c5a8269e773371a6fcdc14db4d72166dbeb697fc49b66a89991fbdd44e736
-  applies_to_model_binding_id: ac-oer-model
-  supported_channel_ids:
-  - squidstat.overpotential_v
-  - squidstat.current_density_a_cm2
-  condition_domain:
-    squidstat.current_density_a_cm2: 0.020 to 0.050 A/cm^2 (fitted basis; physical chronopotentiometry per the frozen protocol)
-    squidstat.overpotential_v: predicted only for deposited films whose nominal precursor fractions over Ni, Fe, Cr, Mn, Co, Zn, Cu and NH4OH/NaCi levels are represented in the fit split
-  split_rule_ref: calibration/ampere2-oer/frozen_protocol.json
-  split_rule_sha256: bcc2e272d3ee519804cfbb36918782931153f46d49dabb30073b974fe8b98032
-  fit_artifact_ref: calibration/ampere2-oer/fit.json
-  fit_artifact_sha256: e5a9c611cfc78a7ecddf32479eb5974225ed8ce8125bc8ff6d6ae4de476aece6
-  validation_design: cross_condition
-  metrics:
-  - name: held-out-overpotential-mae
-    value: 0.38126269391939616
-    unit: V
-    split: independent_test
-    threshold: 0.05
-    comparator: le
-  - name: uncertainty-coverage-2sigma
-    value: 1.0
-    unit: '1'
-    split: independent_test
-    threshold: 0.8
-    comparator: ge
-  - name: candidate-order-spearman
-    value: -0.18793832808714067
-    unit: '1'
-    split: independent_test
-    threshold: 0.7
-    comparator: ge
-  - name: fit-residual-sigma
-    value: 1.8073715433658781
-    unit: V
-    split: fit
-  limitations:
-  - The frozen held-out gates FAILED (overpotential MAE and candidate-order preservation), so calibrated-twin admission is denied and this model supplies simulator evidence only; the failed report is preserved at calibration/ampere2-oer/calibration_report.json.
-  - Validation is a cross-condition holdout within a single AMPERE-2 campaign (one lab, one instrument), not independent physical facility runs; calibrated-twin admission requires the latter and is denied on this ground independent of the failed gates.
-  - Fit and held-out data include runs recorded at the instrument compliance rail (~10.63 V) that the upstream dataset marks success; the frozen protocol does not permit post-hoc exclusion, and they dominate the declared sigma. The uncertainty-coverage-2sigma metric passes only because that sigma is large; it is not evidence of calibrated uncertainty.
-  - The condition split hashes raw metadata strings and leaks two physically identical conditions across the fit/held-out boundary; split leakage biases held-out performance optimistically, so a clean split can only worsen the already-failed gates. See calibration/ampere2-oer/ERRATA.md.
-  - The fit design matrix is rank 9 of 11 (no condition separates Mn from Cu), so those coefficients are not separately identified. See ERRATA.md.
-  - Corrected potentials are used on the upstream-reported scale; overpotential_v = corrected potential - 1.23 V carries that reference-scale assumption.
-  - Nominal precursor composition is the volume-ratio analogue of the AMPERE-2 recipe units; deposited stoichiometry was not measured upstream in a form admissible as a predictor.
-  - The fitted basis is exactly {0.020, 0.050} A/cm^2; the instrument's admitted current-density envelope is restricted to that basis so predictions outside it are flagged out-of-envelope rather than silently extrapolated.
+  constrained_parameter_name: temperature_setpoint_c
+calibration_evidence: []
 asset_sources:
 - id: sources/ac-sdl1/assembly_well_cartridge v44.step
   retrieval_uri: https://zenodo.org/api/records/15575908/files/AccelerationConsortium/SDL1_OpenTron_electrodeposition-0.0.2.zip/content
@@ -2003,85 +1645,5 @@ asset_sources:
   revision: 0.0.2
   retrieved_at: '2026-08-09'
   derived_from_source_id: sources/ac-sdl1/platinum_electrode v46.step
-  conversion_tool: tools/cad_to_usd.py (cascadio==0.1.1, trimesh==5.0.0, OpenUSD 26.05)
-  conversion_tolerance: 0.05,0.5
-- id: sources/echem-cell/Cap Body v5 3.3.stl
-  retrieval_uri: https://raw.githubusercontent.com/AccelerationConsortium/echem-cell/9b063f80a1166475b3249709f4fd3afdb3dadb5d/Cap%20Body%20v5%203.3.stl
-  sha256: f63f0a9a6671ad1eec118cf06c66b3b8b5f1e59121852e5dcb8c88a51bc14002
-  admission: admitted
-  authority_id: dynamical-v0.1-release-authority
-  spdx_id: MIT
-  license_evidence: 'echem-cell LICENSE (root of repo at commit 9b063f80a1166475b3249709f4fd3afdb3dadb5d):
-    ''MIT License / Copyright (c) 2025 Sterling G. Baird'''
-  conflict_notes: []
-  revision: 9b063f80a1166475b3249709f4fd3afdb3dadb5d
-  retrieved_at: '2026-08-09'
-- id: assets/cap-body-v5-3.3.usdc
-  retrieval_uri: https://codeload.github.com/AccelerationConsortium/echem-cell/tar.gz/9b063f80a1166475b3249709f4fd3afdb3dadb5d
-  sha256: de331d0c6555b64cd627ace5fb68b501330817f63ec98c14ad466021ba49d669
-  admission: admitted
-  authority_id: dynamical-v0.1-release-authority
-  spdx_id: MIT
-  license_evidence: 'echem-cell LICENSE (root of repo at commit 9b063f80a1166475b3249709f4fd3afdb3dadb5d):
-    ''MIT License / Copyright (c) 2025 Sterling G. Baird'''
-  conflict_notes: []
-  revision: 9b063f80a1166475b3249709f4fd3afdb3dadb5d
-  retrieved_at: '2026-08-09'
-  derived_from_source_id: sources/echem-cell/Cap Body v5 3.3.stl
-  conversion_tool: tools/cad_to_usd.py (cascadio==0.1.1, trimesh==5.0.0, OpenUSD 26.05)
-  conversion_tolerance: 0.05,0.5
-- id: sources/echem-cell/Foil Base v5 1.3.stl
-  retrieval_uri: https://raw.githubusercontent.com/AccelerationConsortium/echem-cell/9b063f80a1166475b3249709f4fd3afdb3dadb5d/Foil%20Base%20v5%201.3.stl
-  sha256: ec8f562adafcd89ed4173a0b33161c04c783a889db349cc129ec0122a4bf0d51
-  admission: admitted
-  authority_id: dynamical-v0.1-release-authority
-  spdx_id: MIT
-  license_evidence: 'echem-cell LICENSE (root of repo at commit 9b063f80a1166475b3249709f4fd3afdb3dadb5d):
-    ''MIT License / Copyright (c) 2025 Sterling G. Baird'''
-  conflict_notes: []
-  revision: 9b063f80a1166475b3249709f4fd3afdb3dadb5d
-  retrieved_at: '2026-08-09'
-- id: assets/foil-base-v5-1.3.usdc
-  retrieval_uri: https://codeload.github.com/AccelerationConsortium/echem-cell/tar.gz/9b063f80a1166475b3249709f4fd3afdb3dadb5d
-  sha256: 521c46ed7fb7f0151e39111cc96d08d129c2a9ac1dcf369d6bf2c70be42508e4
-  admission: admitted
-  authority_id: dynamical-v0.1-release-authority
-  spdx_id: MIT
-  license_evidence: 'echem-cell LICENSE (root of repo at commit 9b063f80a1166475b3249709f4fd3afdb3dadb5d):
-    ''MIT License / Copyright (c) 2025 Sterling G. Baird'''
-  conflict_notes: []
-  revision: 9b063f80a1166475b3249709f4fd3afdb3dadb5d
-  retrieved_at: '2026-08-09'
-  derived_from_source_id: sources/echem-cell/Foil Base v5 1.3.stl
-  conversion_tool: tools/cad_to_usd.py (cascadio==0.1.1, trimesh==5.0.0, OpenUSD 26.05)
-  conversion_tolerance: 0.05,0.5
-- id: sources/echem-cell/Main Body v5 wo Block 2.3 US.stl
-  retrieval_uri: https://raw.githubusercontent.com/AccelerationConsortium/echem-cell/9b063f80a1166475b3249709f4fd3afdb3dadb5d/Main%20Body%20v5%20wo%20Block%202.3%20US.stl
-  sha256: 96824637a4acbd118fe5e5040f0cec5b2dbf777b2e42d34fab8855207870d7a6
-  admission: admitted
-  authority_id: dynamical-v0.1-release-authority
-  spdx_id: MIT
-  license_evidence: 'echem-cell LICENSE (root of repo at commit 9b063f80a1166475b3249709f4fd3afdb3dadb5d):
-    ''MIT License / Copyright (c) 2025 Sterling G. Baird'''
-  conflict_notes:
-  - 'source archive (sha256 5d38b33f8ebb744ca744b62da14b1adabd5fddb49f0ebd96e0e0b2c9cb7032ac) at https://raw.githubusercontent.com/AccelerationConsortium/echem-cell/9b063f80a1166475b3249709f4fd3afdb3dadb5d/Version.5.wo.Block.US.zip is recorded provenance, not vendored: only its extracted STL members are tracked, to avoid shipping duplicate bytes.'
-  - 'echem-cell distributes this same body as two zips at commit 9b063f80a1166475b3249709f4fd3afdb3dadb5d:
-    Version.5.wo.Block.US.zip -> ''Main Body v5 wo Block 2.3 US.stl'' (vendored here) and Version.5.wo.Block.EU.zip
-    -> ''Main Body v5 wo Block 2.3 EU.stl''. The two STL members are byte-identical (sha256 96824637a4acbd118fe5e5040f0cec5b2dbf777b2e42d34fab8855207870d7a6
-    for both); only the US-named file is vendored to avoid shipping duplicate bytes under two names.'
-  revision: 9b063f80a1166475b3249709f4fd3afdb3dadb5d
-  retrieved_at: '2026-08-09'
-- id: assets/main-body-v5-wo-block-2.3-us.usdc
-  retrieval_uri: https://codeload.github.com/AccelerationConsortium/echem-cell/tar.gz/9b063f80a1166475b3249709f4fd3afdb3dadb5d
-  sha256: 6939a095259f5c9dc5f47f25f0eb4b461ccd198e369c706eccfb712d8b196f96
-  admission: admitted
-  authority_id: dynamical-v0.1-release-authority
-  spdx_id: MIT
-  license_evidence: 'echem-cell LICENSE (root of repo at commit 9b063f80a1166475b3249709f4fd3afdb3dadb5d):
-    ''MIT License / Copyright (c) 2025 Sterling G. Baird'''
-  conflict_notes: []
-  revision: 9b063f80a1166475b3249709f4fd3afdb3dadb5d
-  retrieved_at: '2026-08-09'
-  derived_from_source_id: sources/echem-cell/Main Body v5 wo Block 2.3 US.stl
   conversion_tool: tools/cad_to_usd.py (cascadio==0.1.1, trimesh==5.0.0, OpenUSD 26.05)
   conversion_tolerance: 0.05,0.5

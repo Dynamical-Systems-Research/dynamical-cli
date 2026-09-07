@@ -163,17 +163,15 @@ evidence, cost, and authority. Do not bypass rejected providers, constraints,
 budgets, or approval rules.
 
 Treat action parameters as command provenance. Record the exact commanded value
-as `requested`. Observations never supply an `applied` command value. Use a
-different `applied` value only when the provider explicitly reports the value it
-delivered; otherwise keep it equal to `requested`.
+as `requested`. Observations never supply an `applied` command value. Use the provider's explicit `applied` value; null means delivery is unknown.
+Do not replace null with the requested value.
 
-For one mobile sample, declare one `sample_state` campaign input with a stable
-sample ID. Materialize it with an initial `transfer-sample` step, bind later
-`sample.state` inputs to the original campaign input, and express chronology
-with `depends_on`. Add explicit `transfer-sample` steps before workstation
-changes. Omit `facility_id` for the mobile sample. Do not add implicit transport
-to a route that already contains explicit transfer steps; Dynamical carries
-current state and location by sample identity.
+For one sample, declare one `sample_state` campaign input with a stable sample
+ID and its source workstation in `facility_id`. Bind later `sample.state`
+inputs to that input and express chronology with `depends_on`. Compose selects
+the installed facility from that workstation; `--facility` explicitly overrides
+selection. Use the same selector for `capabilities`. Add transport only when the
+selected facility admits it and the physical workflow requires it.
 
 For a physical request, set `minimum_evidence_class: physical` on every custody,
 transfer, preparation, synthesis, and measurement step. A physical measurement
@@ -284,9 +282,9 @@ evidence. Preserve every `HOLD` receipt. If the receipt names a saved output,
 validate that output with `dynamical validate` and preserve the validation
 result. Do not pass the command receipt itself to `dynamical validate`. If
 `HOLD` identifies an incomplete requirement, author a corrected requirement
-without changing admission or authority. Do not resubmit the same requirement
-unchanged; a repeated `HOLD` means the requirement must change or the campaign
-must stop. If no admitted route exists, continue
+without changing admission or authority. Do not repeat an unchanged command after `HOLD`. Correct a wrong facility
+selector when the receipt or capability discovery identifies it; changing the
+selector does not require changing a scientifically valid requirement. If no admitted route exists, continue
 only after the missing evidence, provider, policy, budget, safety condition, or
 authority changes.
 

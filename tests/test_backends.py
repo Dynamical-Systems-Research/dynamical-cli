@@ -11,6 +11,7 @@ from types import ModuleType
 from typing import Any
 
 import pytest
+import yaml
 from _fixtures import write_reference_requirement
 
 from dynamical.campaign import CampaignValidationError
@@ -28,7 +29,7 @@ MANIFEST = REFERENCE_LAB / "facility.yaml"
 # channel works: validate_action/_validate_channel only check that the name is
 # in the compiled schema's declared vocabulary and that provider_id/evidence_class
 # match the producing action -- they do not tie a channel name to one action kind).
-MARKER_CHANNEL = "arduino.conditioning_duration_s"
+MARKER_CHANNEL = "arduino.ultrasound_commanded_s"
 
 
 def _json(path: Path) -> dict[str, object]:
@@ -58,6 +59,24 @@ def _load_runtime_contract(output: Path) -> ModuleType:
     )
 
 
+def _write_two_condition_requirement(path: Path) -> Path:
+    """Keep two admitted actions so reordering and truncation remain observable."""
+    write_reference_requirement(path)
+    value = yaml.safe_load(path.read_text())
+    second = copy.deepcopy(value["steps"][0])
+    second["step_id"] = "condition-again"
+    second["depends_on"] = ["condition"]
+    value["steps"].append(second)
+    path.write_text(yaml.safe_dump(value, sort_keys=False))
+    return path
+
+
+def _constraint_action(events: list[dict[str, Any]]) -> dict[str, Any]:
+    return next(
+        event for event in events if event["event_type"] == "action" and event["constraints"]
+    )
+
+
 @pytest.fixture(scope="module")
 def backend_packs(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]:
     """Compose and compile the shared electrodeposition requirement for isaac.
@@ -67,7 +86,7 @@ def backend_packs(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]:
     """
 
     root = tmp_path_factory.mktemp("backend-packs")
-    requirement = write_reference_requirement(root / "requirement.yaml")
+    requirement = _write_two_condition_requirement(root / "requirement.yaml")
     composition = compose_files(requirement, REGISTRY, MANIFEST)
     assert composition.status == "COMPILED", composition.reason_codes
     output = root / "isaac"
@@ -78,7 +97,7 @@ def backend_packs(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]:
 @pytest.fixture(scope="module")
 def composed_backend_packs(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]:
     root = tmp_path_factory.mktemp("composed-backend-packs")
-    requirement = write_reference_requirement(root / "requirement.yaml")
+    requirement = _write_two_condition_requirement(root / "requirement.yaml")
     composition = compose_files(requirement, REGISTRY, MANIFEST)
     assert composition.status == "COMPILED"
     output = root / "isaac"
@@ -105,20 +124,15 @@ def _canonical_writer(
     writer.add("campaign_start", 0.0)
     logical_time = 0.0
     for index, action in enumerate(pack["campaign"]["actions"]):
-        # Values inside both of "condition"'s declared pre_action envelopes (0-1800 s,
-        # 0-100 %), so the happy-path writer below produces genuinely passed constraints
-        # rather than "unavailable" ones -- campaign.py's validate_events (exercised via
-        # replay_trace) requires a failed constraint to carry a failed campaign status,
-        # which an "unavailable" pre_action measurement paired with a "passed" campaign_end
-        # would violate. "transfer" has no applicable pre_action constraints, so these
-        # values are simply unused for it.
+        # This fixture records the admitted 30 s ultrasound and 35 C setpoint
+        # commands; it does not claim an observed temperature or elapsed time.
         action_constraints = runtime.constraint_evidence(
             action,
             pack,
             phase="pre_action",
             channels=[
-                {"name": "arduino.conditioning_duration_s", "value": 60.0},
-                {"name": "arduino.conditioning_setpoint_percent", "value": 80.0},
+                {"name": "arduino.ultrasound_commanded_s", "value": 30.0},
+                {"name": "arduino.temperature_setpoint_c", "value": 35.0},
             ],
         )
         writer.add(
@@ -130,7 +144,7 @@ def _canonical_writer(
         logical_time += 1.0
         evidence = runtime.write_snapshot(
             evidence_dir / f"observation-{index:03d}.json",
-            {"action_id": action["action_id"], MARKER_CHANNEL: 60.0},
+            {"action_id": action["action_id"], MARKER_CHANNEL: 30.0},
             provider_id=action["provider_id"],
             evidence_class=action["evidence_class"],
         )
@@ -138,7 +152,7 @@ def _canonical_writer(
             action,
             pack,
             phase="post_action",
-            channels=[{"name": MARKER_CHANNEL, "value": 60.0}],
+            channels=[{"name": MARKER_CHANNEL, "value": 30.0}],
         )
         writer.add(
             "observation",
@@ -151,7 +165,7 @@ def _canonical_writer(
                 "channels": [
                     {
                         "name": MARKER_CHANNEL,
-                        "value": 60.0,
+                        "value": 30.0,
                         "unit": "s",
                         "quality": "valid",
                         "origin": "backend_state",
@@ -400,7 +414,9 @@ def test_trace_validator_rejects_reordered_actions(
     events = copy.deepcopy(writer.events)
     events[1]["action"], events[3]["action"] = events[3]["action"], events[1]["action"]
 
-    with pytest.raises(runtime.RuntimeContractError, match="differs from the compiled campaign"):
+    with pytest.raises(
+        runtime.RuntimeContractError, match="outside its enum|differs from the compiled campaign"
+    ):
         runtime.validate_trace(events, pack)
 
 
@@ -509,14 +525,16 @@ def test_direct_embodied_replay_rejects_path_escape_and_forged_campaign(
         for event in forged
         if isinstance(event.get("action"), dict) and event["action"].get("kind") == "condition"
     )
-    condition["action"]["parameters"]["duration_s"] = 999.0
+    condition["action"]["parameters"]["duration_s"] = 15.0
     trace.write_text(
         "".join(json.dumps(event, sort_keys=True) + "\n" for event in forged),
         encoding="utf-8",
     )
     forged_hash = hashlib.sha256(trace.read_bytes()).hexdigest()
     write_receipt([{"path": trace.name, "sha256": forged_hash}])
-    with pytest.raises(CampaignValidationError, match="differs from the compiled campaign"):
+    with pytest.raises(
+        CampaignValidationError, match="outside its enum|differs from the compiled campaign"
+    ):
         replay_trace(
             trace,
             replay,
@@ -554,7 +572,9 @@ def test_embodied_snapshot_commanded_parameter_must_match_the_compiled_action(
         "commanded_parameters": {"parameters": {"duration_s": pinned + 1.0}},
         "observation": {},
     }
-    with pytest.raises(CampaignValidationError, match="differs from the compiled campaign"):
+    with pytest.raises(
+        CampaignValidationError, match="outside its enum|differs from the compiled campaign"
+    ):
         _expected_snapshot_channels(snapshot, action, pack)
 
 
@@ -597,15 +617,13 @@ def test_runtime_requires_bound_constraints_and_rejects_self_admission(
     pack = runtime.verify_compiled_pack(output)
     writer = _canonical_writer(runtime, pack, tmp_path, run_id="constraint-required")
 
-    # events[3] is the "condition" action's event (transfer at events[1] has no
-    # declared constraints), the only action in this two-step campaign that carries any.
     missing = copy.deepcopy(writer.events)
-    missing[3]["constraints"] = []
+    _constraint_action(missing)["constraints"] = []
     with pytest.raises(runtime.RuntimeContractError, match="constraint coverage differs"):
         runtime.validate_trace(missing, pack)
 
     extra = copy.deepcopy(writer.events)
-    extra[3]["constraints"].append(_unavailable_evidence(pack, "current-envelope"))
+    _constraint_action(extra)["constraints"].append(_unavailable_evidence(pack, "current-envelope"))
     with pytest.raises(runtime.RuntimeContractError, match="extra=.*current-envelope"):
         runtime.validate_trace(extra, pack)
 
@@ -636,7 +654,7 @@ def test_runtime_rejects_noncanonical_constraint_records(
     pack = runtime.verify_compiled_pack(output)
     writer = _canonical_writer(runtime, pack, tmp_path, run_id=f"invalid-{field}")
     events = copy.deepcopy(writer.events)
-    events[3]["constraints"][0][field] = invalid_value
+    _constraint_action(events)["constraints"][0][field] = invalid_value
 
     with pytest.raises(runtime.RuntimeContractError, match=message):
         runtime.validate_trace(events, pack)
@@ -651,7 +669,7 @@ def test_runtime_recomputes_constraint_truth_from_measured_value(
     pack = runtime.verify_compiled_pack(output)
     writer = _canonical_writer(runtime, pack, tmp_path, run_id="forged-constraint")
     events = copy.deepcopy(writer.events)
-    events[3]["constraints"][0]["measured_value"] = 5000.0
+    _constraint_action(events)["constraints"][0]["measured_value"] = 5000.0
 
     with pytest.raises(runtime.RuntimeContractError, match="differs from its measured value"):
         runtime.validate_trace(events, pack)
@@ -694,7 +712,7 @@ def test_runtime_forces_failure_for_a_reject_enforcement_pre_action_violation(
     pack = runtime.verify_compiled_pack(output)
     writer = _canonical_writer(runtime, pack, tmp_path, run_id="reject-enforcement")
     events = copy.deepcopy(writer.events)
-    forged = events[3]["constraints"][0]
+    forged = _constraint_action(events)["constraints"][0]
     assert forged["limit"]["enforcement"] == "reject"
     forged["measured_value"] = 5000.0
     forged["passed"] = False
@@ -713,7 +731,7 @@ def test_runtime_rejects_misplaced_constraint_record(
     pack = runtime.verify_compiled_pack(output)
     writer = _canonical_writer(runtime, pack, tmp_path, run_id="misplaced-constraint")
     events = copy.deepcopy(writer.events)
-    events[0]["constraints"] = copy.deepcopy(events[3]["constraints"])
+    events[0]["constraints"] = copy.deepcopy(_constraint_action(events)["constraints"])
     assert events[0]["constraints"]
 
     with pytest.raises(runtime.RuntimeContractError, match="campaign_start cannot carry"):
@@ -753,7 +771,7 @@ def test_compiler_rejects_composition_not_bound_to_facility_admission(
     requirement = write_reference_requirement(tmp_path / "requirement.yaml")
     composition = compose_files(requirement, REGISTRY, MANIFEST)
     value = composition.model_dump(mode="json", exclude_none=True)
-    value["virtual_sdl"]["operation_bindings"][1][field] = replacement
+    value["virtual_sdl"]["operation_bindings"][0][field] = replacement
     forged = _rehash_composition(value)
 
     with pytest.raises(ValueError, match=message):
@@ -769,7 +787,7 @@ def test_compiler_rejects_forged_adapter_and_safety_bindings(tmp_path: Path) -> 
     requirement = write_reference_requirement(tmp_path / "requirement.yaml")
     composition = compose_files(requirement, REGISTRY, MANIFEST)
     value = composition.model_dump(mode="json", exclude_none=True)
-    selected = value["virtual_sdl"]["operation_bindings"][1]
+    selected = value["virtual_sdl"]["operation_bindings"][0]
     selected["adapter_links"][0]["adapter_id"] = "unrelated-adapter"
     selected["policy"]["safety_limit_ids"] = ["nonexistent-safety-rule"]
     forged = _rehash_composition(value)
