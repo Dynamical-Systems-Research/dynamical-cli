@@ -29,13 +29,10 @@ ELECTRODEPOSITION_MANIFEST = REFERENCE_LAB / "facility.yaml"
 REFERENCE_REQUIREMENT = {
     "document_type": "dynamical.campaign-requirement",
     "schema_version": "0.1.0",
-    "requirement_id": "electrodeposition-transfer-and-conditioning-proof",
+    "requirement_id": "electrodeposition-conditioning-proof",
     "objective": {
         "id": "select-and-check-conditioned-sample",
-        "statement": (
-            "Transfer one sample to the ultrasonic conditioner and run one bounded "
-            "conditioning program."
-        ),
+        "statement": ("Run one bounded in-well conditioning program."),
         "decision": "Decide if the virtual result merits a later physical experiment.",
         "proof_requirements": [
             {
@@ -54,38 +51,10 @@ REFERENCE_REQUIREMENT = {
             "state_type": "sample_state",
             "unit": "1",
             "value": "sample-electrodeposition-01",
-            "facility_id": "arduino-conditioning",
+            "facility_id": "ot2-liquid-handling",
         },
     ],
     "steps": [
-        {
-            "step_id": "transfer",
-            "operation_id": "transfer-sample",
-            "minimum_evidence_class": "simulator",
-            "parameters": [
-                {
-                    "name": "to_station",
-                    "value_type": "string",
-                    "unit": "1",
-                    "value": "arduino-conditioning",
-                },
-                {
-                    "name": "sample_id",
-                    "value_type": "string",
-                    "unit": "1",
-                    "value": "sample-electrodeposition-01",
-                },
-            ],
-            "input_bindings": [
-                {
-                    "target_port_id": "sample.state",
-                    "source_kind": "campaign_input",
-                    "source_id": "campaign.sample-id",
-                }
-            ],
-            "depends_on": [],
-            "required_policy_tags": ["simulation-only", "custody-bookkeeping-only"],
-        },
         {
             "step_id": "condition",
             "operation_id": "condition-ultrasonic",
@@ -107,12 +76,11 @@ REFERENCE_REQUIREMENT = {
             "input_bindings": [
                 {
                     "target_port_id": "sample.state",
-                    "source_kind": "step_output",
-                    "source_id": "transfer",
-                    "source_port_id": "sample.state.transferred",
+                    "source_kind": "campaign_input",
+                    "source_id": "campaign.sample-id",
                 },
             ],
-            "depends_on": ["transfer"],
+            "depends_on": [],
             "required_policy_tags": ["simulation-only"],
         },
     ],
@@ -811,7 +779,7 @@ def trace_with_complete_lineage() -> list[TraceEvent]:
 
 @pytest.fixture
 def compiled_electrodeposition_world(tmp_path: Path) -> Path:
-    """The shared electrodeposition reference requirement (transfer + condition),
+    """The shared electrodeposition reference requirement (in-well conditioning),
     composed and compiled for the ``isaac`` target -- a real compiled pack a live
     Isaac Sim run can open and execute, not a synthetic fixture.
     """
@@ -831,8 +799,7 @@ def compiled_electrodeposition_world(tmp_path: Path) -> Path:
 @pytest.fixture
 def compiled_electrodeposition_coverage_world(tmp_path: Path) -> Path:
     """A synthetic multi-instrument coverage campaign compiled for the ``isaac``
-    target -- one sample moving across workstations by explicit transfer
-    actions, exercising the mechanisms a live Kit run must prove: composition,
+    target -- one stationary sample on the OT-2 deck, exercising composition,
     multi-instrument execution, and continuous sample lineage. The step order
     and parameters are harness-selected coverage, not a recommended experiment.
 

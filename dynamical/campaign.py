@@ -2523,6 +2523,23 @@ def _execute_composed_campaign(
         }
         reasons.extend(constraint_reasons(pre_constraints, action.action_id))
         current_sample = samples.get(action.sample_id) if action.sample_id else None
+        if (
+            action.sample_id
+            and action.station_id
+            and action.kind != "transfer-sample"
+            and action.sample_id not in samples
+        ):
+            from .samples import establish_origin
+
+            # This is an identity/custody input, not a measured quantity. Keep it
+            # ephemeral unless the model actually writes state; otherwise a later
+            # transfer would inherit quantity=0/unit=1 instead of its declared amount.
+            current_sample = establish_origin(
+                samples,
+                sample_id=action.sample_id,
+                station_id=action.station_id,
+                step_id=action.action_id,
+            )[action.sample_id]
         instrument_result: InstrumentResult | None = None
         if any(not item.passed for item in pre_constraints):
             result = {name: None for name in output_ports}
@@ -2578,8 +2595,9 @@ def _execute_composed_campaign(
                 if (
                     instrument_result.sample is not None
                     and current_sample is not None
-                    and instrument_result.sample.station_id == current_sample.station_id
-                    and instrument_result.sample.state != current_sample.state
+                    and action.kind != "transfer-sample"
+                    and instrument_result.sample.model_copy(update={"state": current_sample.state})
+                    == current_sample
                 ):
                     # A processing model wrote process state onto the sample in
                     # place -- a deposit, not a move. Fold the new state into the
@@ -2587,7 +2605,10 @@ def _execute_composed_campaign(
                     # not fabricate a SampleTransition: nothing changed custody,
                     # and a transition whose from_station equals its to_station
                     # would be a false custody record.
-                    samples = {**samples, instrument_result.sample.id: instrument_result.sample}
+                    # Returning an unchanged input is a read, not a custody move
+                    # or evidence that an ephemeral origin has measured quantity.
+                    if instrument_result.sample.state != current_sample.state:
+                        samples = {**samples, instrument_result.sample.id: instrument_result.sample}
                     if action.sample_id is not None and action.station_id is not None:
                         last_known_station[action.sample_id] = action.station_id
                 elif instrument_result.sample is not None:
@@ -2711,7 +2732,9 @@ def _execute_composed_campaign(
         # sample the action touched, the digest of that sample's state after
         # the action, and whether this action wrote state. check_invariants
         # verifies every pure read saw exactly the last written state.
-        observed_sample = samples.get(action.sample_id) if action.sample_id else None
+        observed_sample = (
+            samples.get(action.sample_id, current_sample) if action.sample_id else None
+        )
         observation_provenance = None
         if action.sample_id is not None and observed_sample is not None:
             observation_provenance = {
@@ -2719,7 +2742,12 @@ def _execute_composed_campaign(
                 "sample_id": action.sample_id,
                 "sample_state_sha256": state_digest(observed_sample.state),
                 "sample_state_written": bool(
-                    instrument_result is not None and instrument_result.sample is not None
+                    instrument_result is not None
+                    and instrument_result.sample is not None
+                    and (
+                        action.kind == "transfer-sample"
+                        or instrument_result.sample != current_sample
+                    )
                 ),
             }
         observation_event = _event(

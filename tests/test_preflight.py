@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from _fixtures import write_reference_requirement
 
 from dynamical.cli import DEFAULT_FACILITY, DEFAULT_REGISTRY, main
 from dynamical.composition import (
@@ -26,6 +27,14 @@ SPEC = importlib.util.spec_from_file_location("dynamical_preflight_finalizer", F
 assert SPEC is not None and SPEC.loader is not None
 FINALIZER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(FINALIZER)
+
+
+@pytest.fixture(autouse=True)
+def current_reference_requirement(tmp_path: Path, monkeypatch):
+    # Test the current installed contract independently of the staged public example migration.
+    monkeypatch.setitem(
+        globals(), "REQUIREMENT", write_reference_requirement(tmp_path / "input.yaml")
+    )
 
 
 def _mapping(source: Path, *, value: float = 1.0) -> dict[str, object]:

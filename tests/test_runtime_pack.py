@@ -1,8 +1,11 @@
 """The runtime campaign is a compilation of the step graph, not a fixed script."""
 
 import json
+from pathlib import Path
 
 from dynamical.backends._runtime_pack import runtime_campaign, runtime_capability_bindings
+
+FASTCAT_LAB = Path(__file__).resolve().parents[1] / "dynamical/bundle/fastcat"
 
 
 def test_campaign_follows_the_composition_order(three_station_composition):
@@ -42,7 +45,7 @@ def test_repeated_operation_on_shared_device_compiles_each_step(tmp_path):
 
     payload = _coverage_requirement().model_dump(mode="json")
     steps = payload["steps"]
-    first = steps[1]
+    first = steps[0]
     first["step_id"] = "aliquot-ni"
     first["operation_id"] = "aliquot-to-well"
     second = json.loads(json.dumps(first))
@@ -51,9 +54,9 @@ def test_repeated_operation_on_shared_device_compiles_each_step(tmp_path):
         {**item, "value": 0.75 if item["name"] == "volume_ml" else "Fe"}
         for item in second["parameters"]
     ]
-    second["depends_on"] = ["materialize", "aliquot-ni"]
-    steps.insert(2, second)
-    steps[3]["depends_on"] = ["aliquot-fe"]
+    second["depends_on"] = ["aliquot-ni"]
+    steps.insert(1, second)
+    steps[2]["depends_on"] = ["aliquot-fe"]
 
     requirement = CampaignRequirement.model_validate(payload)
     composition = compose_virtual_sdl(requirement, load_capability_registry(REGISTRY))
@@ -68,17 +71,7 @@ def test_repeated_operation_on_shared_device_compiles_each_step(tmp_path):
 
 
 def _model_backed_requirement():
-    """A campaign whose scientific work is done only by model-backed providers.
-
-    ``deposit-chemical-bath`` (ac-bath-simulator) and ``measure-oer``
-    (ac-oer-twin) declare no device-control adapter link, because no physical
-    device drives them. Neither of their device siblings -- dispense/aliquot on
-    ot2-device, electrodeposit on squidstat-device -- is selected here, so this
-    campaign never names ``ot2-device`` or ``squidstat-device`` through any
-    binding's endpoint refs. Every other campaign in this suite does, which is
-    why the shared-device resolution path was never exercised for a
-    model-backed provider alone.
-    """
+    """FastCat's two model-backed providers run without device-control adapters."""
 
     from test_electrodeposition_registry import _parameter
 
@@ -117,19 +110,10 @@ def _model_backed_requirement():
                     "state_type": "sample_state",
                     "unit": "1",
                     "value": "SMP-model-01",
+                    "facility_id": "fastcat-process",
                 }
             ],
             "steps": [
-                {
-                    "step_id": "mount-sample",
-                    "operation_id": "transfer-sample",
-                    "parameters": [
-                        _parameter("to_station", "string", "1", "ot2-liquid-handling"),
-                        _parameter("sample_id", "string", "1", "SMP-model-01"),
-                        _parameter("arrival_confirmed", "boolean", "1", True),
-                    ],
-                    "input_bindings": [_campaign_sample_binding()],
-                },
                 {
                     "step_id": "deposit-film",
                     "operation_id": "deposit-chemical-bath",
@@ -145,27 +129,7 @@ def _model_backed_requirement():
                         _parameter("synthesis_time_s", "number", "s", 600.0),
                     ],
                     "input_bindings": [_campaign_sample_binding()],
-                    "depends_on": ["mount-sample"],
-                },
-                {
-                    "step_id": "move-to-echem",
-                    "operation_id": "transfer-sample",
-                    "parameters": [
-                        _parameter("to_station", "string", "1", "squidstat-echem"),
-                        _parameter("arrival_confirmed", "boolean", "1", True),
-                    ],
-                    "input_bindings": [_campaign_sample_binding()],
-                    "depends_on": ["deposit-film"],
-                },
-                {
-                    "step_id": "load-cell",
-                    "operation_id": "load-electrochemical-cell",
-                    "parameters": [
-                        _parameter("cell_id", "string", "1", "echem-cell-1"),
-                        _parameter("seated", "boolean", "1", True),
-                    ],
-                    "input_bindings": [_campaign_sample_binding()],
-                    "depends_on": ["move-to-echem"],
+                    "depends_on": [],
                 },
                 {
                     "step_id": "measure-oer-10ma",
@@ -175,7 +139,7 @@ def _model_backed_requirement():
                         _parameter("current_density_a_cm2", "number", "A/cm^2", 0.010),
                     ],
                     "input_bindings": [_campaign_sample_binding()],
-                    "depends_on": ["load-cell"],
+                    "depends_on": ["deposit-film"],
                 },
             ],
             "max_cost_usd": 0,
@@ -185,18 +149,16 @@ def _model_backed_requirement():
 
 
 def _compile_model_backed_world(tmp_path):
-    from test_electrodeposition_registry import MANIFEST, REGISTRY
-
     from dynamical.compiler import compile_facility
     from dynamical.composition import compose_virtual_sdl
     from dynamical.schema import load_capability_registry
 
     composition = compose_virtual_sdl(
-        _model_backed_requirement(), load_capability_registry(REGISTRY)
+        _model_backed_requirement(), load_capability_registry(FASTCAT_LAB / "registry.yaml")
     )
     assert composition.status == "COMPILED", composition.reason_codes
     return compile_facility(
-        MANIFEST, "isaac", tmp_path / "world", composition_result=composition
+        FASTCAT_LAB / "facility.yaml", "isaac", tmp_path / "world", composition_result=composition
     ).output_dir
 
 
@@ -280,12 +242,21 @@ def test_model_backed_campaign_leaves_physical_authority_on_hold(tmp_path):
     classes = {action["evidence_class"] for action in campaign["actions"]}
     assert "physical" not in classes, "a physical evidence class was admitted"
 
-    from test_electrodeposition_registry import REGISTRY
-
+    from dynamical.composition import compose_virtual_sdl
     from dynamical.schema import load_capability_registry
 
-    registry = load_capability_registry(REGISTRY)
-    physical = [p for p in registry.providers if p.evidence_class == "physical"]
-    assert physical, "the registry must still declare physical counterparts"
-    assert all(p.admission.status == "pending" for p in physical)
-    assert all(not p.policy.permitted for p in physical)
+    registry = load_capability_registry(FASTCAT_LAB / "registry.yaml")
+    assert all(provider.evidence_class != "physical" for provider in registry.providers)
+    requirement = _model_backed_requirement()
+    requirement = requirement.model_copy(
+        update={
+            "steps": [
+                step.model_copy(update={"minimum_evidence_class": "physical"})
+                for step in requirement.steps
+            ]
+        }
+    )
+    result = compose_virtual_sdl(requirement, registry)
+    assert result.status == "HOLD"
+    assert result.virtual_sdl is None
+    assert "EVIDENCE_CLASS_INSUFFICIENT" in result.reason_codes

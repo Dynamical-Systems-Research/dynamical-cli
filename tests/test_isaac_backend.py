@@ -213,9 +213,7 @@ def _action_events_from_isaac_campaign(pack: dict) -> list:
     return events
 
 
-def _compile_coverage_isaac(
-    tmp_path: Path, *, to_squidstat_station: str = "squidstat-echem"
-) -> Path:
+def _compile_coverage_isaac(tmp_path: Path) -> Path:
     from test_electrodeposition_registry import MANIFEST, REGISTRY, _coverage_requirement
 
     from dynamical.compiler import compile_facility
@@ -223,7 +221,7 @@ def _compile_coverage_isaac(
     from dynamical.schema import load_capability_registry
 
     registry = load_capability_registry(REGISTRY)
-    requirement = _coverage_requirement(to_squidstat_station=to_squidstat_station)
+    requirement = _coverage_requirement()
     composition = compose_virtual_sdl(requirement, registry)
     assert composition.status == "COMPILED", composition.reason_codes
     return compile_facility(MANIFEST, "isaac", tmp_path, composition_result=composition).output_dir
@@ -328,11 +326,8 @@ def test_live_kit_run_rejects_the_deposit_action_before_executing_an_unsafe_curr
         event["action"]["action_id"] for event in events[:-1] if event["event_type"] == "action"
     ]
     assert earlier_action_ids == [
-        "materialize",
         "dispense",
-        "to-arduino",
         "condition",
-        "to-squidstat",
     ]
     observation_action_ids = {
         events[index - 1]["action"]["action_id"]
@@ -343,16 +338,9 @@ def test_live_kit_run_rejects_the_deposit_action_before_executing_an_unsafe_curr
 
 
 def test_coverage_campaign_compiles_for_isaac_with_zero_lineage_findings(tmp_path):
-    """Non-Kit companion to the live-Kit coverage test above, and the direct isaac-path
-    analog of ``test_electrodeposition_registry.py``'s
-    ``test_one_sample_moves_through_three_workstations_by_explicit_transfer`` /
-    ``test_coverage_campaign_compiles_and_runs_with_zero_lineage_findings``: one
-    sample moves through three workstations via explicit ``transfer-sample`` actions,
-    each carrying a real embedded ``sample_transition`` (see
-    ``_runtime_pack.py::runtime_campaign``, which calls the same registered
-    ``transfer.py`` instrument model ``campaign.py``'s composed path calls live), and
-    ``check_invariants`` finds nothing wrong with it -- proved without Isaac Sim
-    installed, since the lineage data is fixed entirely at compile time.
+    """Compiled actions preserve one stationary sample on SDL1's single deck.
+
+    This checks compiled custody bookkeeping without claiming embodied execution.
     """
     from dynamical.backends.compiled_runtime import verify_compiled_pack
     from dynamical.samples import check_invariants
@@ -374,11 +362,11 @@ def _compile_model_backed_isaac_world(destination: Path) -> Path:
 
     composition = compose_virtual_sdl(
         test_runtime_pack._model_backed_requirement(),
-        load_capability_registry("dynamical/bundle/reference-lab/registry.yaml"),
+        load_capability_registry(test_runtime_pack.FASTCAT_LAB / "registry.yaml"),
     )
     assert composition.status == "COMPILED", composition.reason_codes
     return compile_facility(
-        "dynamical/bundle/reference-lab/facility.yaml",
+        test_runtime_pack.FASTCAT_LAB / "facility.yaml",
         "isaac",
         destination,
         composition_result=composition,

@@ -1,0 +1,427 @@
+document_type: dynamical.facility
+schema_version: 0.1.0
+facility:
+  id: dtu-fastcat
+  name: DTU FastCat chemical-bath process and frozen OER predictor
+  schema_version: 0.1.0
+  frame:
+    up_axis: Z
+    length_unit: m
+  workstation_ids:
+  - fastcat-process
+  authoring_basis: representative
+  source_refs:
+  - uri: https://doi.org/10.11583/DTU.28494185
+    role: dataset-source
+  claim_boundary:
+  - FastCat is a separate DTU chemical-bath synthesis platform. No FastCat hardware geometry, control
+    software, or measured layout is admitted by this bundle; AC SDL1 geometry and operations are not FastCat
+    hardware.
+  - The single fastcat-process workstation is a Dynamical virtual process location, not a claim about
+    the physical bench topology. Its marker dimensions, pose, color, and frame are visualization conventions
+    only; physical dimensions and equipment positions are unknown. Collision is disabled.
+  - ac-bath-simulator records commanded nominal composition and synthesis duration; it does not predict
+    deposited chemistry, morphology, yield, or physical delivery accuracy.
+  - ac-oer-twin is Dynamical-authored, not supplied by the Acceleration Consortium. Its calibrated claim
+    is restricted to the frozen 72-row prediction table at 0.010 A/cm^2. Other compositions and currents
+    fail closed.
+  - The original 27-composition validation MAE was 22.2 mV. The later 54-composition pool evaluation MAE
+    was 48.4 mV; 43 labels were single physical runs. The constant half-width remains 0.104969 V after
+    the per-row interval gate failed. No untouched FastCat cohort remains for held-out validation.
+  - A compiled scene and simulated trace do not prove physical synthesis, motion, transfer, or laboratory
+    qualification. There is no physical provider in this facility.
+  - The predictor subtracts 1.229 V from its frozen potential estimate as a Dynamical overpotential convention.
+    Its frozen extraction statistic differs from the upstream last-40-sample mean.
+workstations:
+- id: fastcat-process
+  facility_id: dtu-fastcat
+  member_asset_ids:
+  - fastcat-process-marker
+  local_frame:
+    position_m:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+    orientation:
+      w: 1.0
+      x: 0.0
+      y: 0.0
+      z: 0.0
+assets:
+- id: fastcat-process-marker
+  workstation_id: fastcat-process
+  asset_kind: Visualization-only process marker; physical equipment geometry and placement unknown
+  geometry:
+    representation: execution_visualization_primitive
+    portable_primitive: cube
+    dimensions_m:
+      x: 0.1
+      y: 0.1
+      z: 0.1
+    display_color_rgb:
+    - 0.4
+    - 0.5
+    - 0.6
+  pose:
+    position_m:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+    orientation:
+      w: 1.0
+      x: 0.0
+      y: 0.0
+      z: 0.0
+  collision:
+    enabled: false
+    shape: none
+  manipulation_frames: {}
+  physical_properties: {}
+  source_refs: []
+devices:
+- id: fastcat-process-device
+  asset_id: fastcat-process-marker
+  state_channels:
+  - id: fastcat.deposited_fraction_Cr
+    value_type: number
+    unit: '1'
+    minimum: 0.0
+    maximum: 1.0
+  - id: fastcat.deposited_fraction_Al
+    value_type: number
+    unit: '1'
+    minimum: 0.0
+    maximum: 1.0
+  - id: fastcat.deposited_fraction_Fe
+    value_type: number
+    unit: '1'
+    minimum: 0.0
+    maximum: 1.0
+  - id: fastcat.deposited_fraction_Co
+    value_type: number
+    unit: '1'
+    minimum: 0.0
+    maximum: 1.0
+  - id: fastcat.deposited_fraction_Mn
+    value_type: number
+    unit: '1'
+    minimum: 0.0
+    maximum: 1.0
+  - id: fastcat.deposited_fraction_Ni
+    value_type: number
+    unit: '1'
+    minimum: 0.0
+    maximum: 1.0
+  - id: fastcat.deposited_fraction_Cu
+    value_type: number
+    unit: '1'
+    minimum: 0.0
+    maximum: 1.0
+  - id: fastcat.deposited_fraction_Zn
+    value_type: number
+    unit: '1'
+    minimum: 0.0
+    maximum: 1.0
+  - id: fastcat.bath_synthesis_time_s
+    value_type: number
+    unit: s
+    minimum: 0.0
+    maximum: 3600.0
+  - id: fastcat.current_density_a_cm2
+    value_type: number
+    unit: A/cm^2
+    minimum: 0.01
+    maximum: 0.01
+  - id: fastcat.overpotential_v
+    value_type: number
+    unit: V
+    minimum: 0.0
+  capability_ids:
+  - deposit-chemical-bath-capability
+  - measure-oer-capability
+agents: []
+capabilities:
+- id: deposit-chemical-bath-capability
+  provider_id: fastcat-process-device
+  action_type: deposit
+  parameters:
+  - name: fraction_cr
+    value_type: number
+    unit: '1'
+    required: false
+    minimum: 0.0
+    maximum: 1.0
+  - name: fraction_al
+    value_type: number
+    unit: '1'
+    required: false
+    minimum: 0.0
+    maximum: 1.0
+  - name: fraction_fe
+    value_type: number
+    unit: '1'
+    required: false
+    minimum: 0.0
+    maximum: 1.0
+  - name: fraction_co
+    value_type: number
+    unit: '1'
+    required: false
+    minimum: 0.0
+    maximum: 1.0
+  - name: fraction_mn
+    value_type: number
+    unit: '1'
+    required: false
+    minimum: 0.0
+    maximum: 1.0
+  - name: fraction_ni
+    value_type: number
+    unit: '1'
+    required: false
+    minimum: 0.0
+    maximum: 1.0
+  - name: fraction_cu
+    value_type: number
+    unit: '1'
+    required: false
+    minimum: 0.0
+    maximum: 1.0
+  - name: fraction_zn
+    value_type: number
+    unit: '1'
+    required: false
+    minimum: 0.0
+    maximum: 1.0
+  - name: synthesis_time_s
+    value_type: number
+    unit: s
+    required: false
+    minimum: 0.0
+    maximum: 3600.0
+  observation_channel_ids:
+  - fastcat.deposited_fraction_Cr
+  - fastcat.deposited_fraction_Al
+  - fastcat.deposited_fraction_Fe
+  - fastcat.deposited_fraction_Co
+  - fastcat.deposited_fraction_Mn
+  - fastcat.deposited_fraction_Ni
+  - fastcat.deposited_fraction_Cu
+  - fastcat.deposited_fraction_Zn
+  - fastcat.bath_synthesis_time_s
+  reported_output_port_ids:
+    fastcat.deposited_fraction_Cr: deposited_fraction_Cr
+    fastcat.deposited_fraction_Al: deposited_fraction_Al
+    fastcat.deposited_fraction_Fe: deposited_fraction_Fe
+    fastcat.deposited_fraction_Co: deposited_fraction_Co
+    fastcat.deposited_fraction_Mn: deposited_fraction_Mn
+    fastcat.deposited_fraction_Ni: deposited_fraction_Ni
+    fastcat.deposited_fraction_Cu: deposited_fraction_Cu
+    fastcat.deposited_fraction_Zn: deposited_fraction_Zn
+    fastcat.bath_synthesis_time_s: bath_synthesis_time_s
+- id: measure-oer-capability
+  provider_id: fastcat-process-device
+  action_type: measure
+  parameters:
+  - name: current_density_a_cm2
+    value_type: number
+    unit: A/cm^2
+    required: true
+    minimum: 0.01
+    maximum: 0.01
+  observation_channel_ids:
+  - fastcat.current_density_a_cm2
+  - fastcat.overpotential_v
+  echoed_parameter_bindings:
+    fastcat.current_density_a_cm2: current_density_a_cm2
+  reported_output_port_ids:
+    fastcat.current_density_a_cm2: current_density_a_cm2
+    fastcat.overpotential_v: overpotential_v
+  precondition_constraint_ids:
+  - oer-current-density-envelope
+  postcondition_constraint_ids: []
+material_states: []
+model_bindings:
+- id: ac-bath-model
+  implementation_ref: dynamical/instruments/ac_bath.py
+  implementation_sha256: 90d8f58cde7a3630680a7356572466093e27fd22b880abc75a22dc112f658787
+  input_channel_map: {}
+  output_channel_map: {}
+  parameter_map:
+    evidence-class: simulator
+    physical-calibration: false
+  update_interval_s: 1.0
+  calibration_evidence_ids: []
+- id: ac-oer-twin-model
+  implementation_ref: dynamical/instruments/ac_oer_twin.py
+  implementation_sha256: df5e4e9bed674729c384627fc860630da6db2bc0936ff346e0821b3b408305d2
+  input_channel_map: {}
+  output_channel_map: {}
+  parameter_map:
+    evidence-class: calibrated_twin
+    physical-calibration: true
+  update_interval_s: 1.0
+  calibration_evidence_ids:
+  - fastcat-oer-e10
+- id: bounded-constraint-verifier
+  implementation_ref: dynamical/runtime/constraints.py
+  implementation_sha256: 9211c861006f2df7a6d3941fedcc0e1e643b9ce35b42f7309c5e2d371762a1a7
+  input_channel_map: {}
+  output_channel_map: {}
+  parameter_map:
+    verifier-owner: independent-runtime
+  update_interval_s: 0.001
+  calibration_evidence_ids: []
+adapter_bindings:
+- id: fastcat-isaac-adapter
+  target: isaac
+  subject_id: dtu-fastcat
+  adapter_id: dynamical-isaac-sim
+  adapter_version: 0.1.0
+  binding_schema_ref: dynamical.isaac-sim-target.v1
+  configuration:
+    isaac_sim_version: 6.0.1
+    isaac_lab_revision: portable-runtime-no-isaac-lab-task
+    task_id: Dynamical-FastCat-Process-v0
+    experience: isaacsim.exp.full
+    vendor_asset_paths: {}
+- id: fastcat-openusd-adapter
+  target: openusd
+  subject_id: dtu-fastcat
+  adapter_id: dynamical-openusd
+  adapter_version: 0.1.0
+  binding_schema_ref: dynamical.openusd-target.v1
+  configuration:
+    material_policy: UsdPreviewSurface
+    vendor_references: false
+- id: fastcat-replay-adapter
+  target: replay
+  subject_id: dtu-fastcat
+  adapter_id: dynamical-replay
+  adapter_version: 0.1.0
+  binding_schema_ref: dynamical.trace.v0.1
+  configuration:
+    trace_contract_version: 0.1.0
+    preserve_observation_origin: true
+provider_admission_bindings:
+- id: admitted-ac-bath-deposit-chemical-bath
+  provider_id: ac-bath-simulator
+  operation_id: deposit-chemical-bath
+  evidence_classes:
+  - simulator
+  facility_ids:
+  - fastcat-process
+  endpoint_id: ac-bath-model
+  adapter_links:
+  - adapter_id: dynamical-ac-bath-python
+    adapter_version: 0.1.0
+    endpoint_ref: ac-bath-model
+  validity_envelope:
+  - subject_kind: parameter
+    subject_id: synthesis_time_s
+    value_type: number
+    unit: s
+    minimum: 0.0
+    maximum: 3600.0
+  safety_limit_ids: []
+  policy_tags:
+  - simulation-only
+  - process-state-only
+  required_approval_ids: []
+- id: admitted-ac-oer-twin-measure-oer
+  provider_id: ac-oer-twin
+  operation_id: measure-oer
+  evidence_classes:
+  - calibrated_twin
+  facility_ids:
+  - fastcat-process
+  endpoint_id: ac-oer-twin-model
+  adapter_links:
+  - adapter_id: dynamical-ac-oer-twin-python
+    adapter_version: 0.1.0
+    endpoint_ref: ac-oer-twin-model
+  validity_envelope:
+  - subject_kind: parameter
+    subject_id: current_density_a_cm2
+    value_type: number
+    unit: A/cm^2
+    minimum: 0.01
+    maximum: 0.01
+  safety_limit_ids:
+  - oer-current-density-envelope
+  policy_tags:
+  - calibrated-twin
+  - frozen-prediction-table
+  required_approval_ids: []
+constraints:
+- id: oer-current-density-envelope
+  phase: pre_action
+  channel_id: fastcat.current_density_a_cm2
+  operator: between
+  bound:
+    minimum: 0.01
+    maximum: 0.01
+  unit: A/cm^2
+  enforcement: reject
+  verifier_binding_id: bounded-constraint-verifier
+  constrained_parameter_name: current_density_a_cm2
+calibration_evidence:
+- id: fastcat-oer-e10
+  source_artifact_ref: https://doi.org/10.11583/DTU.28494185 (data.zip, MIT license, retrieved 2026-08-11)
+  source_sha256: 4238fe558e72c201403972a523e839dec3150bd1052f97ff25632d83ecab46db
+  applies_to_model_binding_id: ac-oer-twin-model
+  supported_channel_ids:
+  - fastcat.overpotential_v
+  - fastcat.current_density_a_cm2
+  condition_domain:
+    fastcat.current_density_a_cm2: exactly 0.010 A/cm^2 (calibrated basis; chronopotentiometry tail medians
+      per the frozen protocol)
+    fastcat.overpotential_v: predicted only for the 72 frozen-table compositions under the frozen per-pool
+      conditioning; the original 27-composition validation passed 9/9 predeclared gates (MAE 22.2 mV);
+      the later 54-composition causal-pool evaluation had MAE 48.4 mV
+  validation_design: cross_condition
+  metrics:
+  - name: held-out-e10-mae
+    value: 0.022209
+    unit: V
+    split: independent_test
+    threshold: 0.045
+    comparator: le
+  - name: uncertainty-coverage-conformal90
+    value: 0.963
+    unit: '1'
+    split: independent_test
+    threshold: 0.85
+    comparator: ge
+  - name: candidate-order-spearman
+    value: 0.86
+    unit: '1'
+    split: independent_test
+    threshold: 0.35
+    comparator: ge
+  - name: top3-retrieval
+    value: 0.823
+    unit: '1'
+    split: independent_test
+    threshold: 0.45
+    comparator: ge
+  limitations:
+  - The calibrated basis is exactly 0.010 A/cm^2; no other current density is predicted.
+  - Predictions exist only for the 72 frozen-table compositions under the frozen per-pool conditioning;
+    all other compositions are refused.
+  - The later 54-composition causal-pool evaluation had MAE 48.4 mV; 43 labels were single physical runs
+    and 11 had replicates. This is a distinct cohort from the original 27-composition validation (MAE
+    22.2 mV).
+  - The reported replicate variability is 20.8 mV median within-replicate SD; it is not a composition-specific
+    uncertainty estimate or a deterministic lower bound on prediction error.
+  - The per-row interval gate failed on the pool evaluation; the frozen constant interval covered 49 of
+    54 labels (0.907). The constant half-width stays unchanged.
+  - No untouched FastCat cohort remains for another held-out validation; these results do not authorize
+    recalibration or stronger predictive claims.
+  - The interval half-width (0.104969 V at 90% target coverage) reflects split-conformal calibration on
+    22 development compositions.
+  split_rule_ref: calibration/fastcat-oer/calibration_report.json
+  split_rule_sha256: 2e511c59ff349485dae6f7e705f2defce83c0ff5999a9ddaba96827782763cbb
+  fit_artifact_ref: calibration/fastcat-oer/prediction_table.json
+  fit_artifact_sha256: 098245794ec3925a16777b3df18eb9fcaf06816588f46cd562dbd8b957fb2728
+asset_sources: []

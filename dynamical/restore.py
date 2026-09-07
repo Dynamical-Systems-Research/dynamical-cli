@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
@@ -23,9 +22,8 @@ from .campaign import (
     stable_hash,
     validate_events,
 )
+from .installed import facility_bundle
 from .samples import Sample
-
-_REFERENCE_LAB = Path(str(files("dynamical").joinpath("bundle", "reference-lab")))
 
 
 @dataclass(frozen=True)
@@ -103,9 +101,10 @@ def _validated_authority(world: Path) -> tuple[str, str]:
         raise CampaignValidationError(f"invalid protected composition: {exc}") from exc
     if composition.status != "COMPILED" or composition.sources is None:
         raise CampaignValidationError("restore requires a COMPILED route with protected sources")
-    installed_registry = load_capability_registry(_REFERENCE_LAB / "registry.yaml")
-    installed_facility = load_facility_manifest(_REFERENCE_LAB / "facility.yaml")
     sources = composition.sources
+    bundle = facility_bundle(sources.facility.facility.id)
+    installed_registry = load_capability_registry(bundle / "registry.yaml")
+    installed_facility = load_facility_manifest(bundle / "facility.yaml")
     reasons = authority_hold_reasons(
         sources.registry, sources.facility, installed_registry, installed_facility
     )
