@@ -11,24 +11,8 @@ from dynamical.schema import load_capability_registry, load_facility_manifest
 
 
 def fastcat_requirement(path: Path) -> Path:
-    legacy = Path(__file__).resolve().parents[1] / "examples/fastcat-oer/requirement.yaml"
-    document = yaml.safe_load(legacy.read_text())
-    document["inputs"][0]["facility_id"] = "fastcat-process"
-    document["steps"] = [
-        step
-        for step in document["steps"]
-        if step["operation_id"] in {"deposit-chemical-bath", "measure-oer"}
-    ]
-    for index, step in enumerate(document["steps"]):
-        step["input_bindings"] = [
-            {
-                "target_port_id": "sample.state",
-                "source_kind": "campaign_input",
-                "source_id": "sample.state",
-            }
-        ]
-        step["depends_on"] = [] if index == 0 else [document["steps"][index - 1]["step_id"]]
-    path.write_text(yaml.safe_dump(document, sort_keys=False))
+    example = Path(__file__).resolve().parents[1] / "examples/fastcat-oer/requirement.yaml"
+    path.write_bytes(example.read_bytes())
     return path
 
 
@@ -81,6 +65,7 @@ def test_fastcat_runs_without_inventing_transfer_or_cell_loading(tmp_path, capsy
         if channel["name"] == "overpotential_v"
     ]
     assert len(channels) == 1
+    assert abs(channels[0]["value"] - 0.263047) < 1e-12
     assert channels[0]["quality"] == "estimated"
     assert channels[0]["uncertainty"]["value"] == 0.104969
 

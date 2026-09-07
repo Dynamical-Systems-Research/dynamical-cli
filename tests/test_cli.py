@@ -247,7 +247,9 @@ def test_saved_composition_compiles_runs_and_validates_without_extra_flags(
         assert json.loads(capsys.readouterr().out)["valid"] is True
 
 
-def test_public_examples_keep_fastcat_provenance_lineage_and_hold(tmp_path: Path, capsys) -> None:
+def test_public_examples_use_their_own_facility_and_preserve_fastcat_provenance(
+    tmp_path: Path, capsys
+) -> None:
     def sha256(path: Path) -> str:
         return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -273,24 +275,34 @@ def test_public_examples_keep_fastcat_provenance_lineage_and_hold(tmp_path: Path
         FASTCAT_LAB / calibration["fit_artifact_ref"]
     )
 
-    # These mixed-platform examples are deliberately migrated separately in PR 5.
-    for example in ("quickstart", "fastcat-oer"):
-        for facility_alias in ("sdl1", "fastcat"):
-            composition = tmp_path / f"{example}-{facility_alias}.json"
-            assert (
-                main(
-                    [
-                        "compose",
-                        str(REPOSITORY / "examples" / example / "requirement.yaml"),
-                        "--facility",
-                        facility_alias,
-                        "-o",
-                        str(composition),
-                    ]
-                )
-                == 1
+    assert sha256(REPOSITORY / "examples/fastcat-oer/candidate-set.yaml") == (
+        "cc78580a0e614d11b5e8d48cc085897c83d9cf133e0acc16c47ed69cafb304ca"
+    )
+    for example, facility_alias, operation_ids in (
+        ("quickstart", "sdl1", ["condition-ultrasonic"]),
+        ("fastcat-oer", "fastcat", ["deposit-chemical-bath", "measure-oer"]),
+    ):
+        composition = tmp_path / f"{example}.json"
+        requirement = REPOSITORY / "examples" / example / "requirement.yaml"
+        assert (
+            main(
+                ["compose", str(requirement), "--facility", facility_alias, "-o", str(composition)]
             )
-            assert json.loads(capsys.readouterr().out)["status"] == "HOLD"
+            == 0
+        )
+        assert json.loads(capsys.readouterr().out)["status"] == "COMPILED"
+        selected = json.loads(composition.read_text())["virtual_sdl"]["operation_bindings"]
+        assert [binding["operation_id"] for binding in selected] == operation_ids
+        world, trace = tmp_path / f"{example}-world", tmp_path / f"{example}.ndjson"
+        assert main(["compile", str(composition), "-o", str(world)]) == 0
+        capsys.readouterr()
+        assert main(["run", str(world), "-o", str(trace)]) == 0
+        capsys.readouterr()
+        assert main(["validate", str(trace), "--json"]) == 0
+        assert json.loads(capsys.readouterr().out)["valid"] is True
+        wrong_facility = "sdl1" if facility_alias == "fastcat" else "fastcat"
+        assert main(["compose", str(requirement), "--facility", wrong_facility]) == 1
+        assert json.loads(capsys.readouterr().out)["status"] == "HOLD"
 
     onboarding = REPOSITORY / "examples" / "provider-onboarding"
     registry = onboarding / "registry.pending.yaml"

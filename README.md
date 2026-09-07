@@ -61,6 +61,9 @@ also give the agent the
 [candidate set](https://github.com/Dynamical-Systems-Research/dynamical-cli/blob/main/examples/fastcat-oer/candidate-set.yaml)
 and
 [campaign template](https://github.com/Dynamical-Systems-Research/dynamical-cli/blob/main/examples/fastcat-oer/requirement.yaml).
+This example uses the separate DTU FastCat facility: select `--facility fastcat`
+for capability discovery and composition. The default `sdl1` facility describes
+the Acceleration Consortium bench's source-defined commands and protocol.
 The agent then composes and validates one isolated arm for each candidate. It
 returns the validated campaign record, the limits of its evidence, and a
 proposed physical experiment or `HOLD`.
@@ -116,8 +119,8 @@ Download the example requirement and run the complete virtual workflow:
 ```bash
 curl -fsSLO https://raw.githubusercontent.com/Dynamical-Systems-Research/dynamical-cli/main/examples/quickstart/requirement.yaml
 
-dynamical capabilities
-dynamical compose requirement.yaml -o composition.json
+dynamical capabilities --facility sdl1
+dynamical compose requirement.yaml --facility sdl1 -o composition.json
 dynamical compile composition.json -o compiled-world
 dynamical run compiled-world -o trace.ndjson
 dynamical validate trace.ndjson --json
@@ -125,9 +128,11 @@ dynamical run trace.ndjson --mode replay -o replay.ndjson
 dynamical validate replay.ndjson --json
 ```
 
-The example transfers one sample into an ultrasonic conditioning station and
-runs a virtual process with fixed limits. The trace records each action,
-observation, constraint, sample-state change, cost, and duration.
+The quickstart records a 35 °C temperature setpoint and a 30 s ultrasound
+command in one stationary SDL1 well. Its proof covers command bookkeeping;
+physical temperature and conditioning response remain unknown. Traces record
+commands, available observations, constraints, sample history, and accounting;
+command-only adapters do not claim physically applied settings.
 
 Use `dynamical compose --schema` to inspect the requirement schema. Use
 `dynamical capabilities --operation <operation-id> --json` to inspect the typed
@@ -238,6 +243,19 @@ Simulation, calibrated-model output, replay, and physical measurement are
 different evidence classes. Validation checks structure and source records. It
 does not establish scientific truth.
 
+The FastCat OER predictor retains its historical calibration admission:
+22.2 mV MAE on the original 27-composition validation cohort, versus 48.4 mV on
+a distinct 54-composition pool evaluation with 43 single-run labels. Its
+constant 0.104969 V half-width targets 90% coverage. These figures do not
+calibrate the full FastCat or SDL1 facility. Full reference-facility calibration
+remains a release prerequisite; the [report](dynamical/bundle/fastcat/calibration/fastcat-oer/calibration_report.json)
+preserves both cohorts and the failed per-row interval gate.
+
+A valid workflow, a finite comparison of predictions, and a prospective
+physical prediction are different claims. None alone demonstrates agent
+learning. The agent owns the scientific decision; the CLI must preserve the
+admission, provenance, and limits of the evidence used for that decision.
+
 The reusable unit is a scientific capability. Each capability states its inputs,
 outputs, units, limits, uncertainty, failure states, source records, and
 execution authority. A provider performs that capability through a simulator,
@@ -266,9 +284,10 @@ allowed the command: `evidence_classes`,
 `execution_status`, `embodied_evidence_bound`, `claim_boundary`,
 `authority_anchor`, and `validation_reasons`.
 
-Custom `--registry` and `--facility` inputs are proposals. They cannot grant
-themselves approval. In v0.1, the installed bundle is the source of approved
-records.
+The installed `--facility sdl1` and `--facility fastcat` selectors choose
+separate authority bundles. Custom registry and facility paths are proposals;
+they cannot grant themselves approval. In v0.1, installed records define
+provider admission.
 
 `capabilities --registry <path>` inspects a proposal without activating it. Its
 receipt reports whether each provider is approved after comparison with the
