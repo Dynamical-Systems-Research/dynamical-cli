@@ -207,3 +207,26 @@ This inspection-only canary does not repeat the nine-arm campaign; all FastCat
 bundle and instrument bytes remain identical to the preceding campaign wheel.
 Cost: $0.002734981; total accounted $3.272720058/$10. The relay is stopped;
 idle container termination remains blocked by host permissions.
+
+## Public example with all three shipped skills
+
+Run `RUN-20260907T162839Z-9b656544` used `z-ai/glm-5.3-flash`, the
+unchanged public prompt and two YAML inputs, wheel
+`4dbbbaac8cf8d7a59ffd882c449d3de6ebe322222f63477a71de2d03591dda56`, and all three
+shipped skills with their resources. The agent read `dynamical` and
+`dynamical-preflight`; provider onboarding was available but not exercised.
+All nine arms used the shipped finalizer, bound READY preflight receipts,
+preserved candidates/conditions/predictions, and validated. Report snapshots
+match receipts. The physical request returned `EVIDENCE_CLASS_INSUFFICIENT` HOLD.
+Session exit 0; both 26-check isolation proofs pass on CLI 0.1.21. The operator's
+initial post-check used default PATH; it is retained alongside the corrected
+check using the actual canary venv PATH.
+
+Interpretation is qualified: the report correctly distinguishes the 90% coverage
+target and original 27/pool 54 MAE, but still compares a proposed lead measurement
+with rival predictions and attributes error to extrapolation without supporting
+evidence. This run proves the exercised workflow, not improved scientific
+reasoning or onboarding behavior. No product or skill changes were needed.
+Accounted run cost $0.151132563, including one $0.132 unsettled reservation;
+verified charges $0.019132563. Total $3.423852621/$10. Relay stopped;
+idle container termination remains host-permission blocked.

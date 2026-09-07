@@ -1,6 +1,6 @@
 {
   "artifact_type": "reference-lab-canary-evidence-index",
-  "recorded_at": "2026-09-07T16:25:33.086178+00:00",
+  "recorded_at": "2026-09-07T16:40:16.703652+00:00",
   "scope": "Bounded native Pi canaries on exact branch wheels. This index does not assert broad scientific or release acceptance.",
   "availability": "Underlying receipts are operator-held and are not included in this repository. Public run IDs and digests identify the records; this summary alone does not make those records independently reproducible.",
   "limits": [
@@ -19,7 +19,7 @@
       "https://openrouter.ai/docs/cookbook/administration/usage-accounting",
       "https://openrouter.ai/docs/guides/routing/provider-selection#max-price"
     ],
-    "accounted_after_final_canary_nanousd": 3272720058
+    "accounted_after_final_canary_nanousd": 3423852621
   },
   "pre_execution_harness_failure": {
     "world": "ref-lab-pr2-20260907a",
@@ -692,10 +692,57 @@
       "accounted_cost_nanousd": 2734981,
       "authenticated_requests": 9,
       "accounted_total_nanousd": 3272720058,
-      "final_wheel_binding": true,
+      "final_wheel_binding": false,
       "operator_audit_sha256": "456988fa71fd49f816b7fb4b0d8a23581147f35cdb9bbe1865b656b7af256ddc"
+    },
+    {
+      "recorded_at": "2026-09-07T16:40:16.703652+00:00",
+      "run_id": "RUN-20260907T162839Z-9b656544",
+      "world": "ref-lab-three-skills-20260907a",
+      "model": "z-ai/glm-5.3-flash",
+      "launch_commit": "9dbdbc3920ad669c5ef6169440ff824881c43705",
+      "wheel_sha256": "4dbbbaac8cf8d7a59ffd882c449d3de6ebe322222f63477a71de2d03591dda56",
+      "skills_available": [
+        "dynamical",
+        "dynamical-preflight",
+        "dynamical-instrument"
+      ],
+      "skills_read": [
+        "dynamical",
+        "dynamical-preflight"
+      ],
+      "prompt_sha256": "19f4193de1d68af15ccc542eacdcf3496bce4f1aa51a7c77da1bbb4ba6f3067c",
+      "session_exit_code": 0,
+      "session_sha256": "c1feb4c46af071dcff58829676dcea7348254e64858786f8229405b2f89a2715",
+      "raw_agent_report_sha256": "be9389a589aa3c7d307837f66b61338fa0f25e8ae44dc13fdfe425fd3efcecd7",
+      "physical_request_hold_sha256": "bcde746d6c5e85767a7a14b586bf4adc7e1332be05803417da482cb4ab5ca1c8",
+      "isolation": {
+        "before": "PASS",
+        "after": "PASS",
+        "checks_each": 26,
+        "before_sha256": "a1565064025d58cae6908412a7552451da3f9920affc7f492f19d912afbce07a",
+        "after_sha256": "a1565064025d58cae6908412a7552451da3f9920affc7f492f19d912afbce07a",
+        "note": "Initial operator post-check used default PATH; retained, then repeated with the actual canary venv PATH. Both final checks verify CLI0.1.21."
+      },
+      "review_axes": {
+        "execution_correctness": "PASS: nine candidates and fixed conditions preserved; READY preflight receipts bound in compose; traces and report snapshots validate; physical request HOLD preserved.",
+        "source_fidelity": "PARTIAL: FastCat routing and frozen predictions checked; SDL1 source protocol not exercised.",
+        "predictive_validity": "NOT_EXERCISED: no physical data or calibration.",
+        "agent_interpretation": "QUALIFIED: correctly reports90% target, original27/pool54 MAE and no current winner; proposed physical demotion compares a lead measurement with rival predictions, and extrapolation error is an unsupported causal explanation."
+      },
+      "scope": "All three shipped skills available with resources; public prompt and two YAML inputs only. No example README or operator routing hints. Onboarding implementation path not exercised. No product change needed.",
+      "accounted_cost_nanousd": 151132563,
+      "settled_cost_nanousd": 19132563,
+      "requests": 35,
+      "unsettled_reservations": 1,
+      "accounted_total_nanousd": 3423852621,
+      "final_wheel_binding": true,
+      "operator_audit_sha256": "9a5e7be4044b1873a9b53352113448b4a13ea18df97742cfe093ce310979d351",
+      "validated_arms": 9,
+      "ready_preflight_receipts": 9,
+      "physical_request_status": "HOLD"
     }
   ],
-  "pr6_status": "Final QA fixes verified on current wheel by focused capability canary and independent installed-wheel recovery checks; earlier nine-arm study evidence retained with original wheel binding.",
+  "pr6_status": "Final wheel with all three shipped skills available: nine valid preflight-bound arms and physical-request HOLD. Interpretation qualified; no runtime or skill changes.",
   "final_scope_limit": "No physical calibration gate was exercised or passed. No claim that agent platform interpretation, uncertainty reasoning, learning or stopping has been restored or improved."
 }
