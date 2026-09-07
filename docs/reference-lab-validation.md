@@ -179,3 +179,31 @@ build and CI passed. SDL1 traceability retains 368 evidence rows and 1,639
 software/unknown declarations. This run cost $0.013358552; total accounted
 budget is $3.269985077 of $10. The relay is stopped. Host permissions prevent
 termination of the idle container; no privileged workaround was used.
+
+## Final QA corrections
+
+Commit `b54ec1b` closes both independently reviewed P2 findings. Unknown-operation
+recovery checks the other registry before suggesting an operation; otherwise it
+returns a short capability index. Fractional electrolyte volume is explicitly a
+Dynamical bookkeeping convention, with the upstream Python integer-input
+limitation recorded. Numerical adapters, FastCat records, public campaign prompt
+and skills are unchanged. SDL1 source-record hashes intentionally change.
+
+The full suite passed 315 tests with eight optional skips. After shortening the
+index fallback, all ten installed-facility tests passed again. Lint, format,
+lock, build and code CI passed. Both original reviewers confirmed their findings
+addressed. No schema or additional subsystem was introduced.
+
+Focused canary `RUN-20260907T162209Z-c4c429a2` used wheel
+`4dbbbaac8cf8d7a59ffd882c449d3de6ebe322222f63477a71de2d03591dda56` and exited0, with
+26 pre/post isolation checks passing. The agent correctly identifies fractional
+volume as nominal bookkeeping, not upstream execution or measured delivery.
+It does not follow the suggested cross-facility command, instead overgeneralizing
+from the SDL1 index. An independent check inside that wheel follows both recovery
+commands and verifies exit0. These are separate judgments, not a claim that the
+agent exercised every intended recovery behavior or improved its reasoning.
+
+This inspection-only canary does not repeat the nine-arm campaign; all FastCat
+bundle and instrument bytes remain identical to the preceding campaign wheel.
+Cost: $0.002734981; total accounted $3.272720058/$10. The relay is stopped;
+idle container termination remains blocked by host permissions.

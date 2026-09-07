@@ -1,6 +1,6 @@
 {
   "artifact_type": "reference-lab-canary-evidence-index",
-  "recorded_at": "2026-09-07T16:09:54.575111+00:00",
+  "recorded_at": "2026-09-07T16:25:33.086178+00:00",
   "scope": "Bounded native Pi canaries on exact branch wheels. This index does not assert broad scientific or release acceptance.",
   "availability": "Underlying receipts are operator-held and are not included in this repository. Public run IDs and digests identify the records; this summary alone does not make those records independently reproducible.",
   "limits": [
@@ -19,7 +19,7 @@
       "https://openrouter.ai/docs/cookbook/administration/usage-accounting",
       "https://openrouter.ai/docs/guides/routing/provider-selection#max-price"
     ],
-    "accounted_after_final_canary_nanousd": 3269985077
+    "accounted_after_final_canary_nanousd": 3272720058
   },
   "pre_execution_harness_failure": {
     "world": "ref-lab-pr2-20260907a",
@@ -661,10 +661,41 @@
       "authenticated_requests": 35,
       "accounted_total_nanousd": 3269985077,
       "cleanup": "Relay stopped; ports 8990/8991 closed. Idle container PID 2518630 termination denied by host permissions; privileged termination remains review-blocked.",
-      "final_wheel_binding": true,
+      "final_wheel_binding": false,
       "operator_audit_sha256": "7b839da3c23fa7ddd77d92bacf4f2615bdfd6b450cdfb5af7a13c1a302d48ae5"
+    },
+    {
+      "recorded_at": "2026-09-07T16:25:33.086178+00:00",
+      "world": "ref-lab-final-qa-20260907a",
+      "run_id": "RUN-20260907T162209Z-c4c429a2",
+      "wheel_sha256": "4dbbbaac8cf8d7a59ffd882c449d3de6ebe322222f63477a71de2d03591dda56",
+      "launch_commit": "b54ec1b",
+      "session_exit_code": 0,
+      "session_sha256": "8839f33f246d3c248c2aecc82f83069d54cb508652358cc3b7d09177c435f182",
+      "prompt_sha256": "abb24e50648f6db10a957f93690d52615823682842b65a6e5766b2da4f7c2bdd",
+      "raw_agent_report_sha256": "16f34ded8a54989320beeffce97c417906b72f3415b743461e8d82a9fb53d35a",
+      "operator_recovery_check_sha256": "08c73f3b388b172b27dcb3f5d5643f9742be9ee61aceffbaed7af92d6b5ddbb6",
+      "input_scope": "Focused capability-inspection prompt and unchanged skill; no example data or physical outcomes. Public campaign prompt unchanged.",
+      "isolation": {
+        "before": "PASS",
+        "after": "PASS",
+        "checks_each": 26,
+        "before_sha256": "a1565064025d58cae6908412a7552451da3f9920affc7f492f19d912afbce07a",
+        "after_sha256": "c72d16b9713efd32b345bcb498633e2e5aceaafeb1383109fc8211674ef304a7"
+      },
+      "review_axes": {
+        "execution_correctness": "PASS operator recovery check on installed wheel: absent operation from either facility suggests an index command that exits0. Agent completes inspection without repeated unknown-operation retries, but does not follow the exact suggested command.",
+        "source_fidelity": "PASS for exercised disclosure: agent identifies fractional mL as Dynamical bookkeeping, not upstream execution or measured delivery. Full SDL1 protocol not exercised.",
+        "predictive_validity": "NOT_EXERCISED: no predictions or physical data.",
+        "agent_interpretation": "QUALIFIED: fractional-volume explanation is correct; agent overgeneralizes global absence from SDL1 index, does not inspect FastCat and misdescribes unfiltered JSON discovery as plain recovery. No general learning or stopping claim."
+      },
+      "accounted_cost_nanousd": 2734981,
+      "authenticated_requests": 9,
+      "accounted_total_nanousd": 3272720058,
+      "final_wheel_binding": true,
+      "operator_audit_sha256": "456988fa71fd49f816b7fb4b0d8a23581147f35cdb9bbe1865b656b7af256ddc"
     }
   ],
-  "pr6_status": "Final removal wheel validated by a fresh closed public-prompt canary; nine candidate arms pass, interpretation qualified. Historical runs retained.",
+  "pr6_status": "Final QA fixes verified on current wheel by focused capability canary and independent installed-wheel recovery checks; earlier nine-arm study evidence retained with original wheel binding.",
   "final_scope_limit": "No physical calibration gate was exercised or passed. No claim that agent platform interpretation, uncertainty reasoning, learning or stopping has been restored or improved."
 }
