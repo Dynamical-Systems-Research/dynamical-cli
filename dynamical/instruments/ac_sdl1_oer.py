@@ -17,7 +17,7 @@ from . import InstrumentRequest, InstrumentResult, register
 
 PROTOCOL_ID = "sdl1-oer-2c5a911"
 PROTOCOL_RESOURCE = "bundle/reference-lab/protocols/sdl1-oer.json"
-PROTOCOL_SHA256 = "9c188a91282a7c0ce78d137ea7be835b0c6a42b942106f72315a222103500d40"
+PROTOCOL_SHA256 = "5238b6230b5f5a13a8fc23f172fcb98276f10f2f7a10145a1d65fc9feb3bd9c2"
 
 
 def _protocol_bytes() -> bytes:
@@ -100,7 +100,7 @@ def measure_oer(request: InstrumentRequest) -> InstrumentResult:
         outputs=outputs,
         uncertainty={},
         cost_usd=0.0,
-        duration_s=0.0,
+        duration_s=550.0,
         applied_parameters={name: None for name in request.parameters},
         reasons=reasons,
     )

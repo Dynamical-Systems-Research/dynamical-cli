@@ -2,8 +2,9 @@
 
 SDL1 2c5a911 parameters.py:4-6 supplies area and current magnitude;
 example/experiment.py:603-607 applies its negative with 0.1 s sampling.
-example/main.py:138-139 requests 60 s at 35 C; experiment.py:568-572 also
-exposes the 10 s default. Deposition is followed by OCP for 120 s at 0.2 s
+example/main.py:138-139 requests 60 s at 35 C. The temperature command
+belongs to the Arduino (experiment.py:2017-2018), not the potentiostat.
+Deposition is followed by OCP for 120 s at 0.2 s
 sampling (experiment.py:628). No delivered charge, current efficiency,
 composition transfer, mass, thickness, or elapsed-time measurement is inferred.
 """
@@ -22,7 +23,7 @@ def electrodeposit(request: InstrumentRequest) -> InstrumentResult:
     current = float(request.parameters["current_a"])
     duration = float(request.parameters["duration_s"])
     temperature = float(request.parameters["temperature_setpoint_c"])
-    valid = current == CURRENT_MIN_A and duration in (10.0, 60.0) and temperature == 35.0
+    valid = current == CURRENT_MIN_A and duration == 60.0 and temperature == 35.0
     reasons = (
         []
         if valid
@@ -30,7 +31,7 @@ def electrodeposit(request: InstrumentRequest) -> InstrumentResult:
             RuntimeReason(
                 code="PARAMETER_OUT_OF_ENVELOPE",
                 detail=(
-                    "SDL1 source command points are -0.002827 A, 10 or 60 s, and the "
+                    "SDL1 example commands are -0.002827 A for 60 s, with Arduino "
                     "reference recipe temperature setpoint 35 C; physical film response "
                     "remains unknown."
                 ),

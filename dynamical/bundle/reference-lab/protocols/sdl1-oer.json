@@ -236,7 +236,9 @@
       }
     ],
     "value": null,
-    "claim_boundary": "No resistance is inferred without AC data. Empty or invalid selections must fail closed; no replacement resistance is invented."
+    "claim_boundary": "No resistance is inferred without AC data. Empty or invalid selections must fail closed; no replacement resistance is invented.",
+    "metadata_column": "ohmic_resistance [ohm]",
+    "metadata_source_ref": "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L324"
   },
   "ir_correction": {
     "expression": "E_corrected_V = E_WE_V - 0.9 * R_ohm * I_WE_A",
@@ -308,5 +310,65 @@
       "source_ref": "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L248-L539",
       "description": "Protocol commands are specified; measured response arrays and a validated response model are absent from this artifact."
     }
-  ]
+  ],
+  "setup": {
+    "electrolyte": {
+      "chemical": "KOH",
+      "volume_ml": 3.0,
+      "concentration": null,
+      "source_refs": [
+        "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/main.py#L134-L143",
+        "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L1950-L1958"
+      ],
+      "limitation": "Nominal pipette command; concentration and delivered volume are unverified."
+    },
+    "cell": {
+      "working_electrode": "stationary Ni tape",
+      "tool": "pipette-carried OER_electrode counter/reference tool",
+      "reference_identity": null,
+      "lowering_offset_from_well_top_mm": -28,
+      "lowering_speed_mm_s": 10,
+      "source_refs": [
+        "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L1548-L1593",
+        "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/manuals/Electric_diagram.pdf"
+      ],
+      "limitation": "Commanded placement, not verified clearance, contact or reference scale."
+    },
+    "temperature": {
+      "controller": "Arduino",
+      "cartridge": 1,
+      "setpoint_c": 35,
+      "measured_temperature_c": null,
+      "metadata_column": "well_temperature_during_electrochemical_measurements [C]",
+      "source_refs": [
+        "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/main.py#L134-L143",
+        "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L1596-L1598",
+        "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L2017-L2018"
+      ]
+    },
+    "instrument": {
+      "family": "Admiral Squidstat",
+      "source_instrument_name": "Plus1894",
+      "source_port": "COM5",
+      "channel": 0,
+      "hardware_current_limit_a": null,
+      "hardware_voltage_limit_v": null,
+      "source_refs": [
+        "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/main.py#L8-L9",
+        "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/src/openTron_electrodeposition/admiral.py#L33-L44"
+      ],
+      "limitation": "Source configuration only; no connected instrument or calibrated hardware limit is established."
+    }
+  },
+  "commanded_time": {
+    "cp_dwell_lower_bound_s": 550.0,
+    "derivation": "Activation 60 s plus seven staircase holds of 70 s.",
+    "campaign_duration_s": 550.0,
+    "convention": "Campaign clock accounts for the CP dwell lower bound only. CV, EIS, motion and settling time are additional and not included; this is not a prediction or measurement of full elapsed time.",
+    "actual_elapsed_s": null,
+    "source_refs": [
+      "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L251-L254",
+      "https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L331-L479"
+    ]
+  }
 }

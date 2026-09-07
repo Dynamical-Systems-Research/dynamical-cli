@@ -428,7 +428,7 @@ def test_requested_and_applied_parameters_are_distinguishable(completed_trace_pa
     values = {channel.name: channel.value for channel in frame.channels}
     assert values == {
         "volume_requested_ml": 3.8949,
-        "volume_commanded_ml": 3.894,
+        "volume_commanded_ml": 3.8949,
         "volume_applied_ml": None,
     }
 

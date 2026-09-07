@@ -23,7 +23,7 @@ FASTCAT_LAB = REFERENCE_LAB.parent / "fastcat"
 def _write_oer_requirement(path: Path, *, lab: Path) -> Path:
     """Request the attacked provider's actual operation and supported current point."""
 
-    operation_id = "estimate-oer" if lab == REFERENCE_LAB else "measure-oer"
+    operation_id = "measure-oer"
 
     requirement = {
         "document_type": "dynamical.campaign-requirement",
@@ -57,14 +57,25 @@ def _write_oer_requirement(path: Path, *, lab: Path) -> Path:
                 "step_id": "measure",
                 "operation_id": operation_id,
                 "minimum_evidence_class": "simulator",
-                "parameters": [
-                    {
-                        "name": "current_density_a_cm2",
-                        "value_type": "number",
-                        "unit": "A/cm^2",
-                        "value": 0.020 if lab == REFERENCE_LAB else 0.010,
-                    }
-                ],
+                "parameters": (
+                    [
+                        {
+                            "name": "protocol_id",
+                            "value_type": "string",
+                            "unit": "1",
+                            "value": "sdl1-oer-2c5a911",
+                        }
+                    ]
+                    if lab == REFERENCE_LAB
+                    else [
+                        {
+                            "name": "current_density_a_cm2",
+                            "value_type": "number",
+                            "unit": "A/cm^2",
+                            "value": 0.020 if lab == REFERENCE_LAB else 0.010,
+                        }
+                    ]
+                ),
                 "input_bindings": [
                     {
                         "target_port_id": "sample.state",
@@ -376,7 +387,7 @@ def test_coordinated_authority_rehash_fails_closed(tmp_path: Path, capsys) -> No
 
 
 @pytest.mark.parametrize(
-    "lab,forged_id", [(REFERENCE_LAB, "ac-oer-simulator"), (FASTCAT_LAB, "ac-oer-twin")]
+    "lab,forged_id", [(REFERENCE_LAB, "ac-sdl1-oer-protocol"), (FASTCAT_LAB, "ac-oer-twin")]
 )
 def test_self_admitted_physical_provider_is_demoted_not_trusted(
     tmp_path: Path, capsys, lab: Path, forged_id: str
@@ -488,7 +499,7 @@ def test_self_admitted_physical_provider_is_demoted_not_trusted(
 
 
 @pytest.mark.parametrize(
-    "lab,forged_id", [(REFERENCE_LAB, "ac-oer-simulator"), (FASTCAT_LAB, "ac-oer-twin")]
+    "lab,forged_id", [(REFERENCE_LAB, "ac-sdl1-oer-protocol"), (FASTCAT_LAB, "ac-oer-twin")]
 )
 def test_known_provider_with_modified_safety_fields_is_not_trusted(
     tmp_path: Path, capsys, lab: Path, forged_id: str
@@ -501,7 +512,7 @@ def test_known_provider_with_modified_safety_fields_is_not_trusted(
     registry = yaml.safe_load((lab / "registry.yaml").read_text(encoding="utf-8"))
     for provider in registry["providers"]:
         if provider["provider_id"] == forged_id:
-            provider["policy"]["safety_limit_ids"] = []
+            provider["policy"]["policy_tags"].append("forged-safety-policy")
     forged_registry = tmp_path / "registry.yaml"
     forged_registry.write_text(yaml.safe_dump(registry, sort_keys=False), encoding="utf-8")
 

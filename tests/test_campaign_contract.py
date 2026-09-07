@@ -221,7 +221,7 @@ def test_composed_runtime_executes_authored_order_and_prior_outputs(tmp_path: Pa
     )
     low_values = {channel.name: channel.value for channel in low_deposit.channels}
     high_values = {channel.name: channel.value for channel in high_deposit.channels}
-    assert low_values["commanded_charge_c"] == pytest.approx(-0.02827)
+    assert low_values["commanded_charge_c"] is None  # 10 s / 35 C is not the admitted recipe
     assert high_values["commanded_charge_c"] == pytest.approx(-0.16962)
     for values in (low_values, high_values):
         assert values["deposited_mass_g"] is None

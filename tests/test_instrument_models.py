@@ -31,7 +31,7 @@ def _deposited_sample(
     )
 
 
-@pytest.mark.parametrize("duration", [10.0, 60.0])
+@pytest.mark.parametrize("duration", [60.0])
 def test_deposition_records_cathodic_commands_without_inventing_a_film(duration):
     model = instruments.resolve("electrodeposit-constant-current", "ac-squidstat-simulator")
     result = model(
@@ -53,6 +53,7 @@ def test_deposition_records_cathodic_commands_without_inventing_a_film(duration)
     "current,duration,temperature",
     [
         (0.002827, 60, 35),
+        (-0.002827, 10, 35),
         (-0.002827, 600, 35),
         (-0.002827, 60, 25),
         (float("nan"), 60, 35),
@@ -74,7 +75,7 @@ def test_deposition_refuses_unadmitted_commands_without_state_mutation(
 
 
 def test_fitted_overpotential_is_monotonic_in_current_density():
-    model = instruments.resolve("measure-oer", "ac-oer-simulator")
+    model = instruments.resolve("estimate-oer", "ac-oer-simulator")
     sample = _deposited_sample(composition={"Ni": 1.0})
     low = model(_request(sample, current_density_a_cm2=0.020)).outputs["overpotential_v"]
     high = model(_request(sample, current_density_a_cm2=0.050)).outputs["overpotential_v"]
@@ -82,9 +83,9 @@ def test_fitted_overpotential_is_monotonic_in_current_density():
 
 
 def test_oer_declares_uncertainty_and_refuses_out_of_envelope_density():
-    model = instruments.resolve("measure-oer", "ac-oer-simulator")
+    model = instruments.resolve("estimate-oer", "ac-oer-simulator")
     composed = _deposited_sample(composition={"Ni": 1.0})
-    in_envelope = model(_request(composed, current_density_a_cm2=0.030))
+    in_envelope = model(_request(composed, current_density_a_cm2=0.020))
     assert in_envelope.uncertainty["overpotential_v"] > 0.0
     assert in_envelope.reasons == []
 
@@ -96,7 +97,7 @@ def test_oer_declares_uncertainty_and_refuses_out_of_envelope_density():
 def test_oer_declines_a_measurement_it_cannot_attribute_to_a_deposit():
     """A measurement that ignored the sample would report the same number for
     every deposition condition, which is not a measurement of anything."""
-    model = instruments.resolve("measure-oer", "ac-oer-simulator")
+    model = instruments.resolve("estimate-oer", "ac-oer-simulator")
     result = model(_request(current_density_a_cm2=0.005))
     assert any(r.code == "SAMPLE_STATE_UNAVAILABLE" for r in result.reasons)
     assert result.outputs["overpotential_v"] is None
@@ -105,14 +106,14 @@ def test_oer_declines_a_measurement_it_cannot_attribute_to_a_deposit():
 def test_oer_declines_a_deposit_with_no_recorded_composition():
     """The fitted response needs the deposited composition; a bare thickness
     is no longer enough to attribute a prediction to a condition."""
-    model = instruments.resolve("measure-oer", "ac-oer-simulator")
+    model = instruments.resolve("estimate-oer", "ac-oer-simulator")
     result = model(_request(_deposited_sample(), current_density_a_cm2=0.020))
     assert any(r.code == "SAMPLE_STATE_UNAVAILABLE" for r in result.reasons)
     assert result.outputs["overpotential_v"] is None
 
 
 def test_oer_responds_to_the_deposited_composition():
-    model = instruments.resolve("measure-oer", "ac-oer-simulator")
+    model = instruments.resolve("estimate-oer", "ac-oer-simulator")
     iron = model(_request(_deposited_sample(composition={"Fe": 1.0}), current_density_a_cm2=0.020))
     manganese = model(
         _request(_deposited_sample(composition={"Mn": 1.0}), current_density_a_cm2=0.020)
@@ -125,12 +126,12 @@ def test_oer_responds_to_the_deposited_composition():
 def test_pipette_commands_accumulate_only_nominal_inventory_and_admit_koh():
     model = instruments.resolve("dispense-electrolyte", "ac-ot2-simulator")
     first = model(_request(_bath_sample(), volume_ml=2.0009, chemical="Ni"))
-    assert first.sample.state["electrolyte_commanded.Ni_ml"] == 2.0
-    assert first.outputs["volume_commanded_ml"] == 2.0
+    assert first.sample.state["electrolyte_commanded.Ni_ml"] == 2.0009
+    assert first.outputs["volume_commanded_ml"] == 2.0009
     assert first.outputs["volume_applied_ml"] is None
     second = model(_request(first.sample, volume_ml=1.0, chemical="KOH"))
     assert second.sample.state == {
-        "electrolyte_commanded.Ni_ml": 2.0,
+        "electrolyte_commanded.Ni_ml": 2.0009,
         "electrolyte_commanded.KOH_ml": 1.0,
     }
     assert second.uncertainty == {}
@@ -164,7 +165,7 @@ def test_pipette_refuses_cumulative_nominal_well_overflow():
 def test_commanded_precursors_are_not_measured_film_composition():
     dispense = instruments.resolve("dispense-electrolyte", "ac-ot2-simulator")
     deposit = instruments.resolve("electrodeposit-constant-current", "ac-squidstat-simulator")
-    oer = instruments.resolve("measure-oer", "ac-oer-simulator")
+    oer = instruments.resolve("estimate-oer", "ac-oer-simulator")
     sample = dispense(_request(_bath_sample(), volume_ml=3.0, chemical="Ni")).sample
     result = deposit(
         _request(sample, current_a=-0.002827, duration_s=60, temperature_setpoint_c=35)
@@ -179,7 +180,7 @@ def test_commanded_precursors_are_not_measured_film_composition():
 def test_new_deposition_invalidates_previous_film_observations():
     prior = _deposited_sample(composition={"Ni": 1.0})
     deposit = instruments.resolve("electrodeposit-constant-current", "ac-squidstat-simulator")
-    oer = instruments.resolve("measure-oer", "ac-oer-simulator")
+    oer = instruments.resolve("estimate-oer", "ac-oer-simulator")
     result = deposit(_request(prior, current_a=-0.002827, duration_s=60, temperature_setpoint_c=35))
     assert not any(key.startswith("deposited_") for key in result.sample.state)
     assert prior.state["deposited_thickness_um"] == 1.0
@@ -205,7 +206,7 @@ def test_well_cleaning_preserves_deposit_and_exposes_unknown_residual(
             "state": {
                 "deposited_thickness_um": 1.0,
                 "deposited_fraction_Ni": 1.0,
-                "electrolyte_commanded.Ni_ml": 2.0,
+                "electrolyte_commanded.Ni_ml": 2.0009,
                 "deposition_commanded": 1.0,
             }
         }
@@ -236,20 +237,8 @@ def test_cleaning_refuses_unadmitted_sequence_without_resetting_state(acid, dwel
     assert sample.state["deposited_thickness_um"] == 1.0
 
 
-def test_cell_loading_seats_the_electrode_and_writes_cell_state():
-    model = instruments.resolve("load-electrochemical-cell", "ac-cell-loading-simulator")
-    result = model(_request(_deposited_sample(), cell_id="echem-cell-main-body"))
-    assert result.reasons == []
-    assert result.outputs["instrument.cell_id"] == "echem-cell-main-body"
-    assert result.outputs["instrument.cell_seated"] is True
-    assert result.sample.state["cell_loaded"] == 1.0
-
-
-def test_cell_loading_refuses_an_empty_cell_id():
-    model = instruments.resolve("load-electrochemical-cell", "ac-cell-loading-simulator")
-    result = model(_request(_deposited_sample(), cell_id=""))
-    assert any(r.code == "PARAMETER_OUT_OF_ENVELOPE" for r in result.reasons)
-    assert result.outputs == {}
+def test_removed_cell_loading_is_not_registered():
+    assert instruments.resolve("load-electrochemical-cell", "ac-cell-loading-simulator") is None
 
 
 @pytest.mark.parametrize("operation", ["dispense-electrolyte", "aliquot-to-well"])
@@ -265,7 +254,7 @@ def test_pipette_operations_report_commands_without_measured_delivery(operation)
     assert result.uncertainty == {}
 
 
-@pytest.mark.parametrize("duration", [5, 15, 30])
+@pytest.mark.parametrize("duration", [30])
 def test_arduino_records_temperature_and_timed_relay_commands(duration):
     model = instruments.resolve("condition-ultrasonic", "ac-arduino-simulator")
     result = model(_request(duration_s=duration, temperature_setpoint_c=35))
@@ -278,7 +267,9 @@ def test_arduino_records_temperature_and_timed_relay_commands(duration):
     assert result.reasons == []
 
 
-@pytest.mark.parametrize("duration,temperature", [(10000, 35), (30, 80), (float("inf"), 35)])
+@pytest.mark.parametrize(
+    "duration,temperature", [(5, 35), (15, 35), (10000, 35), (30, 80), (float("inf"), 35)]
+)
 def test_arduino_refuses_unadmitted_commands(duration, temperature):
     model = instruments.resolve("condition-ultrasonic", "ac-arduino-simulator")
     result = model(_request(duration_s=duration, temperature_setpoint_c=temperature))
@@ -431,3 +422,22 @@ def test_command_bookkeeping_does_not_claim_physically_applied_parameters(
     assert result.applied_parameters == {name: None for name in parameters}
     assert result.outputs[command_port] == pytest.approx(expected)
     assert result.reasons == []
+
+
+def test_aliquot_truncation_is_distinct_from_electrolyte_dispensing():
+    request = _request(_bath_sample(), volume_ml=1.0009, chemical="Ni")
+    aliquot = instruments.resolve("aliquot-to-well", "ac-ot2-simulator")(request)
+    dispense = instruments.resolve("dispense-electrolyte", "ac-ot2-simulator")(request)
+    assert aliquot.outputs["volume_commanded_ml"] == 1.0
+    assert dispense.outputs["volume_commanded_ml"] == 1.0009
+
+
+@pytest.mark.parametrize("current", [0.0, -0.02, 0.03, 0.2, float("nan")])
+def test_legacy_ampere_refuses_unsupported_currents_without_a_prediction(current):
+    model = instruments.resolve("estimate-oer", "ac-oer-simulator")
+    result = model(
+        _request(_deposited_sample(composition={"Ni": 1.0}), current_density_a_cm2=current)
+    )
+    assert result.outputs["overpotential_v"] is None
+    assert result.uncertainty == {}
+    assert any(r.code == "PARAMETER_OUT_OF_ENVELOPE" for r in result.reasons)

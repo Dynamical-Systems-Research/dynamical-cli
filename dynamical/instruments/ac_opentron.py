@@ -20,14 +20,14 @@ DISPENSE_VOLUME_MAX_ML = ALIQUOT_VOLUME_MAX_ML = 3.895
 ADMITTED_CHEMICALS = ("Ni", "Fe", "Cr", "Mn", "Co", "Zn", "Cu", "NH4OH", "NaCi", "KOH")
 
 
-def _dispense(request: InstrumentRequest) -> InstrumentResult:
+def _dispense(request: InstrumentRequest, *, integer_ul: bool) -> InstrumentResult:
     volume = float(request.parameters["volume_ml"])
     chemical = request.parameters.get("chemical")
     reasons: list[RuntimeReason] = []
     valid = math.isfinite(volume) and 0.0 <= volume <= DISPENSE_VOLUME_MAX_ML
     if chemical is not None and chemical not in ADMITTED_CHEMICALS:
         valid = False
-    commanded = int(volume * 1000) / 1000 if valid else None
+    commanded = (int(volume * 1000) / 1000 if integer_ul else volume) if valid else None
     state = dict(request.sample.state) if request.sample is not None else {}
     prior_volume = sum(v for k, v in state.items() if k.startswith("electrolyte_commanded."))
     if commanded is not None and prior_volume + commanded > DISPENSE_VOLUME_MAX_ML:
@@ -70,9 +70,9 @@ def _dispense(request: InstrumentRequest) -> InstrumentResult:
 
 @register("dispense-electrolyte", "ac-ot2-simulator")
 def dispense_electrolyte(request: InstrumentRequest) -> InstrumentResult:
-    return _dispense(request)
+    return _dispense(request, integer_ul=False)
 
 
 @register("aliquot-to-well", "ac-ot2-simulator")
 def aliquot_to_well(request: InstrumentRequest) -> InstrumentResult:
-    return _dispense(request)
+    return _dispense(request, integer_ul=True)

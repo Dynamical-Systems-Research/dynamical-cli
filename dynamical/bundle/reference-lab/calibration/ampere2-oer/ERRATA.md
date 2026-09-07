@@ -1,5 +1,10 @@
 # AMPERE-2 OER calibration — errata
 
+Amended 2026-09-07: items 1 and 5 retract unsupported leakage-direction and
+freeze-verification claims. The historical frozen protocol remains byte-identical.
+Its `frozen_before_any_outcome_inspection: true` is a historical assertion, not
+verified chronology; item 5 supersedes that assertion. Failed metrics are unchanged.
+
 The scientific method, thresholds, and numeric pipeline outputs remain unchanged.
 The public metadata keys and prose were normalized after the freeze to use the
 public evidence-class vocabulary; the v0.1.6 tag preserves the prior byte-level

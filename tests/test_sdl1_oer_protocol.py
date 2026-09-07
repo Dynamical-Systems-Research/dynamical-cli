@@ -36,7 +36,7 @@ def test_protocol_reports_no_response_or_applied_physical_settings():
     }
     assert result.applied_parameters == {"protocol_id": None}
     assert result.uncertainty == {}
-    assert result.duration_s == 0
+    assert result.duration_s == 550.0
     assert {reason.code for reason in result.reasons} == {
         "PROTOCOL_RESPONSE_UNAVAILABLE",
         "REFERENCE_SCALE_UNVERIFIED",
@@ -87,10 +87,8 @@ def test_missing_source_profile_fails_closed(monkeypatch):
     assert result.reasons[0].code == "PROTOCOL_PROFILE_UNVERIFIED"
 
 
-def test_ampere_alias_preserves_historical_response_implementation():
-    assert instruments.resolve("estimate-oer", "ac-oer-simulator") is instruments.resolve(
-        "measure-oer", "ac-oer-simulator"
-    )
+def test_ampere_is_not_registered_as_a_measurement():
+    assert instruments.resolve("measure-oer", "ac-oer-simulator") is None
     assert instruments.resolve("measure-oer", "ac-sdl1-oer-protocol") is ac_sdl1_oer.measure_oer
 
 
@@ -250,3 +248,16 @@ def test_source_profile_preserves_resistance_selection_and_last_third_potential(
     unknowns = {item["quantity"]: item for item in profile["unknowns"]}
     assert unknowns["reference_electrode_identity_and_potential_scale"]["value"] is None
     assert unknowns["EIS_number_of_runs_zero_vendor_semantics"]["value"] is None
+
+
+def test_protocol_setup_and_time_are_commands_not_measurements():
+    protocol = ac_sdl1_oer.load_protocol()
+    assert protocol["setup"]["electrolyte"]["concentration"] is None
+    assert protocol["setup"]["temperature"]["measured_temperature_c"] is None
+    assert protocol["commanded_time"]["actual_elapsed_s"] is None
+    cp_duration = sum(
+        stage["parameters"]["duration_s"]
+        for stage in protocol["stages"]
+        if stage["technique"] == "chronopotentiometry"
+    )
+    assert cp_duration == protocol["commanded_time"]["cp_dwell_lower_bound_s"]

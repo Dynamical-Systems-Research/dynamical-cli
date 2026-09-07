@@ -30,55 +30,56 @@ facility:
     role: measurement-protocol-source
     revision: 2c5a911
   claim_boundary:
-  - 'SDL1 uses one OT-2 deck. Deposition and OER testing act on the stationary Ni-tape working electrode
-    at the test-well bottom; the pipette carries the Ni counter-electrode tool, OER counter/reference
-    tool, or flush tool to the well. No sample transfer or separate electrochemical-cell loading is modeled.
-    Source: example/experiment.py:154-199,1274-1430,1548-1734,2017-2066; parameters.py:27-56; Electric_diagram.pdf
-    page 1.'
-  - The geometry archive is AC-hosted SDL1 hardware at tag 0.0.2. FastCat is a separate DTU platform,
-    with its own facility bundle. No predictive instrument model in this SDL1 bundle was supplied by AC.
-  - Assets labelled execution_visualization_primitive are visualization markers with unknown physical
-    shape and placement. Their required dimensions_m, poses, colors and local frame are Dynamical display
-    conventions, not physical bounds, collision evidence or metrology. No asset mass is asserted.
-  - Admitted exact_source_geometry meshes preserve the source CAD geometry. Scene placements are schematic,
-    not measured deck coordinates. Except the recorded 132.5 x 190.5 x 113.7 mm well-cartridge mesh extent,
-    dimensions_m are display conventions; cleaning-cartridge and stock-rack values reproduce the upstream
-    labware definition footprints, not measured mesh extents. Exact source meshes, not dimensions_m, are
-    the geometry record.
+  - 'SDL1 uses one OT-2 deck. Deposition and OER testing act on the stationary Ni-tape working electrode at the
+    test-well bottom; the pipette carries the Ni counter-electrode tool, OER counter/reference tool, or flush tool
+    to the well. No sample transfer or separate electrochemical-cell loading is modeled. Source: example/experiment.py:154-199,1274-1430,1548-1734,2017-2066;
+    parameters.py:27-56; Electric_diagram.pdf page 1.'
+  - The geometry archive is AC-hosted SDL1 hardware at tag 0.0.2. FastCat is a separate DTU platform, with its own
+    facility bundle. No predictive instrument model in this SDL1 bundle was supplied by AC.
+  - Assets labelled execution_visualization_primitive are visualization markers with unknown physical shape and
+    placement. Their required dimensions_m, poses, colors and local frame are Dynamical display conventions, not
+    physical bounds, collision evidence or metrology. No asset mass is asserted.
+  - Admitted exact_source_geometry meshes preserve the source CAD geometry. Scene placements are schematic, not
+    measured deck coordinates. Except the recorded 132.5 x 190.5 x 113.7 mm well-cartridge mesh extent, dimensions_m
+    are display conventions; cleaning-cartridge and stock-rack values reproduce the upstream labware definition
+    footprints, not measured mesh extents. Exact source meshes, not dimensions_m, are the geometry record.
   - Deck slot assignments and tool-rack positions come from example/experiment.py:154-199 and parameters.py:27-56.
-    Fourteen test wells are used (parameters.py:57-72); the fifteenth position is reserved for the temperature
-    sensor (README.md:97).
-  - The working electrode is nickel tape (BOM Ark1 B41); the nickel rod is the deposition counter tool
-    (B52, Electric_diagram.pdf). The OER tool combines counter and reference electrodes; the BOM lists
-    Mini Hydroflex, platinum electrode and platinum wire (B53-B55). Which reference electrode was physically
-    mounted during a measured run is not established by this code.
+    Fourteen test wells are used (parameters.py:57-72); the fifteenth position is reserved for the temperature sensor
+    (README.md:97).
+  - The working electrode is nickel tape (BOM Ark1 B41); the nickel rod is the deposition counter tool (B52, Electric_diagram.pdf).
+    The OER tool combines counter and reference electrodes; the BOM lists Mini Hydroflex, platinum electrode and
+    platinum wire (B53-B55). Which reference electrode was physically mounted during a measured run is not established
+    by this code.
   - The test well is temperature-controlled by the Arduino (example/experiment.py:2017-2018; src/arduino/main/main.ino:76-93,212-230).
     Its inclusion establishes controller topology, not measured temperature accuracy or uniformity.
-  - This bundle supplies no measured SDL1 campaign rows. Separate AMPERE-2 data (DOI 10.11583/DTU.27446925)
-    underlie the Dynamical ac-oer simulator, whose calibration gates failed. It remains simulator evidence
-    only, with no calibrated predictive or physical qualification claim.
-  - A compiled stage proves scene composition only. Embodied evidence needs a preserved real execution
-    trace, render, replay, and inspection. No physical execution is claimed.
-  - SDL1 adapters record source-defined commands only. Pipette handling uses integer uL commands in strokes
-    no greater than 1000 uL. The 3.895 mL admission cap follows the labware definition; parameters.py
-    declares 3.9 mL and the main recipe uses 2.5 mL bath plus a later 3 mL electrolyte fill. Command inventory
-    is not measured delivered volume.
-  - The reference deposition command is cathodic -0.002827 A at a 35 degC setpoint for 60 s (the upstream
-    function also has a 10 s default), followed by 120 s OCP. Nominal precursor ratios are not measured
-    film stoichiometry; actual mass, thickness, temperature and delivered charge are unavailable.
-  - Cleaning retains deposit history while replacing nominal bath inventory, following the same-well sequence
-    between deposition and test. Neither perfect liquid removal nor unchanged film chemistry is established.
-    Pumps rinse/drain only; pipette dispensing is separate.
-  - The Arduino exposes temperature setpoint and timed ultrasound, not a power percentage. Discrete admitted
-    commands are upstream recipe points, not a verified continuous hardware envelope. Unknown physical
-    outputs are unavailable and carry no invented uncertainty. Duration/cost zero is unexecuted-physical-work
-    bookkeeping; actual handling duration and cost remain unknown.
+  - This bundle supplies no measured SDL1 campaign rows. Separate AMPERE-2 data (DOI 10.11583/DTU.27446925) underlie
+    the Dynamical ac-oer simulator, whose calibration gates failed. It remains simulator evidence only, with no
+    calibrated predictive or physical qualification claim.
+  - A compiled stage proves scene composition only. Embodied evidence needs a preserved real execution trace, render,
+    replay, and inspection. No physical execution is claimed.
+  - SDL1 adapters record source-defined commands only. Mixture aliquoting truncates to integer uL; electrolyte dispensing
+    preserves its nominal volume. Both issue commands in strokes no greater than 1000 uL. The 3.895 mL admission
+    cap follows the labware definition; parameters.py declares 3.9 mL and the main recipe uses 2.5 mL bath plus
+    a later 3 mL electrolyte fill. Command inventory is not measured delivered volume.
+  - The reference deposition command is cathodic -0.002827 A at a 35 degC setpoint for 60 s (the upstream function
+    also has a 10 s default), followed by 120 s OCP. Nominal precursor ratios are not measured film stoichiometry;
+    actual mass, thickness, temperature and delivered charge are unavailable.
+  - Cleaning retains deposit history while replacing nominal bath inventory, following the same-well sequence between
+    deposition and test. Neither perfect liquid removal nor unchanged film chemistry is established. Pumps rinse/drain
+    only; pipette dispensing is separate.
+  - 'The Arduino exposes temperature setpoint and timed ultrasound, not a power percentage. The admitted well-conditioning
+    command is the example recipe: cartridge 1, 30 s at a 35 C setpoint, not a verified continuous hardware envelope.
+    Unknown physical outputs are unavailable and carry no invented uncertainty. Except for the OER CP dwell lower
+    bound, duration/cost zero is unexecuted-physical-work bookkeeping; actual handling duration and cost remain
+    unknown.'
   - measure-oer binds the full SDL1 source protocol, including 0.200 A/cm^2 activation and the 0.100,0.050,0.020,0.010,0.005,0.002,0.001
-    A/cm^2 staircase. These fixed source stages are admitted together, not as a continuous calibrated
-    current envelope. The last-third iR-corrected potential at 0.010 A/cm^2 is the upstream headline.
-    Any 1.229 V overpotential offset is a Dynamical convention; the mounted reference and compatible potential
-    scale remain unverified. AMPERE-2 estimation is a separate simulator-only estimate-oer operation whose
-    calibration failed.
+    A/cm^2 staircase. These fixed source stages are admitted together, not as a continuous calibrated current envelope.
+    The last-third iR-corrected potential at 0.010 A/cm^2 is the upstream headline. Any 1.229 V overpotential offset
+    is a Dynamical convention; the mounted reference and compatible potential scale remain unverified. AMPERE-2
+    estimation is a preserved historical model whose calibration failed; it is not an admitted SDL1 operation.
+  - Squidstat hardware current/voltage limits and actual elapsed duration are unverified. Device channels have no
+    hardware bounds; deposition-only constraints do not describe the full OER protocol. AMPERE-2 is not an admitted
+    SDL1 operation.
 workstations:
 - id: ot2-liquid-handling
   facility_id: ac-electrodeposition-cell
@@ -216,7 +217,7 @@ assets:
     revision: 2c5a911
 - id: ot2-stock-reservoir-slot-7
   workstation_id: ot2-liquid-handling
-  asset_kind: 'OT-2 deck slot 7: stock reservoir rack, 8 x 25 mL'
+  asset_kind: 'OT-2 deck slot 7: stock reservoir rack, 8 x 25 mL; vial-rack mesh correspondence is unverified, display only'
   geometry:
     representation: exact_source_geometry
     mesh_source_id: assets/vial-rack-v3.usdc
@@ -330,7 +331,7 @@ assets:
     revision: 2c5a911
 - id: ot2-stock-reservoir-slot-11
   workstation_id: ot2-liquid-handling
-  asset_kind: 'OT-2 deck slot 11: stock reservoir rack, 8 x 25 mL'
+  asset_kind: 'OT-2 deck slot 11: stock reservoir rack, 8 x 25 mL; vial-rack mesh correspondence is unverified, display only'
   geometry:
     representation: exact_source_geometry
     mesh_source_id: assets/vial-rack-v3.usdc
@@ -589,8 +590,7 @@ assets:
     revision: 2c5a911
 - id: flush-tool
   workstation_id: ot2-liquid-handling
-  asset_kind: Pipette-carried rinse/drain tool; parked at tool-rack B1; visualization-only marker, physical
-    extent and exact pose unknown
+  asset_kind: Pipette-carried rinse/drain tool; parked at tool-rack B1; visualization-only marker. Upstream Flush_tool v11.step is not bundled; mesh extent is not recorded here and installed pose is unverified.
   geometry:
     representation: execution_visualization_primitive
     portable_primitive: cube
@@ -626,8 +626,8 @@ assets:
     revision: 2c5a911
 - id: ag-reference-tool
   workstation_id: ot2-liquid-handling
-  asset_kind: Ag reference tool at tool-rack A2; unused in the upstream run_experiment recipe; visualization-only
-    marker, physical extent and exact pose unknown
+  asset_kind: Unused Ag-labelled pipette tool at B2; role unverified. CAD exists upstream but is not bundled; rendered
+    marker and pose are conventions.
   geometry:
     representation: execution_visualization_primitive
     portable_primitive: cube
@@ -635,10 +635,7 @@ assets:
       x: 0.01
       y: 0.01
       z: 0.01
-    display_color_rgb:
-    - 0.4
-    - 0.5
-    - 0.6
+    display_color_rgb: [0.4, 0.5, 0.6]
   pose:
     position_m:
       x: 0.18
@@ -715,18 +712,9 @@ devices:
   - id: squidstat.current_a
     value_type: number
     unit: A
-    minimum: -0.002827
-    maximum: -0.002827
   - id: squidstat.duration_s
     value_type: number
     unit: s
-    minimum: 10.0
-    maximum: 60.0
-  - id: squidstat.temperature_setpoint_c
-    value_type: number
-    unit: degC
-    minimum: 35.0
-    maximum: 35.0
   - id: squidstat.commanded_charge_c
     value_type: number
     unit: C
@@ -755,12 +743,9 @@ devices:
   - id: squidstat.ohmic_resistance_ohm
     value_type: number
     unit: ohm
-  capability_ids:
-  - electrodeposit-constant-current-capability
-  - measure-oer-capability
-  - estimate-oer-capability
+  capability_ids: [electrodeposit-constant-current-capability, measure-oer-capability]
 - id: cleaning-station-device
-  asset_id: flush-tool
+  asset_id: ot2-test-plate
   state_channels:
   - id: cleaning.water_commanded_ml
     value_type: number
@@ -777,8 +762,7 @@ devices:
   - id: cleaning.residual_volume_ml
     value_type: number
     unit: mL
-  capability_ids:
-  - clean-electrode-capability
+  capability_ids: [clean-electrode-capability]
 agents: []
 capabilities:
 - id: dispense-electrolyte-capability
@@ -865,20 +849,13 @@ capabilities:
     value_type: number
     required: true
     unit: s
-    enum:
-    - 5.0
-    - 15.0
-    - 30.0
+    enum: [30.0]
   - name: temperature_setpoint_c
     value_type: number
     required: true
     unit: degC
-    enum:
-    - 35.0
-  observation_channel_ids:
-  - arduino.ultrasound_commanded_s
-  - arduino.temperature_setpoint_c
-  - arduino.temperature_observed_c
+    enum: [35.0]
+  observation_channel_ids: [arduino.ultrasound_commanded_s, arduino.temperature_setpoint_c, arduino.temperature_observed_c]
   echoed_parameter_bindings:
     arduino.ultrasound_commanded_s: duration_s
     arduino.temperature_setpoint_c: temperature_setpoint_c
@@ -886,9 +863,7 @@ capabilities:
     arduino.ultrasound_commanded_s: instrument.ultrasound_commanded_s
     arduino.temperature_setpoint_c: instrument.temperature_setpoint_c
     arduino.temperature_observed_c: instrument.temperature_observed_c
-  precondition_constraint_ids:
-  - conditioning-duration-envelope
-  - conditioning-setpoint-envelope
+  precondition_constraint_ids: [conditioning-duration-envelope, conditioning-setpoint-envelope]
   postcondition_constraint_ids: []
 - id: electrodeposit-constant-current-capability
   provider_id: squidstat-device
@@ -898,64 +873,29 @@ capabilities:
     value_type: number
     required: true
     unit: A
-    enum:
-    - -0.002827
+    enum: [-0.002827]
   - name: duration_s
     value_type: number
     required: true
     unit: s
-    enum:
-    - 10.0
-    - 60.0
+    enum: [60.0]
   - name: temperature_setpoint_c
     value_type: number
     required: true
     unit: degC
-    enum:
-    - 35.0
-  observation_channel_ids:
-  - squidstat.current_a
-  - squidstat.duration_s
-  - squidstat.temperature_setpoint_c
-  - squidstat.commanded_charge_c
-  - squidstat.deposited_mass_g
-  - squidstat.deposited_thickness_um
-  - squidstat.current_density_a_cm2
+    enum: [35.0]
+  observation_channel_ids: [squidstat.current_a, squidstat.duration_s, arduino.temperature_setpoint_c, squidstat.commanded_charge_c,
+    squidstat.deposited_mass_g, squidstat.deposited_thickness_um, squidstat.current_density_a_cm2]
   echoed_parameter_bindings:
     squidstat.current_a: current_a
     squidstat.duration_s: duration_s
-    squidstat.temperature_setpoint_c: temperature_setpoint_c
+    arduino.temperature_setpoint_c: temperature_setpoint_c
   reported_output_port_ids:
     squidstat.commanded_charge_c: commanded_charge_c
     squidstat.deposited_mass_g: deposited_mass_g
     squidstat.deposited_thickness_um: deposited_thickness_um
     squidstat.current_density_a_cm2: current_density_a_cm2
-  precondition_constraint_ids:
-  - current-envelope
-  - deposition-duration-envelope
-  - deposition-temperature-envelope
-  postcondition_constraint_ids: []
-- id: estimate-oer-capability
-  provider_id: squidstat-device
-  action_type: estimate
-  parameters:
-  - name: current_density_a_cm2
-    value_type: number
-    unit: A/cm^2
-    required: true
-    enum:
-    - 0.02
-    - 0.05
-  observation_channel_ids:
-  - squidstat.current_density_a_cm2
-  - squidstat.overpotential_v
-  echoed_parameter_bindings:
-    squidstat.current_density_a_cm2: current_density_a_cm2
-  reported_output_port_ids:
-    squidstat.current_density_a_cm2: current_density_a_cm2
-    squidstat.overpotential_v: overpotential_v
-  precondition_constraint_ids:
-  - ampere2-estimate-current-envelope
+  precondition_constraint_ids: [current-envelope, deposition-duration-envelope, deposition-temperature-envelope]
   postcondition_constraint_ids: []
 - id: measure-oer-capability
   provider_id: squidstat-device
@@ -1017,7 +957,7 @@ material_states: []
 model_bindings:
 - id: ac-opentron-model
   implementation_ref: dynamical/instruments/ac_opentron.py
-  implementation_sha256: 611ac117df4817fac8ffa9dea22c1a6a7a95fbc0c3daabcf5bea9a12042ee39f
+  implementation_sha256: 6889670e4729e59302158240a39438daa4307c958dccf74de536834dc37329a8
   input_channel_map: {}
   output_channel_map: {}
   parameter_map:
@@ -1027,7 +967,7 @@ model_bindings:
   calibration_evidence_ids: []
 - id: ac-arduino-model
   implementation_ref: dynamical/instruments/ac_arduino.py
-  implementation_sha256: 0e530262497a93e42455f45bd1c741afc0afc7c818e0d0537fda341cd20ebe5a
+  implementation_sha256: 859eeb9551099fa8d423811f7b55e36eeba87d0ee1e3b43e54d0c50c8ef8adc0
   input_channel_map: {}
   output_channel_map: {}
   parameter_map:
@@ -1037,7 +977,7 @@ model_bindings:
   calibration_evidence_ids: []
 - id: ac-potentiostat-model
   implementation_ref: dynamical/instruments/ac_potentiostat.py
-  implementation_sha256: ee4d9aa12a919fba8ba275b0d4a5bf2d8841edf476ee03d2571c481d35507d81
+  implementation_sha256: 8e109fd72da319994adfc7d09609afa7dd5c606c118724c639d52b894a0aded2
   input_channel_map: {}
   output_channel_map: {}
   parameter_map:
@@ -1047,15 +987,14 @@ model_bindings:
   calibration_evidence_ids: []
 - id: ac-oer-model
   implementation_ref: dynamical/instruments/ac_oer.py
-  implementation_sha256: ea74cfe94541f0a050e0a97c4fef54394d2ccb79763660b7fd48a779e41329c7
+  implementation_sha256: 549077f0c4325a32d2600ac64f4622804671bb56940e1dc70d57e27f9b6c6ef7
   input_channel_map: {}
   output_channel_map: {}
   parameter_map:
     evidence-class: simulator
     physical-calibration: false
   update_interval_s: 1.0
-  calibration_evidence_ids:
-  - ampere2-oer-cp-2050
+  calibration_evidence_ids: [ampere2-oer-cp-2050]
 - id: ac-cleaning-model
   implementation_ref: dynamical/instruments/ac_cleaning.py
   implementation_sha256: 9d78cd6cc23ff0fe8287a9db598a0811e6c1a04f95e02f1383d6be8278a9a2ec
@@ -1077,14 +1016,14 @@ model_bindings:
   calibration_evidence_ids: []
 - id: ac-sdl1-oer-model
   implementation_ref: dynamical/instruments/ac_sdl1_oer.py
-  implementation_sha256: 8aad8752bcc68c974ff469d0208e6336c24f3198d669230fadcc94b9f33075d6
+  implementation_sha256: 52d15ac9e804acd91634b90111855d07eaf3f511f651fb16d1a38f2f033cbfe7
   input_channel_map: {}
   output_channel_map: {}
   parameter_map:
     evidence-class: simulator
     physical-calibration: false
     protocol-ref: protocols/sdl1-oer.json
-    protocol-sha256: 9c188a91282a7c0ce78d137ea7be835b0c6a42b942106f72315a222103500d40
+    protocol-sha256: 5238b6230b5f5a13a8fc23f172fcb98276f10f2f7a10145a1d65fc9feb3bd9c2
   update_interval_s: 1.0
   calibration_evidence_ids: []
 adapter_bindings:
@@ -1210,10 +1149,8 @@ provider_admission_bindings:
 - id: admitted-ac-arduino-condition-ultrasonic
   provider_id: ac-arduino-simulator
   operation_id: condition-ultrasonic
-  evidence_classes:
-  - simulator
-  facility_ids:
-  - ot2-liquid-handling
+  evidence_classes: [simulator]
+  facility_ids: [ot2-liquid-handling]
   endpoint_id: ac-arduino-model
   adapter_links:
   - adapter_id: dynamical-ac-arduino-python
@@ -1227,31 +1164,20 @@ provider_admission_bindings:
     subject_id: duration_s
     value_type: number
     unit: s
-    enum:
-    - 5.0
-    - 15.0
-    - 30.0
+    enum: [30.0]
   - subject_kind: parameter
     subject_id: temperature_setpoint_c
     value_type: number
     unit: degC
-    enum:
-    - 35.0
-  safety_limit_ids:
-  - conditioning-duration-envelope
-  - conditioning-setpoint-envelope
-  policy_tags:
-  - simulation-only
-  - source-command-only
-  - physical-response-unavailable
+    enum: [35.0]
+  safety_limit_ids: [conditioning-duration-envelope, conditioning-setpoint-envelope]
+  policy_tags: [simulation-only, source-command-only, physical-response-unavailable]
   required_approval_ids: []
 - id: admitted-ac-squidstat-electrodeposit
   provider_id: ac-squidstat-simulator
   operation_id: electrodeposit-constant-current
-  evidence_classes:
-  - simulator
-  facility_ids:
-  - ot2-liquid-handling
+  evidence_classes: [simulator]
+  facility_ids: [ot2-liquid-handling]
   endpoint_id: ac-potentiostat-model
   adapter_links:
   - adapter_id: dynamical-ac-potentiostat-python
@@ -1265,58 +1191,19 @@ provider_admission_bindings:
     subject_id: current_a
     value_type: number
     unit: A
-    enum:
-    - -0.002827
+    enum: [-0.002827]
   - subject_kind: parameter
     subject_id: duration_s
     value_type: number
     unit: s
-    enum:
-    - 10.0
-    - 60.0
+    enum: [60.0]
   - subject_kind: parameter
     subject_id: temperature_setpoint_c
     value_type: number
     unit: degC
-    enum:
-    - 35.0
-  safety_limit_ids:
-  - current-envelope
-  - deposition-duration-envelope
-  - deposition-temperature-envelope
-  policy_tags:
-  - simulation-only
-  - source-command-only
-  - physical-response-unavailable
-  required_approval_ids: []
-- id: admitted-ac-oer-estimate-oer
-  provider_id: ac-oer-simulator
-  operation_id: estimate-oer
-  evidence_classes:
-  - simulator
-  facility_ids:
-  - ot2-liquid-handling
-  endpoint_id: ac-oer-model
-  adapter_links:
-  - adapter_id: dynamical-ac-oer-python
-    adapter_version: 0.1.0
-    endpoint_ref: ac-oer-model
-  - adapter_id: dynamical-ac-squidstat-control
-    adapter_version: 0.1.0
-    endpoint_ref: squidstat-device
-  validity_envelope:
-  - subject_kind: parameter
-    subject_id: current_density_a_cm2
-    value_type: number
-    unit: A/cm^2
-    enum:
-    - 0.02
-    - 0.05
-  safety_limit_ids:
-  - ampere2-estimate-current-envelope
-  policy_tags:
-  - simulation-only
-  - fitted-model-calibration-gates-failed
+    enum: [35.0]
+  safety_limit_ids: [current-envelope, deposition-duration-envelope, deposition-temperature-envelope]
+  policy_tags: [simulation-only, source-command-only, physical-response-unavailable]
   required_approval_ids: []
 - id: admitted-ac-sdl1-measure-oer
   provider_id: ac-sdl1-oer-protocol
@@ -1405,7 +1292,7 @@ constraints:
   channel_id: arduino.ultrasound_commanded_s
   operator: between
   bound:
-    minimum: 5.0
+    minimum: 30.0
     maximum: 30.0
   unit: s
   enforcement: reject
@@ -1438,26 +1325,15 @@ constraints:
   channel_id: squidstat.duration_s
   operator: between
   bound:
-    minimum: 10.0
+    minimum: 60.0
     maximum: 60.0
   unit: s
   enforcement: reject
   verifier_binding_id: bounded-constraint-verifier
   constrained_parameter_name: duration_s
-- id: ampere2-estimate-current-envelope
-  phase: pre_action
-  channel_id: squidstat.current_density_a_cm2
-  operator: between
-  bound:
-    minimum: 0.02
-    maximum: 0.05
-  unit: A/cm^2
-  enforcement: reject
-  verifier_binding_id: bounded-constraint-verifier
-  constrained_parameter_name: current_density_a_cm2
 - id: deposition-temperature-envelope
   phase: pre_action
-  channel_id: squidstat.temperature_setpoint_c
+  channel_id: arduino.temperature_setpoint_c
   operator: between
   bound:
     minimum: 35.0
@@ -1468,15 +1344,17 @@ constraints:
   constrained_parameter_name: temperature_setpoint_c
 calibration_evidence:
 - id: ampere2-oer-cp-2050
-  source_artifact_ref: https://doi.org/10.11583/DTU.27446925 (Data.zip, MIT license; historical source identity recorded in frozen_protocol.json)
+  source_artifact_ref: https://doi.org/10.11583/DTU.27446925 (Data.zip, MIT license; historical source identity
+    recorded in frozen_protocol.json)
   source_sha256: 649c5a8269e773371a6fcdc14db4d72166dbeb697fc49b66a89991fbdd44e736
   applies_to_model_binding_id: ac-oer-model
-  supported_channel_ids:
-  - squidstat.overpotential_v
-  - squidstat.current_density_a_cm2
+  supported_channel_ids: [squidstat.overpotential_v, squidstat.current_density_a_cm2]
   condition_domain:
-    squidstat.current_density_a_cm2: 0.020 to 0.050 A/cm^2 (fitted basis; physical chronopotentiometry per the frozen protocol)
-    squidstat.overpotential_v: historical intended fit domain over nominal Ni, Fe, Cr, Mn, Co, Zn, Cu and NH4OH/NaCi inputs; the legacy simulator does not enforce membership in the fit-composition domain and supplies no calibrated prediction guarantee
+    squidstat.current_density_a_cm2: 0.020 to 0.050 A/cm^2 (fitted basis; physical chronopotentiometry per the frozen
+      protocol)
+    squidstat.overpotential_v: historical intended fit domain over nominal Ni, Fe, Cr, Mn, Co, Zn, Cu and NH4OH/NaCi
+      inputs; the legacy simulator does not enforce membership in the fit-composition domain and supplies no calibrated
+      prediction guarantee
   split_rule_ref: calibration/ampere2-oer/frozen_protocol.json
   split_rule_sha256: bcc2e272d3ee519804cfbb36918782931153f46d49dabb30073b974fe8b98032
   fit_artifact_ref: calibration/ampere2-oer/fit.json
@@ -1505,15 +1383,26 @@ calibration_evidence:
     value: 1.8073715433658781
     unit: V
     split: fit
-  limitations:
-  - The frozen held-out gates FAILED (overpotential MAE and candidate-order preservation), so calibrated-twin admission is denied and this model supplies simulator evidence only; the failed report is preserved at calibration/ampere2-oer/calibration_report.json.
-  - Validation is a cross-condition holdout within a single AMPERE-2 campaign (one lab, one instrument), not independent physical facility runs; calibrated-twin admission requires the latter and is denied on this ground independent of the failed gates.
-  - Fit and held-out data include runs recorded at the instrument compliance rail (~10.63 V) that the upstream dataset marks success; the frozen protocol does not permit post-hoc exclusion, and they dominate the declared sigma. The uncertainty-coverage-2sigma metric passes only because that sigma is large; it is not evidence of calibrated uncertainty.
-  - The condition split hashes raw metadata strings and leaks two physically identical conditions across the fit/held-out boundary; this compromises holdout independence. The direction and magnitude of a corrected evaluation are unknown; the existing failed admission result remains in force. See calibration/ampere2-oer/ERRATA.md.
-  - The fit design matrix is rank 9 of 11 (no condition separates Mn from Cu), so those coefficients are not separately identified. See ERRATA.md.
-  - Corrected potentials are used on the upstream-reported scale; overpotential_v = corrected potential - 1.23 V carries that reference-scale assumption.
-  - Nominal precursor composition is the volume-ratio analogue of the AMPERE-2 recipe units; deposited stoichiometry was not measured upstream in a form admissible as a predictor.
-  - The fitted basis is exactly {0.020, 0.050} A/cm^2; the instrument's admitted current-density envelope is restricted to that basis so predictions outside it are flagged out-of-envelope rather than silently extrapolated.
+  limitations: ['The frozen held-out gates FAILED (overpotential MAE and candidate-order preservation), so calibrated-twin
+      admission is denied and this model supplies simulator evidence only; the failed report is preserved at calibration/ampere2-oer/calibration_report.json.',
+    'Validation is a cross-condition holdout within a single AMPERE-2 campaign (one lab, one instrument), not independent
+      physical facility runs; calibrated-twin admission requires the latter and is denied on this ground independent
+      of the failed gates.', 'Fit and held-out data include runs recorded at the instrument compliance rail (~10.63
+      V) that the upstream dataset marks success; the frozen protocol does not permit post-hoc exclusion, and they
+      dominate the declared sigma. The uncertainty-coverage-2sigma metric passes only because that sigma is large;
+      it is not evidence of calibrated uncertainty.', The condition split hashes raw metadata strings and leaks
+      two physically identical conditions across the fit/held-out boundary; this compromises holdout independence.
+      The direction and magnitude of a corrected evaluation are unknown; the existing failed admission result remains
+      in force. See calibration/ampere2-oer/ERRATA.md., 'The fit design matrix is rank 9 of 11 (no condition separates
+      Mn from Cu), so those coefficients are not separately identified. See ERRATA.md.', Corrected potentials are
+      used on the upstream-reported scale; overpotential_v = corrected potential - 1.23 V carries that reference-scale
+      assumption., Nominal precursor composition is the volume-ratio analogue of the AMPERE-2 recipe units; deposited
+      stoichiometry was not measured upstream in a form admissible as a predictor., 'The fitted basis is exactly
+      {0.020, 0.050} A/cm^2; the instrument''s admitted current-density envelope is restricted to that basis so
+      predictions outside it are flagged out-of-envelope rather than silently extrapolated.', 'Historical frozen_before_any_outcome_inspection=true
+      is unverified and superseded by ERRATA.md item 5 (amended 2026-09-07). AMPERE-2 is retained as a failed historical
+      model record, not admitted to SDL1 execution. Its historical 1.23 V offset differs from the FastCat 1.229
+      V convention; neither establishes an SDL1 reference scale.']
 asset_sources:
 - id: sources/ac-sdl1/assembly_well_cartridge v44.step
   retrieval_uri: https://zenodo.org/api/records/15575908/files/AccelerationConsortium/SDL1_OpenTron_electrodeposition-0.0.2.zip/content

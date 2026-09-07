@@ -1,38 +1,35 @@
 # Reference bundle evidence boundaries
 
-The two `field-traceability.json` sidecars map every terminal field in their
-facility and registry documents, including empty collections, to an explicit
-source, classification, derivation and claim limit. SDL1 has 2,192 fields;
-FastCat has 559. A JSON Pointer identifies the field; `value_sha256` binds its
-canonical JSON value. These sidecars do not change the facility/registry schema.
+Each `field-traceability.json` covers every terminal facility and registry field,
+including empty collections, using a JSON Pointer and canonical value hash.
+`rows` contains substantive source bindings with a classification, derivation
+and claim limit. `declarations` is a compact inventory of Dynamical conventions
+and unknown physical properties. Those entries deliberately make no external
+evidence claim: a schema definition or a field citing itself cannot establish
+physical truth. This separation does not change the facility/registry schemas.
 
-The source catalog records file hashes and exact line intervals, worksheet cells
-or diagram regions. A source with a revision/URI refers to that external version,
-not the current checkout. Other `dynamical/` paths refer to files in this package
-or repository. External public metadata and export scripts are identified by
-URI and recorded hash; their presence does not authorize access to outcome data.
-Historical records retain their original uncertainty and limitations.
+Source bindings record hashes and exact line intervals, worksheet cells or
+schematic regions. Revisioned sources refer to that version, not this checkout.
+Other `dynamical/` paths refer to package/repository records. Recorded provenance
+means a historical assertion was recorded; it does not independently certify
+its underlying measurements. The published FastCat pool receipt contains only
+previously recorded aggregates, not raw observations or a new validation.
 
-Classifications distinguish upstream protocol, recorded measurement, recorded
-provenance, Dynamical convention and unknown physical property. A source command
-is not measured delivery. Geometry extent is not a physical measurement of an
-installed bench. IDs, display poses, scheduling intervals and admission policies
-are software choices. Empty physical properties and unavailable response values
-supply no quantitative physical evidence. Source-file identity alone establishes
-neither calibration nor scientific validity.
+A command is not measured delivery. Mesh extent is not a measurement of the
+installed bench. IDs, display poses, bookkeeping duration and admission policy
+are software choices. Empty physical properties and unavailable responses supply
+no quantitative physical evidence. Source hashes establish identity, not accuracy.
 
-Tests check exact field coverage, stale values, duplicate keys, source resolution,
-source locations and current repository source hashes. They do not certify the
-truth of a source or automatically verify external records. Factual review must
-read the referenced source and assess the field's derivation and claim limit.
-The full SDL1 measurement stages and analysis rules also carry individual pinned
-upstream references in `reference-lab/protocols/sdl1-oer.json`.
+Tests check field coverage, duplicate keys, stale values, source-reference shape
+and current repository source hashes. They do not certify truth or automatically
+verify external records. Review must read the cited source and assess its actual
+support. The SDL1 measurement setup, stages and extraction rules also carry
+pinned references in `reference-lab/protocols/sdl1-oer.json`.
 
-SDL1 presently represents source commands and unavailable physical responses.
-AMPERE-2 remains a failed simulator fit; its original numerical failure and
-historical protocol remain visible alongside the errata. FastCat preserves its
-frozen predictions and constant interval, with separate original-validation and
-later-pool results. Neither bundle establishes full physical facility calibration.
-The successful-calibration release requirement remains unmet; version 0.1.21 is
-staged only. A revised report needs new admissible validation evidence, not a
-renamed evidence class, removed failure, or changed threshold.
+SDL1 represents source commands and unknown physical responses. AMPERE-2's failed
+historical calibration stays visible, but its estimator is not admitted to either
+facility. Its frozen chronology assertion is explicitly superseded by the dated
+errata. FastCat retains its frozen table and constant interval; original validation
+and later pool evaluation remain distinct. Neither bundle establishes full physical
+facility calibration. Version 0.1.21 remains staged only; a successful calibration
+claim requires new admissible validation evidence.

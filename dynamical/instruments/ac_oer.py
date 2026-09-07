@@ -8,8 +8,8 @@ chronopotentiometry at 20 and 50 mA/cm^2 in the AMPERE-2 dataset
 (DOI 10.11583/DTU.27446925), under the historical protocol recorded in
 ``dynamical/bundle/reference-lab/calibration/ampere2-oer/``. Inputs are the deposited film's
 nominal precursor composition in the legacy sample-state representation and
-the requested OER current density. Current SDL1 command-only deposition does
-not supply the physical film-state prerequisites; this estimator then refuses.
+the requested OER current density. This failed historical estimator is not
+admitted to either installed facility.
 
 The frozen held-out calibration gates FAILED (held-out MAE and candidate-order
 preservation; see ``calibration_report.json``), so this model supplies simulator
@@ -55,11 +55,10 @@ CURRENT_DENSITY_MAX_A_CM2 = 0.050
 
 
 @register("estimate-oer", "ac-oer-simulator")
-@register("measure-oer", "ac-oer-simulator")
 def measure_oer(request: InstrumentRequest) -> InstrumentResult:
     j = float(request.parameters["current_density_a_cm2"])
     reasons: list[RuntimeReason] = []
-    if not CURRENT_DENSITY_MIN_A_CM2 <= j <= CURRENT_DENSITY_MAX_A_CM2:
+    if j not in (CURRENT_DENSITY_MIN_A_CM2, CURRENT_DENSITY_MAX_A_CM2):
         reasons.append(
             RuntimeReason(
                 code="PARAMETER_OUT_OF_ENVELOPE",
@@ -109,9 +108,8 @@ def measure_oer(request: InstrumentRequest) -> InstrumentResult:
                 recoverable=True,
             )
         )
-    else:
-        log_argument = j if j > 0.0 else CURRENT_DENSITY_MIN_A_CM2
-        overpotential = INTERCEPT_V + LOG10_J_COEFFICIENT_V * math.log10(log_argument)
+    elif not reasons:
+        overpotential = INTERCEPT_V + LOG10_J_COEFFICIENT_V * math.log10(j)
         for metal, coefficient in METAL_COEFFICIENTS_V.items():
             overpotential += coefficient * float(recorded.get(metal, 0.0))
         for agent, coefficient in COMPLEXING_COEFFICIENTS_V.items():

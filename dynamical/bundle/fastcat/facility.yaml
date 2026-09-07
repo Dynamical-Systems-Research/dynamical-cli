@@ -422,7 +422,7 @@ calibration_evidence:
   - The recorded interval half-width is 0.104969 V at 90% target coverage using split-conformal calibration;
     the development-cohort size is not verified by the supplied aggregate record.
   split_rule_ref: calibration/fastcat-oer/calibration_report.json
-  split_rule_sha256: aa0eaf994c9113c5678fbf9d89a43b2b97488062980f7638224db9f3c7d9f383
+  split_rule_sha256: 8ffcb647031c5f381563152567c698f5590f76166b949e16da8110037d155924
   fit_artifact_ref: calibration/fastcat-oer/prediction_table.json
   fit_artifact_sha256: 098245794ec3925a16777b3df18eb9fcaf06816588f46cd562dbd8b957fb2728
 asset_sources: []

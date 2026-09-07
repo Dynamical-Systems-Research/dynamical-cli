@@ -6,8 +6,7 @@ and nothing in core execution changes.
 
 The trailing imports register SDL1 source-command adapters, the source-defined
 SDL1 measurement protocol, and separately attributed DTU response models.
-Historical transfer and echem-cell models remain importable; import registration
-alone does not admit them to a facility registry.
+Generic transport registration does not admit it to either reference facility.
 """
 
 from __future__ import annotations
@@ -62,7 +61,6 @@ from . import (  # noqa: E402,F401
     ac_arduino,
     ac_bath,
     ac_cleaning,
-    ac_echem_cell,
     ac_oer,
     ac_oer_twin,
     ac_opentron,

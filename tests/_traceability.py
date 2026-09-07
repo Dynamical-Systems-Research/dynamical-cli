@@ -96,7 +96,10 @@ def validate(bundle, table):
     errors = []
     if not isinstance(table, dict):
         return ["sidecar must be an object"]
-    if set(table) != {"document_type", "sources", "rows"}:
+    if set(table) not in (
+        {"document_type", "sources", "rows"},
+        {"document_type", "sources", "rows", "declarations"},
+    ):
         errors.append("sidecar requires exactly document_type, sources, rows")
     if table.get("document_type") != "dynamical.field-traceability":
         errors.append("wrong document_type")
@@ -147,6 +150,21 @@ def validate(bundle, table):
             ):
                 errors.append(f"{label}: URL must embed pinned revision")
     seen = set()
+    # These inventory entries explicitly make no source-evidence claim. Keeping
+    # them separate avoids circular or schema-only citations masquerading as proof.
+    for document, declarations in table.get("declarations", {}).items():
+        for pointer, item in declarations.items():
+            key = (document, pointer)
+            seen.add(key)
+            if set(item) != {"value_sha256", "classification"}:
+                errors.append(f"declaration {key}: exact inventory fields required")
+            if item.get("classification") not in {
+                "dynamical_convention",
+                "unknown_physical_property",
+            }:
+                errors.append(f"declaration {key}: cannot claim source evidence")
+            if expected.get(key) != item.get("value_sha256") or key not in expected:
+                errors.append(f"declaration {key}: stale or unknown field")
     used_sources = set()
     required_fields = {
         "document",

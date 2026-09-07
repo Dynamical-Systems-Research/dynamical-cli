@@ -574,18 +574,15 @@ def test_current_only_measurement_does_not_bypass_the_sdl1_protocol(current):
     } == {"MISSING_PARAMETER", "UNKNOWN_PARAMETER"}
 
 
-@pytest.mark.parametrize("current", [0.02, 0.05])
-def test_ampere_estimation_keeps_its_separate_simulator_basis(current):
+@pytest.mark.parametrize("current", [0.01, 0.02, 0.05, 0.2])
+def test_failed_ampere_estimator_is_not_an_admitted_sdl1_operation(current):
     requirement = _measurement_only_requirement(
         operation_id="estimate-oer",
         parameters=[_parameter("current_density_a_cm2", "number", "A/cm^2", current)],
     )
     result = compose_virtual_sdl(requirement, load_capability_registry(REGISTRY))
-    assert result.status == "COMPILED", result.reason_codes
-    assert result.virtual_sdl is not None
-    binding = result.virtual_sdl.operation_bindings[0]
-    assert binding.provider_id == "ac-oer-simulator"
-    assert binding.evidence_class == "simulator"
+    assert result.status == "HOLD"
+    assert "MISSING_CAPABILITY" in result.reason_codes
 
 
 def test_physical_sdl1_protocol_remains_unadmitted():
@@ -595,17 +592,3 @@ def test_physical_sdl1_protocol_remains_unadmitted():
     assert result.status == "HOLD"
     assert result.virtual_sdl is None
     assert "PROVIDER_NOT_ADMITTED" in result.reason_codes
-
-
-@pytest.mark.parametrize("current", [0.01, 0.2])
-def test_sdl1_protocol_currents_do_not_expand_ampere_estimator_validity(current):
-    requirement = _measurement_only_requirement(
-        operation_id="estimate-oer",
-        parameters=[_parameter("current_density_a_cm2", "number", "A/cm^2", current)],
-    )
-    result = compose_virtual_sdl(requirement, load_capability_registry(REGISTRY))
-    assert result.status == "HOLD"
-    assert any(
-        reason.provider_id == "ac-oer-simulator" and reason.code == "VALUE_OUT_OF_RANGE"
-        for reason in result.reasons
-    )

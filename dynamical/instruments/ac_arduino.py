@@ -2,8 +2,8 @@
 
 SDL1 2c5a911 src/openTron_electrodeposition/ardu.py:155-171 sets temperature;
 246-263 and 350-359 command a timed relay. There is no power setpoint.
-The admitted 35 C / 30 s recipe is example/main.py:134-141; 5 s and 15 s
-ultrasound commands occur in example/experiment.py:1023-1069,1375-1386.
+The admitted cartridge-1 35 C / 30 s recipe is example/main.py:134-141.
+Cleaning commands are separate; cartridge-0 tool cleaning is not well conditioning.
 These are source command points, not measured hardware validity ranges.
 """
 
@@ -17,7 +17,7 @@ from . import InstrumentRequest, InstrumentResult, register
 def condition_ultrasonic(request: InstrumentRequest) -> InstrumentResult:
     duration = float(request.parameters["duration_s"])
     temperature = float(request.parameters["temperature_setpoint_c"])
-    valid = duration in (5.0, 15.0, 30.0) and temperature == 35.0
+    valid = duration == 30.0 and temperature == 35.0
     reasons = (
         []
         if valid
@@ -26,7 +26,7 @@ def condition_ultrasonic(request: InstrumentRequest) -> InstrumentResult:
                 code="PARAMETER_OUT_OF_ENVELOPE",
                 detail=(
                     "Source recipe admits temperature setpoint 35 C and ultrasound command "
-                    "durations 5, 15, or 30 s; no power control or measured response "
+                    "duration 30 s on cartridge 1; no power control or measured response "
                     "envelope is available."
                 ),
                 channel_id="instrument.temperature_setpoint_c",

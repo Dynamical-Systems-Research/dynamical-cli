@@ -4,95 +4,165 @@ registry_id: dynamical-ac-sdl1-capabilities-20260907
 capabilities:
   - operation_id: dispense-electrolyte
     kind: scientific
-    description: Command pipette dispensing in at most 1000 uL strokes into the test well. Pumps only rinse and drain; delivered
-      volume and elapsed handling time are unknown.
+    description: Command pipette dispensing in at most 1000 uL strokes into the test well. Pumps only rinse and drain;
+      delivered volume and elapsed handling time are unknown. Cumulative nominal inventory refusal at 3.895 mL is
+      a Dynamical bookkeeping constraint, not measured delivery.
     input_ports:
-    - {id: sample.state, state_type: sample_state, unit: '1', required: true, description: The stationary sample identity and
-        its recorded state; command inventory is nominal and custody is unchanged.}
+    - id: sample.state
+      state_type: sample_state
+      unit: '1'
+      required: true
+      description: The stationary sample identity and its recorded state; command inventory is nominal and custody
+        is unchanged.
     output_ports:
-    - {id: volume_requested_ml, state_type: number, unit: mL, required: true, description: Requested nominal pipette volume.}
-    - {id: volume_commanded_ml, state_type: number, unit: mL, required: true, description: Nominal pipette command after integer-microlitre
-        encoding; no delivery measurement.}
-    - {id: volume_applied_ml, state_type: number, unit: mL, required: true, description: Unknown physical delivered volume;
-        unavailable until measured.}
+    - id: volume_requested_ml
+      state_type: number
+      unit: mL
+      required: true
+      description: Requested nominal pipette volume.
+    - id: volume_commanded_ml
+      state_type: number
+      unit: mL
+      required: true
+      description: Nominal pipette volume command; this electrolyte path does not truncate to integer microlitres.
+        No measured delivery.
+    - id: volume_applied_ml
+      state_type: number
+      unit: mL
+      required: true
+      description: Unknown physical delivered volume; unavailable until measured.
     parameters:
-    - {name: volume_ml, value_type: number, required: true, unit: mL, minimum: 0.0, maximum: 3.895}
+    - name: volume_ml
+      value_type: number
+      required: true
+      unit: mL
+      minimum: 0.0
+      maximum: 3.895
     - name: chemical
       value_type: string
       required: false
       unit: '1'
       enum: [Ni, Fe, Cr, Mn, Co, Zn, Cu, NH4OH, NaCi, KOH]
     required_conditions: []
-    possible_failures: [unsupported or nonfinite command refused without state mutation, physical response and accuracy unavailable
-        without measurements]
+    possible_failures: [unsupported or nonfinite command refused without state mutation, physical response and accuracy
+        unavailable without measurements]
   - operation_id: aliquot-to-well
     kind: scientific
-    description: Command pipette delivery into the same test well in at most 1000 uL strokes. The 3.895 mL limit is the labware
-      definition capacity, not a delivery-accuracy claim.
+    description: Command pipette delivery into the same test well in at most 1000 uL strokes. The 3.895 mL limit is
+      the labware definition capacity, not a delivery-accuracy claim. Cumulative nominal inventory refusal at 3.895
+      mL is a Dynamical bookkeeping constraint, not measured delivery.
     input_ports:
-    - {id: sample.state, state_type: sample_state, unit: '1', required: true, description: The stationary sample identity and
-        its recorded state; command inventory is nominal and custody is unchanged.}
+    - id: sample.state
+      state_type: sample_state
+      unit: '1'
+      required: true
+      description: The stationary sample identity and its recorded state; command inventory is nominal and custody
+        is unchanged.
     output_ports:
-    - {id: volume_requested_ml, state_type: number, unit: mL, required: true, description: Requested nominal pipette volume.}
-    - {id: volume_commanded_ml, state_type: number, unit: mL, required: true, description: Nominal pipette command after integer-microlitre
-        encoding; no delivery measurement.}
-    - {id: volume_applied_ml, state_type: number, unit: mL, required: true, description: Unknown physical delivered volume;
-        unavailable until measured.}
+    - id: volume_requested_ml
+      state_type: number
+      unit: mL
+      required: true
+      description: Requested nominal pipette volume.
+    - id: volume_commanded_ml
+      state_type: number
+      unit: mL
+      required: true
+      description: Nominal pipette command after integer-microlitre encoding; no delivery measurement.
+    - id: volume_applied_ml
+      state_type: number
+      unit: mL
+      required: true
+      description: Unknown physical delivered volume; unavailable until measured.
     parameters:
-    - {name: volume_ml, value_type: number, required: true, unit: mL, minimum: 0.0, maximum: 3.895}
+    - name: volume_ml
+      value_type: number
+      required: true
+      unit: mL
+      minimum: 0.0
+      maximum: 3.895
     - name: chemical
       value_type: string
       required: false
       unit: '1'
       enum: [Ni, Fe, Cr, Mn, Co, Zn, Cu, NH4OH, NaCi, KOH]
     required_conditions: []
-    possible_failures: [unsupported or nonfinite command refused without state mutation, physical response and accuracy unavailable
-        without measurements]
+    possible_failures: [unsupported or nonfinite command refused without state mutation, physical response and accuracy
+        unavailable without measurements]
   - operation_id: condition-ultrasonic
     kind: scientific
-    description: Command the Arduino well temperature setpoint and timed ultrasound relay; no acoustic power setpoint exists
-      upstream. The admitted points are source recipe commands, not a calibrated hardware envelope.
+    description: Command cartridge-1 ultrasound for 30 s and Arduino temperature setpoint 35 C, the explicit SDL1
+      example/main.py:134-140 recipe. Cleaning and cartridge-0 tool commands are separate; no power or response prediction.
     input_ports:
-    - {id: sample.state, state_type: sample_state, unit: '1', required: true, description: The stationary sample identity and
-        its recorded state; command inventory is nominal and custody is unchanged.}
+    - id: sample.state
+      state_type: sample_state
+      unit: '1'
+      required: true
+      description: The stationary sample identity and its recorded state; command inventory is nominal and custody
+        is unchanged.
     output_ports:
-    - {id: instrument.ultrasound_commanded_s, state_type: number, unit: s, required: true, description: 'Commanded relay duration,
-        not measured acoustic exposure.'}
-    - {id: instrument.temperature_setpoint_c, state_type: number, unit: degC, required: true, description: 'Commanded well temperature
-        setpoint, not sensor readback.'}
-    - {id: instrument.temperature_observed_c, state_type: number, unit: degC, required: true, description: Unknown actual well
-        temperature; unavailable until measured.}
+    - id: instrument.ultrasound_commanded_s
+      state_type: number
+      unit: s
+      required: true
+      description: Commanded relay duration, not measured acoustic exposure.
+    - id: instrument.temperature_setpoint_c
+      state_type: number
+      unit: degC
+      required: true
+      description: Commanded well temperature setpoint, not sensor readback.
+    - id: instrument.temperature_observed_c
+      state_type: number
+      unit: degC
+      required: true
+      description: Unknown actual well temperature; unavailable until measured.
     parameters:
     - name: duration_s
       value_type: number
       required: true
       unit: s
-      enum: [5.0, 15.0, 30.0]
+      enum: [30.0]
     - name: temperature_setpoint_c
       value_type: number
       required: true
       unit: degC
       enum: [35.0]
     required_conditions: []
-    possible_failures: [unsupported or nonfinite command refused without state mutation, physical response and accuracy unavailable
-        without measurements]
+    possible_failures: [unsupported or nonfinite command refused without state mutation, physical response and accuracy
+        unavailable without measurements]
   - operation_id: electrodeposit-constant-current
     kind: scientific
-    description: Command cathodic deposition at -0.002827 A on the stationary Ni-tape working electrode at a 35 degC setpoint,
-      followed upstream by 120 s open circuit. The Ni tool is the counter electrode with reference tied for deposition. Actual
-      temperature, charge delivery, composition, mass and thickness are unmeasured.
+    description: Command cathodic -0.002827 A for 60 s on Squidstat, with Arduino cartridge-1 temperature setpoint
+      35 C (main.py:138-139; experiment.py:2017-2018). Ni tape is the working electrode; Ni tool is counter with reference
+      tied during deposition. Followed upstream by 120 s OCP; no physical film or delivery is predicted.
     input_ports:
-    - {id: sample.state, state_type: sample_state, unit: '1', required: true, description: The stationary sample identity and
-        its recorded state; command inventory is nominal and custody is unchanged.}
+    - id: sample.state
+      state_type: sample_state
+      unit: '1'
+      required: true
+      description: The stationary sample identity and its recorded state; command inventory is nominal and custody
+        is unchanged.
     output_ports:
-    - {id: commanded_charge_c, state_type: number, unit: C, required: true, description: Signed integral of cathodic current
-        command over its duration; not measured delivered charge.}
-    - {id: deposited_mass_g, state_type: number, unit: g, required: true, description: Unknown actual deposited mass; no pure-nickel
-        yield assumption.}
-    - {id: deposited_thickness_um, state_type: number, unit: um, required: true, description: Unknown actual film thickness;
-        unavailable until measured.}
-    - {id: current_density_a_cm2, state_type: number, unit: A/cm^2, required: true, description: Signed current command divided
-        by upstream area 0.2827 cm^2.}
+    - id: commanded_charge_c
+      state_type: number
+      unit: C
+      required: true
+      description: Signed integral of cathodic current command over its duration; not measured delivered charge.
+    - id: deposited_mass_g
+      state_type: number
+      unit: g
+      required: true
+      description: Unknown actual deposited mass; no pure-nickel yield assumption.
+    - id: deposited_thickness_um
+      state_type: number
+      unit: um
+      required: true
+      description: Unknown actual film thickness; unavailable until measured.
+    - id: current_density_a_cm2
+      state_type: number
+      unit: A/cm^2
+      required: true
+      description: Signed current command divided by upstream area 0.2827 cm^2.
     parameters:
     - name: current_a
       value_type: number
@@ -103,37 +173,15 @@ capabilities:
       value_type: number
       required: true
       unit: s
-      enum: [10.0, 60.0]
+      enum: [60.0]
     - name: temperature_setpoint_c
       value_type: number
       required: true
       unit: degC
       enum: [35.0]
     required_conditions: []
-    possible_failures: [unsupported or nonfinite command refused without state mutation, physical response and accuracy unavailable
-        without measurements]
-  - operation_id: estimate-oer
-    kind: scientific
-    description: Historical Dynamical AMPERE-2 simulator estimate at 20 or 50 mA/cm^2. Calibration gates failed; this is not
-      the SDL1 source measurement protocol or calibrated evidence.
-    input_ports:
-    - {id: sample.state, state_type: sample_state, unit: '1', required: true, description: 'The sample this measurement reads
-        from. A pure measurement: it does not transform, relocate, or consume the sample, so no new sample.state is produced.
-        The selected provider requires the deposited film''s recorded precursor composition on this state.'}
-    output_ports:
-    - {id: overpotential_v, state_type: number, unit: V, required: true, description: 'Estimated OER overpotential, with the
-        provider-declared uncertainty.'}
-    - {id: current_density_a_cm2, state_type: number, unit: A/cm^2, required: true, description: Echoed current density the
-        estimate was computed at.}
-    parameters:
-    - name: current_density_a_cm2
-      value_type: number
-      unit: A/cm^2
-      required: true
-      enum: [0.02, 0.05]
-    required_conditions: []
-    possible_failures: [the requested current density is outside the fitted basis envelope, the measured sample carries no recorded
-        deposit or precursor composition]
+    possible_failures: [unsupported or nonfinite command refused without state mutation, physical response and accuracy
+        unavailable without measurements]
   - operation_id: measure-oer
     kind: scientific
     description: 'SDL1 complete source measurement protocol: activation at 200 mA/cm^2 for 60 s; two initial CV programs; potentiostatic
@@ -262,7 +310,10 @@ providers:
     evidence_class: simulator
     endpoint_id: ac-arduino-model
     facility_ids: [ot2-liquid-handling]
-    availability: {available: true, observed_at: '2026-08-09T00:00:00Z', availability_ref: dynamical/instruments/ac_arduino.py}
+    availability:
+      available: true
+      observed_at: '2026-08-09T00:00:00Z'
+      availability_ref: dynamical/instruments/ac_arduino.py
     admission:
       status: admitted
       authority_id: dynamical-v0.1-release-authority
@@ -273,31 +324,45 @@ providers:
       subject_id: duration_s
       value_type: number
       unit: s
-      enum: [5.0, 15.0, 30.0]
+      enum: [30.0]
     - subject_kind: parameter
       subject_id: temperature_setpoint_c
       value_type: number
       unit: degC
       enum: [35.0]
-    cost: {currency: USD, fixed: 0.0}
-    duration: {minimum_s: 0.0, typical_s: 0.0, maximum_s: 0.0}
+    cost:
+      currency: USD
+      fixed: 0.0
+    duration:
+      minimum_s: 0.0
+      typical_s: 0.0
+      maximum_s: 0.0
     failures:
-    - {code: physical-response-unavailable, description: 'Commands do not establish measured delivery, temperature, deposited
-        film or cleaning efficacy. Zero duration/cost denotes unexecuted physical work, not a physical estimate.', recoverable: true}
+    - code: physical-response-unavailable
+      description: Commands do not establish measured delivery, temperature, deposited film or cleaning efficacy.
+        Zero duration/cost denotes unexecuted physical work, not a physical estimate.
+      recoverable: true
     policy:
       permitted: true
       policy_tags: [simulation-only, source-command-only, physical-response-unavailable]
       safety_limit_ids: [conditioning-duration-envelope, conditioning-setpoint-envelope]
       required_approval_ids: []
     adapter_links:
-    - {adapter_id: dynamical-ac-arduino-python, adapter_version: 0.1.0, endpoint_ref: ac-arduino-model}
-    - {adapter_id: dynamical-ac-arduino-control, adapter_version: 0.1.0, endpoint_ref: arduino-device}
+    - adapter_id: dynamical-ac-arduino-python
+      adapter_version: 0.1.0
+      endpoint_ref: ac-arduino-model
+    - adapter_id: dynamical-ac-arduino-control
+      adapter_version: 0.1.0
+      endpoint_ref: arduino-device
   - provider_id: ac-squidstat-simulator
     operation_id: electrodeposit-constant-current
     evidence_class: simulator
     endpoint_id: ac-potentiostat-model
     facility_ids: [ot2-liquid-handling]
-    availability: {available: true, observed_at: '2026-08-09T00:00:00Z', availability_ref: dynamical/instruments/ac_potentiostat.py}
+    availability:
+      available: true
+      observed_at: '2026-08-09T00:00:00Z'
+      availability_ref: dynamical/instruments/ac_potentiostat.py
     admission:
       status: admitted
       authority_id: dynamical-v0.1-release-authority
@@ -313,84 +378,78 @@ providers:
       subject_id: duration_s
       value_type: number
       unit: s
-      enum: [10.0, 60.0]
+      enum: [60.0]
     - subject_kind: parameter
       subject_id: temperature_setpoint_c
       value_type: number
       unit: degC
       enum: [35.0]
-    cost: {currency: USD, fixed: 0.0}
-    duration: {minimum_s: 0.0, typical_s: 0.0, maximum_s: 0.0}
+    cost:
+      currency: USD
+      fixed: 0.0
+    duration:
+      minimum_s: 0.0
+      typical_s: 0.0
+      maximum_s: 0.0
     failures:
-    - {code: physical-response-unavailable, description: 'Commands do not establish measured delivery, temperature, deposited
-        film or cleaning efficacy. Zero duration/cost denotes unexecuted physical work, not a physical estimate.', recoverable: true}
+    - code: physical-response-unavailable
+      description: Commands do not establish measured delivery, temperature, deposited film or cleaning efficacy.
+        Zero duration/cost denotes unexecuted physical work, not a physical estimate.
+      recoverable: true
     policy:
       permitted: true
       policy_tags: [simulation-only, source-command-only, physical-response-unavailable]
       safety_limit_ids: [current-envelope, deposition-duration-envelope, deposition-temperature-envelope]
       required_approval_ids: []
     adapter_links:
-    - {adapter_id: dynamical-ac-potentiostat-python, adapter_version: 0.1.0, endpoint_ref: ac-potentiostat-model}
-    - {adapter_id: dynamical-ac-squidstat-control, adapter_version: 0.1.0, endpoint_ref: squidstat-device}
-  - provider_id: ac-oer-simulator
-    operation_id: estimate-oer
-    evidence_class: simulator
-    endpoint_id: ac-oer-model
-    facility_ids: [ot2-liquid-handling]
-    availability: {available: true, observed_at: '2026-08-09T00:00:00Z', availability_ref: dynamical/instruments/ac_oer.py}
-    admission:
-      status: admitted
-      authority_id: dynamical-v0.1-release-authority
-      authority_kind: release_authority
-      evidence_refs: [dynamical/instruments/ac_oer.py, tests/test_instrument_models.py]
-    validity_envelope:
-    - subject_kind: parameter
-      subject_id: current_density_a_cm2
-      value_type: number
-      unit: A/cm^2
-      enum: [0.02, 0.05]
-    cost: {currency: USD, fixed: 0.0}
-    duration: {minimum_s: 0.0, typical_s: 120.0, maximum_s: 120.0}
-    failures:
-    - {code: fitted-basis-extrapolation, description: 'Current density outside the fitted basis {0.020, 0.050} A/cm^2 is flagged
-        out-of-envelope, not silently extrapolated.', recoverable: true}
-    policy:
-      permitted: true
-      policy_tags: [simulation-only, fitted-model-calibration-gates-failed]
-      safety_limit_ids: [ampere2-estimate-current-envelope]
-      required_approval_ids: []
-    adapter_links:
-    - {adapter_id: dynamical-ac-oer-python, adapter_version: 0.1.0, endpoint_ref: ac-oer-model}
-    - {adapter_id: dynamical-ac-squidstat-control, adapter_version: 0.1.0, endpoint_ref: squidstat-device}
+    - adapter_id: dynamical-ac-potentiostat-python
+      adapter_version: 0.1.0
+      endpoint_ref: ac-potentiostat-model
+    - adapter_id: dynamical-ac-squidstat-control
+      adapter_version: 0.1.0
+      endpoint_ref: squidstat-device
   - provider_id: ac-sdl1-oer-protocol
     operation_id: measure-oer
     evidence_class: simulator
     endpoint_id: ac-sdl1-oer-model
     facility_ids: [ot2-liquid-handling]
-    availability: {available: true, observed_at: '2026-09-07T13:29:54.561805+00:00', availability_ref: dynamical/instruments/ac_sdl1_oer.py}
+    availability:
+      available: true
+      observed_at: '2026-09-07T13:29:54.561805+00:00'
+      availability_ref: dynamical/instruments/ac_sdl1_oer.py
     admission:
       status: admitted
       authority_id: dynamical-v0.1-release-authority
       authority_kind: release_authority
-      evidence_refs: [dynamical/instruments/ac_sdl1_oer.py, dynamical/bundle/reference-lab/protocols/sdl1-oer.json, tests/test_sdl1_oer_protocol.py]
+      evidence_refs: [dynamical/instruments/ac_sdl1_oer.py, dynamical/bundle/reference-lab/protocols/sdl1-oer.json,
+        tests/test_sdl1_oer_protocol.py]
     validity_envelope:
     - subject_kind: parameter
       subject_id: protocol_id
       value_type: string
       unit: '1'
       enum: [sdl1-oer-2c5a911]
-    cost: {currency: USD, fixed: 0.0}
-    duration: {minimum_s: 0.0, typical_s: 0.0, maximum_s: 0.0}
+    cost:
+      currency: USD
+      fixed: 0.0
+    duration:
+      minimum_s: 550.0
+      typical_s: 550.0
+      maximum_s: 550.0
     failures:
-    - {code: protocol-response-unavailable, description: 'The source protocol is available; measured response, reference scale
-        and actual elapsed duration are not.', recoverable: true}
+    - code: protocol-response-unavailable
+      description: Campaign time accounts only for the known 60 + 7*70 = 550 s CP dwell, a lower-bound bookkeeping
+        convention. CV, EIS, positioning and actual elapsed time are not included or measured. Responses remain unavailable.
+      recoverable: true
     policy:
       permitted: true
       policy_tags: [simulation-only, source-protocol-only, physical-response-unavailable]
       safety_limit_ids: []
       required_approval_ids: []
     adapter_links:
-    - {adapter_id: dynamical-ac-sdl1-oer-python, adapter_version: 0.1.0, endpoint_ref: ac-sdl1-oer-model}
+    - adapter_id: dynamical-ac-sdl1-oer-python
+      adapter_version: 0.1.0
+      endpoint_ref: ac-sdl1-oer-model
   - provider_id: ac-cleaning-simulator
     operation_id: clean-electrode
     evidence_class: simulator

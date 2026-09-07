@@ -414,7 +414,9 @@ def test_trace_validator_rejects_reordered_actions(
     events = copy.deepcopy(writer.events)
     events[1]["action"], events[3]["action"] = events[3]["action"], events[1]["action"]
 
-    with pytest.raises(runtime.RuntimeContractError, match="differs from the compiled campaign"):
+    with pytest.raises(
+        runtime.RuntimeContractError, match="outside its enum|differs from the compiled campaign"
+    ):
         runtime.validate_trace(events, pack)
 
 
@@ -530,7 +532,9 @@ def test_direct_embodied_replay_rejects_path_escape_and_forged_campaign(
     )
     forged_hash = hashlib.sha256(trace.read_bytes()).hexdigest()
     write_receipt([{"path": trace.name, "sha256": forged_hash}])
-    with pytest.raises(CampaignValidationError, match="differs from the compiled campaign"):
+    with pytest.raises(
+        CampaignValidationError, match="outside its enum|differs from the compiled campaign"
+    ):
         replay_trace(
             trace,
             replay,
@@ -568,7 +572,9 @@ def test_embodied_snapshot_commanded_parameter_must_match_the_compiled_action(
         "commanded_parameters": {"parameters": {"duration_s": pinned + 1.0}},
         "observation": {},
     }
-    with pytest.raises(CampaignValidationError, match="differs from the compiled campaign"):
+    with pytest.raises(
+        CampaignValidationError, match="outside its enum|differs from the compiled campaign"
+    ):
         _expected_snapshot_channels(snapshot, action, pack)
 
 
