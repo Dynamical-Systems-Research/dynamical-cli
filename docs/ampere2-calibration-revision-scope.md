@@ -114,6 +114,101 @@ Current boundaries are documented in the
 This table specifies evidence requirements; it does not claim those measurements
 exist or authorize their collection.
 
+## Physical evidence acquisition scope
+
+The following is a proposed qualification plan, not an upstream measurement
+record or an authorization to operate a bench. The deliverable is a reproducible
+evidence package tied to the public facility and model revisions. Neither access
+to a matching physical bench nor an independent validation custodian has been
+established. Public source code and geometry cannot fill those gaps.
+
+**Resolve the measurement identity first.** For SDL1, obtain run-specific records
+of KOH concentration, mounted reference electrode and potential scale, electrode
+area and preparation, Squidstat identity/firmware/API version, instrument limits,
+and the vendor meaning of EIS `number_of_runs=0`. Record deviations from the
+pinned protocol; do not silently repair it and call the resulting data matched.
+The current [protocol setup and unknowns](../dynamical/bundle/reference-lab/protocols/sdl1-oer.json)
+explicitly leave these items unresolved. The target remains upstream corrected
+potential at 10 mA/cm²; any converted overpotential needs its own documented
+reference conversion and equilibrium-potential convention.
+
+| Evidence package | Proposed measurements and retained records | Qualification boundary |
+|---|---|---|
+| Delivered liquids | Gravimetric delivery checks with recorded balance uncertainty and liquid density/temperature; source/destination identity, stroke sequence, rinse/drain residuals and repeat runs across the claimed range | Qualifies delivered volume and residual claims only within tested liquids, volumes and hardware conditions; nominal inventory arithmetic is a separate software check |
+| Temperature and ultrasound | Independently checked well-temperature time series alongside Arduino setpoints/readback; recorded switch-on/off times and exposure sequence | Timing does not establish acoustic power or dose. An acoustic-response claim requires a separate measurement method and qualification |
+| Electrical delivery | Instrument calibration records and checks against characterized electrical loads over the claimed current, voltage and impedance range; actual current/voltage/time traces, saturation and compliance flags | Instrument performance is necessary but does not validate electrode kinetics or a materials-response model |
+| Deposition and cleaning history | Matched substrate/area and preparation records; delivered charge, bath temperature and composition; repeated pre/post-cleaning film characterization and carryover blanks using methods chosen for the claimed film property | Establishes whether cleaning changes the property being predicted. Do not infer deposited stoichiometry or film retention from precursor ratios or preserved software state |
+| Complete SDL1 response | Independent prepared samples run through deposition, cleaning and the 13-stage protocol; raw CV, EIS and staircase arrays, reference checks, temperature and full elapsed time; independently reproduced resistance and headline extraction | A headline-only predictor does not qualify absent CV/EIS response models or campaign-time predictions. Each claimed output needs its own validation result |
+| FastCat response and process | Separately acquired, protocol-matched physical runs with substrate, bath conditions, reference/correction conventions and replicate history recorded | New evidence must match FastCat's declared domain. It cannot qualify SDL1; SDL1 measurements cannot qualify FastCat by attribution alone |
+
+Select specific metrology and film-characterization procedures with the physical
+operator before acquisition. For measurement uncertainty reporting, use an
+explicit uncertainty budget; [NIST Technical Note 1297](https://doi.org/10.6028/NIST.tn.1297)
+is a methodological reference, not evidence that this bench is calibrated or
+certified. Preserve measurement uncertainty separately from model prediction
+intervals, and account for shared reference and batch errors when evaluating
+predictions against measurements.
+
+## Independent validation contract and evidence receipt
+
+Before model development, name a physical operator, a validation-data custodian
+and an evaluator who did not select the model. Independence here means that
+validation outcomes cannot inform feature selection, QC rules, model selection,
+interval tuning or acceptance thresholds. A separate institution is not assumed;
+access separation and a verifiable freeze/reveal history must be demonstrated.
+The custodian must attest to prior exposure and cohort eligibility without this
+work opening any protected outcome roots.
+
+Freeze condition groups before allocation: numerically equivalent recipes,
+replicates, current steps and time points stay together. Record substrate lots,
+bath batches, preparation days, operators and instrument sessions; block or hold
+out these factors according to the generalization claim. Randomize execution
+order where the physical protocol allows it. Repeated samples at a known
+condition estimate repeatability; they do not establish unseen-condition
+generalization. Time-series rows are not independent sample counts.
+
+Predeclare the acceptance table per claimed observable: domain, unit, maximum
+acceptable error, ordering requirement where relevant, coverage target, maximum
+useful interval width, baseline comparison, and uncertainty on each test metric.
+Derive tolerances from the physical decision the lab must support. Determine
+condition and replicate counts from development-only variance estimates and the
+precision needed for that decision, including a predeclared treatment of multiple
+gates. This scope does not invent numerical thresholds, sample counts, statistical
+power or a cost estimate. The historical AMPERE thresholds remain recorded;
+changing a target or criterion must be justified before new outcomes are seen.
+
+Each qualification package must contain:
+
+- Facility/protocol/model/extractor revisions and hashes, the frozen claim and
+  acceptance table, intended domain, split allocation and exposure attestation.
+- Run IDs, canonical condition IDs, batch/replicate relationships, material and
+  electrode identities, requested commands and independently recorded delivery,
+  instrument identities/calibration records, timestamps, raw units and arrays.
+- Reference conversion, resistance extraction, iR correction and aggregation
+  code; measurement uncertainty; all exclusions, missingness and compliance flags
+  with reasons, including failed runs rather than just successful labels.
+- Predictions and intervals frozen before outcome access; custodian receipt and
+  reveal record; evaluator reproduction of every planned metric and baseline,
+  cohort counts, failures and the exact domain qualified by the result.
+- A publishable evidence index with accessible permitted artifacts and digests.
+  If raw data cannot be published, disclose that reproducibility limit and the
+  independent access/audit arrangement; a digest alone is not validation.
+
+Obtain an operator-reviewed acquisition plan and quote only after the protocol,
+claim domain, measurement methods and statistical design are fixed. Required
+inputs are bench/operator access, metrology records, eligible independent runs,
+custody/evaluation arrangements and publication rights. None is supplied by the
+completed canaries. Existing public data may be considered only if its protocol
+compatibility and untouched validation status can be established; otherwise new
+authorized physical measurements are necessary.
+
+The final report must issue separate judgments for software execution, upstream
+source fidelity, instrument/measurement qualification, predictive validity and
+agent interpretation. All required physical qualifications must pass for release;
+an honest command-only interface or a successful canary does not substitute for
+them. Preserve the failed AMPERE result and FastCat interval gate alongside any
+new revision. No new CLI evaluation subsystem is needed for this scope.
+
 ## Authority, resources and stopping conditions
 
 This deliverable scopes the follow-on only. New fitting, independent-data access,
