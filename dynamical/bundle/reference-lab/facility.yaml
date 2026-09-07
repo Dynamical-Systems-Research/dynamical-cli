@@ -26,6 +26,9 @@ facility:
   - uri: https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/manuals/Electric_diagram.pdf
     role: electrode-wiring-source
     revision: 2c5a911
+  - uri: https://github.com/AccelerationConsortium/SDL1_OpenTron_electrodeposition/blob/2c5a911/example/experiment.py#L248-L539
+    role: measurement-protocol-source
+    revision: 2c5a911
   claim_boundary:
   - 'SDL1 uses one OT-2 deck. Deposition and OER testing act on the stationary Ni-tape working electrode
     at the test-well bottom; the pipette carries the Ni counter-electrode tool, OER counter/reference
@@ -57,9 +60,9 @@ facility:
   - A compiled stage proves scene composition only. Embodied evidence needs a preserved real execution
     trace, render, replay, and inspection. No physical execution is claimed.
   - SDL1 adapters record source-defined commands only. Pipette handling uses integer uL commands in strokes
-    no greater than 1000 uL. The 3.895 mL admission cap follows the labware definition; parameters.py declares
-    3.9 mL and the main recipe uses 2.5 mL bath plus a later 3 mL electrolyte fill. Command inventory is
-    not measured delivered volume.
+    no greater than 1000 uL. The 3.895 mL admission cap follows the labware definition; parameters.py
+    declares 3.9 mL and the main recipe uses 2.5 mL bath plus a later 3 mL electrolyte fill. Command inventory
+    is not measured delivered volume.
   - The reference deposition command is cathodic -0.002827 A at a 35 degC setpoint for 60 s (the upstream
     function also has a 10 s default), followed by 120 s OCP. Nominal precursor ratios are not measured
     film stoichiometry; actual mass, thickness, temperature and delivered charge are unavailable.
@@ -67,9 +70,15 @@ facility:
     between deposition and test. Neither perfect liquid removal nor unchanged film chemistry is established.
     Pumps rinse/drain only; pipette dispensing is separate.
   - The Arduino exposes temperature setpoint and timed ultrasound, not a power percentage. Discrete admitted
-    commands are upstream recipe points, not a verified continuous hardware envelope. Unknown physical outputs
-    are unavailable and carry no invented uncertainty. Duration/cost zero is unexecuted-physical-work bookkeeping;
-    actual handling duration and cost remain unknown.
+    commands are upstream recipe points, not a verified continuous hardware envelope. Unknown physical
+    outputs are unavailable and carry no invented uncertainty. Duration/cost zero is unexecuted-physical-work
+    bookkeeping; actual handling duration and cost remain unknown.
+  - measure-oer binds the full SDL1 source protocol, including 0.200 A/cm^2 activation and the 0.100,0.050,0.020,0.010,0.005,0.002,0.001
+    A/cm^2 staircase. These fixed source stages are admitted together, not as a continuous calibrated
+    current envelope. The last-third iR-corrected potential at 0.010 A/cm^2 is the upstream headline.
+    Any 1.229 V overpotential offset is a Dynamical convention; the mounted reference and compatible potential
+    scale remain unverified. AMPERE-2 estimation is a separate simulator-only estimate-oer operation whose
+    calibration failed.
 workstations:
 - id: ot2-liquid-handling
   facility_id: ac-electrodeposition-cell
@@ -737,9 +746,19 @@ devices:
   - id: squidstat.overpotential_v
     value_type: number
     unit: V
+  - id: squidstat.potential_at_10ma_cm2_v
+    value_type: number
+    unit: V
+  - id: squidstat.corrected_potential_at_10ma_cm2_v
+    value_type: number
+    unit: V
+  - id: squidstat.ohmic_resistance_ohm
+    value_type: number
+    unit: ohm
   capability_ids:
   - electrodeposit-constant-current-capability
   - measure-oer-capability
+  - estimate-oer-capability
 - id: cleaning-station-device
   asset_id: flush-tool
   state_channels:
@@ -916,16 +935,17 @@ capabilities:
   - deposition-duration-envelope
   - deposition-temperature-envelope
   postcondition_constraint_ids: []
-- id: measure-oer-capability
+- id: estimate-oer-capability
   provider_id: squidstat-device
-  action_type: measure
+  action_type: estimate
   parameters:
   - name: current_density_a_cm2
     value_type: number
     unit: A/cm^2
     required: true
-    minimum: 0.01
-    maximum: 0.05
+    enum:
+    - 0.02
+    - 0.05
   observation_channel_ids:
   - squidstat.current_density_a_cm2
   - squidstat.overpotential_v
@@ -935,7 +955,32 @@ capabilities:
     squidstat.current_density_a_cm2: current_density_a_cm2
     squidstat.overpotential_v: overpotential_v
   precondition_constraint_ids:
-  - oer-current-density-envelope
+  - ampere2-estimate-current-envelope
+  postcondition_constraint_ids: []
+- id: measure-oer-capability
+  provider_id: squidstat-device
+  action_type: measure
+  parameters:
+  - name: protocol_id
+    value_type: string
+    unit: '1'
+    required: true
+    enum:
+    - sdl1-oer-2c5a911
+  observation_channel_ids:
+  - squidstat.current_density_a_cm2
+  - squidstat.potential_at_10ma_cm2_v
+  - squidstat.corrected_potential_at_10ma_cm2_v
+  - squidstat.ohmic_resistance_ohm
+  - squidstat.overpotential_v
+  echoed_parameter_bindings: {}
+  reported_output_port_ids:
+    squidstat.current_density_a_cm2: current_density_a_cm2
+    squidstat.potential_at_10ma_cm2_v: potential_at_10ma_cm2_v
+    squidstat.corrected_potential_at_10ma_cm2_v: corrected_potential_at_10ma_cm2_v
+    squidstat.ohmic_resistance_ohm: ohmic_resistance_ohm
+    squidstat.overpotential_v: overpotential_v
+  precondition_constraint_ids: []
   postcondition_constraint_ids: []
 - id: clean-electrode-capability
   provider_id: cleaning-station-device
@@ -1002,14 +1047,15 @@ model_bindings:
   calibration_evidence_ids: []
 - id: ac-oer-model
   implementation_ref: dynamical/instruments/ac_oer.py
-  implementation_sha256: 0f66718a5bf9ea457d7302da2bc3ba9ccf0c200d34ed70c5510e9640159c5f8d
+  implementation_sha256: b5db5023b5d0c727f98cd9b2b1c44f12060550d26d64139147ab370fbe8ebff7
   input_channel_map: {}
   output_channel_map: {}
   parameter_map:
     evidence-class: simulator
     physical-calibration: false
   update_interval_s: 1.0
-  calibration_evidence_ids: [ampere2-oer-cp-2050]
+  calibration_evidence_ids:
+  - ampere2-oer-cp-2050
 - id: ac-cleaning-model
   implementation_ref: dynamical/instruments/ac_cleaning.py
   implementation_sha256: 9d78cd6cc23ff0fe8287a9db598a0811e6c1a04f95e02f1383d6be8278a9a2ec
@@ -1028,6 +1074,18 @@ model_bindings:
   parameter_map:
     verifier-owner: independent-runtime
   update_interval_s: 0.001
+  calibration_evidence_ids: []
+- id: ac-sdl1-oer-model
+  implementation_ref: dynamical/instruments/ac_sdl1_oer.py
+  implementation_sha256: 8aad8752bcc68c974ff469d0208e6336c24f3198d669230fadcc94b9f33075d6
+  input_channel_map: {}
+  output_channel_map: {}
+  parameter_map:
+    evidence-class: simulator
+    physical-calibration: false
+    protocol-ref: protocols/sdl1-oer.json
+    protocol-sha256: 9c188a91282a7c0ce78d137ea7be835b0c6a42b942106f72315a222103500d40
+  update_interval_s: 1.0
   calibration_evidence_ids: []
 adapter_bindings:
 - id: ac-electrodeposition-isaac-adapter
@@ -1231,9 +1289,9 @@ provider_admission_bindings:
   - source-command-only
   - physical-response-unavailable
   required_approval_ids: []
-- id: admitted-ac-oer-measure-oer
+- id: admitted-ac-oer-estimate-oer
   provider_id: ac-oer-simulator
-  operation_id: measure-oer
+  operation_id: estimate-oer
   evidence_classes:
   - simulator
   facility_ids:
@@ -1251,13 +1309,39 @@ provider_admission_bindings:
     subject_id: current_density_a_cm2
     value_type: number
     unit: A/cm^2
-    minimum: 0.02
-    maximum: 0.05
+    enum:
+    - 0.02
+    - 0.05
   safety_limit_ids:
-  - oer-current-density-envelope
+  - ampere2-estimate-current-envelope
   policy_tags:
   - simulation-only
   - fitted-model-calibration-gates-failed
+  required_approval_ids: []
+- id: admitted-ac-sdl1-measure-oer
+  provider_id: ac-sdl1-oer-protocol
+  operation_id: measure-oer
+  evidence_classes:
+  - simulator
+  facility_ids:
+  - ot2-liquid-handling
+  endpoint_id: ac-sdl1-oer-model
+  adapter_links:
+  - adapter_id: dynamical-ac-sdl1-oer-python
+    adapter_version: 0.1.0
+    endpoint_ref: ac-sdl1-oer-model
+  validity_envelope:
+  - subject_kind: parameter
+    subject_id: protocol_id
+    value_type: string
+    unit: '1'
+    enum:
+    - sdl1-oer-2c5a911
+  safety_limit_ids: []
+  policy_tags:
+  - simulation-only
+  - source-protocol-only
+  - physical-response-unavailable
   required_approval_ids: []
 - id: admitted-ac-cleaning-clean-electrode
   provider_id: ac-cleaning-simulator
@@ -1360,12 +1444,12 @@ constraints:
   enforcement: reject
   verifier_binding_id: bounded-constraint-verifier
   constrained_parameter_name: duration_s
-- id: oer-current-density-envelope
+- id: ampere2-estimate-current-envelope
   phase: pre_action
   channel_id: squidstat.current_density_a_cm2
   operator: between
   bound:
-    minimum: 0.01
+    minimum: 0.02
     maximum: 0.05
   unit: A/cm^2
   enforcement: reject

@@ -11,6 +11,7 @@ from dynamical import instruments
 from dynamical.campaign import (
     CampaignValidationError,
     CompiledCampaignContract,
+    _envelope_in_force,
     read_trace,
     run_composed_campaign,
     stable_hash,
@@ -558,6 +559,36 @@ def test_envelope_in_force_is_recorded(completed_trace_path):
     events = read_trace(completed_trace_path)
     actions = [e for e in events if e.action is not None]
     assert actions[0].provenance["envelope_in_force"]
+    condition = next(event for event in actions if event.action.action_id == "condition")
+    assert condition.provenance["envelope_in_force"]["duration_s"]["enum"] == [5.0, 15.0, 30.0]
+    assert condition.provenance["envelope_in_force"]["temperature_setpoint_c"]["enum"] == [35.0]
+    dispense = next(event for event in actions if event.action.action_id == "dispense")
+    assert dispense.provenance["envelope_in_force"]["volume_ml"] == {
+        "unit": "mL",
+        "minimum": 0.0,
+        "maximum": 3.895,
+    }
+
+
+def test_fixed_protocol_selector_is_preserved_in_envelope_receipt():
+    envelope = _envelope_in_force(
+        {
+            "parameters": [
+                {
+                    "name": "protocol_id",
+                    "value_type": "string",
+                    "unit": "1",
+                    "enum": ["fixture-fixed-protocol"],
+                }
+            ]
+        }
+    )
+    assert envelope["protocol_id"] == {
+        "unit": "1",
+        "minimum": None,
+        "maximum": None,
+        "enum": ["fixture-fixed-protocol"],
+    }
 
 
 def test_consumed_cost_and_duration_are_simulator_bookkeeping(completed_trace_path):

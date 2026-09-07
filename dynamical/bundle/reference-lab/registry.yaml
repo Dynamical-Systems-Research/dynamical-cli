@@ -112,18 +112,59 @@ capabilities:
     required_conditions: []
     possible_failures: [unsupported or nonfinite command refused without state mutation, physical response and accuracy unavailable
         without measurements]
+  - operation_id: estimate-oer
+    kind: scientific
+    description: Historical Dynamical AMPERE-2 simulator estimate at 20 or 50 mA/cm^2. Calibration gates failed; this is not
+      the SDL1 source measurement protocol or calibrated evidence.
+    input_ports:
+    - {id: sample.state, state_type: sample_state, unit: '1', required: true, description: 'The sample this measurement reads
+        from. A pure measurement: it does not transform, relocate, or consume the sample, so no new sample.state is produced.
+        The selected provider requires the deposited film''s recorded precursor composition on this state.'}
+    output_ports:
+    - {id: overpotential_v, state_type: number, unit: V, required: true, description: 'Estimated OER overpotential, with the
+        provider-declared uncertainty.'}
+    - {id: current_density_a_cm2, state_type: number, unit: A/cm^2, required: true, description: Echoed current density the
+        estimate was computed at.}
+    parameters:
+    - name: current_density_a_cm2
+      value_type: number
+      unit: A/cm^2
+      required: true
+      enum: [0.02, 0.05]
+    required_conditions: []
+    possible_failures: [the requested current density is outside the fitted basis envelope, the measured sample carries no recorded
+        deposit or precursor composition]
   - operation_id: measure-oer
     kind: scientific
-    description: Estimate OER overpotential from the deposited film's recorded precursor composition and the requested current density. The selected provider determines the calibration basis, evidence class, and validity envelope.
+    description: 'SDL1 complete source measurement protocol: activation at 200 mA/cm^2 for 60 s; two initial CV programs; potentiostatic
+      EIS and derived ohmic resistance; 70 s current steps at 100,50,20,10,5,2,1 mA/cm^2; then two final CV programs. The upstream
+      headline is the iR-corrected potential over the last third of the 10 mA/cm^2 step, not an overpotential. Parameters and
+      extraction semantics are bound in protocols/sdl1-oer.json. Physical responses are unavailable until provenance-bearing
+      measurements are admitted.'
     input_ports:
-      - {id: sample.state, state_type: sample_state, unit: "1", required: true, description: "The sample this measurement reads from. A pure measurement: it does not transform, relocate, or consume the sample, so no new sample.state is produced. The selected provider requires the deposited film's recorded precursor composition on this state."}
+    - {id: sample.state, state_type: sample_state, unit: '1', required: true, description: The stationary electrode sample.
+        The full source protocol includes surface-altering activation and final CVs; no post-test physical state or response
+        is inferred.}
     output_ports:
-      - {id: overpotential_v, state_type: number, unit: V, required: true, description: "Estimated OER overpotential, with the provider-declared uncertainty."}
-      - {id: current_density_a_cm2, state_type: number, unit: A/cm^2, required: true, description: Echoed current density the estimate was computed at.}
+    - {id: current_density_a_cm2, state_type: number, unit: A/cm^2, required: true, description: Nominal current density of
+        the headline step; not measured current.}
+    - {id: potential_at_10ma_cm2_v, state_type: number, unit: V, required: true, description: Unavailable measured potential
+        mean over the last third of the 10 mA/cm^2 step.}
+    - {id: corrected_potential_at_10ma_cm2_v, state_type: number, unit: V, required: true, description: 'Unavailable upstream
+        headline: mean of E - 0.9 R I over the last third of the 10 mA/cm^2 step; potential reference scale is unverified.'}
+    - {id: ohmic_resistance_ohm, state_type: number, unit: ohm, required: true, description: Unavailable impedance-derived ohmic
+        resistance; source extraction is defined in the bound protocol.}
+    - {id: overpotential_v, state_type: number, unit: V, required: true, description: 'Unavailable: any subtraction of 1.229
+        V is a Dynamical convention requiring a verified compatible potential reference, not an upstream headline.'}
     parameters:
-      - {name: current_density_a_cm2, value_type: number, unit: A/cm^2, required: true, minimum: 0.010, maximum: 0.050}
+    - name: protocol_id
+      value_type: string
+      unit: '1'
+      required: true
+      enum: [sdl1-oer-2c5a911]
     required_conditions: []
-    possible_failures: [the requested current density is outside the fitted basis envelope, the measured sample carries no recorded deposit or precursor composition]
+    possible_failures: [protocol response unavailable, reference electrode and potential scale unverified, protocol artifact
+        missing or mismatched]
   - operation_id: clean-electrode
     kind: scientific
     description: Command the upstream test-well rinse/drain sequence in place, retaining the deposit record between deposition
@@ -292,25 +333,64 @@ providers:
     - {adapter_id: dynamical-ac-potentiostat-python, adapter_version: 0.1.0, endpoint_ref: ac-potentiostat-model}
     - {adapter_id: dynamical-ac-squidstat-control, adapter_version: 0.1.0, endpoint_ref: squidstat-device}
   - provider_id: ac-oer-simulator
-    operation_id: measure-oer
+    operation_id: estimate-oer
     evidence_class: simulator
     endpoint_id: ac-oer-model
     facility_ids: [ot2-liquid-handling]
-    availability: {available: true, observed_at: "2026-08-09T00:00:00Z", availability_ref: dynamical/instruments/ac_oer.py}
+    availability: {available: true, observed_at: '2026-08-09T00:00:00Z', availability_ref: dynamical/instruments/ac_oer.py}
     admission:
       status: admitted
       authority_id: dynamical-v0.1-release-authority
       authority_kind: release_authority
       evidence_refs: [dynamical/instruments/ac_oer.py, tests/test_instrument_models.py]
     validity_envelope:
-      - {subject_kind: parameter, subject_id: current_density_a_cm2, value_type: number, unit: A/cm^2, minimum: 0.020, maximum: 0.050}
+    - subject_kind: parameter
+      subject_id: current_density_a_cm2
+      value_type: number
+      unit: A/cm^2
+      enum: [0.02, 0.05]
     cost: {currency: USD, fixed: 0.0}
     duration: {minimum_s: 0.0, typical_s: 120.0, maximum_s: 120.0}
-    failures: [{code: fitted-basis-extrapolation, description: "Current density outside the fitted basis {0.020, 0.050} A/cm^2 is flagged out-of-envelope, not silently extrapolated.", recoverable: true}]
-    policy: {permitted: true, policy_tags: [simulation-only, fitted-model-calibration-gates-failed], safety_limit_ids: [oer-current-density-envelope], required_approval_ids: []}
+    failures:
+    - {code: fitted-basis-extrapolation, description: 'Current density outside the fitted basis {0.020, 0.050} A/cm^2 is flagged
+        out-of-envelope, not silently extrapolated.', recoverable: true}
+    policy:
+      permitted: true
+      policy_tags: [simulation-only, fitted-model-calibration-gates-failed]
+      safety_limit_ids: [ampere2-estimate-current-envelope]
+      required_approval_ids: []
     adapter_links:
-      - {adapter_id: dynamical-ac-oer-python, adapter_version: 0.1.0, endpoint_ref: ac-oer-model}
-      - {adapter_id: dynamical-ac-squidstat-control, adapter_version: 0.1.0, endpoint_ref: squidstat-device}
+    - {adapter_id: dynamical-ac-oer-python, adapter_version: 0.1.0, endpoint_ref: ac-oer-model}
+    - {adapter_id: dynamical-ac-squidstat-control, adapter_version: 0.1.0, endpoint_ref: squidstat-device}
+  - provider_id: ac-sdl1-oer-protocol
+    operation_id: measure-oer
+    evidence_class: simulator
+    endpoint_id: ac-sdl1-oer-model
+    facility_ids: [ot2-liquid-handling]
+    availability: {available: true, observed_at: '2026-09-07T13:29:54.561805+00:00', availability_ref: dynamical/instruments/ac_sdl1_oer.py}
+    admission:
+      status: admitted
+      authority_id: dynamical-v0.1-release-authority
+      authority_kind: release_authority
+      evidence_refs: [dynamical/instruments/ac_sdl1_oer.py, dynamical/bundle/reference-lab/protocols/sdl1-oer.json, tests/test_sdl1_oer_protocol.py]
+    validity_envelope:
+    - subject_kind: parameter
+      subject_id: protocol_id
+      value_type: string
+      unit: '1'
+      enum: [sdl1-oer-2c5a911]
+    cost: {currency: USD, fixed: 0.0}
+    duration: {minimum_s: 0.0, typical_s: 0.0, maximum_s: 0.0}
+    failures:
+    - {code: protocol-response-unavailable, description: 'The source protocol is available; measured response, reference scale
+        and actual elapsed duration are not.', recoverable: true}
+    policy:
+      permitted: true
+      policy_tags: [simulation-only, source-protocol-only, physical-response-unavailable]
+      safety_limit_ids: []
+      required_approval_ids: []
+    adapter_links:
+    - {adapter_id: dynamical-ac-sdl1-oer-python, adapter_version: 0.1.0, endpoint_ref: ac-sdl1-oer-model}
   - provider_id: ac-cleaning-simulator
     operation_id: clean-electrode
     evidence_class: simulator
@@ -439,14 +519,25 @@ providers:
     evidence_class: physical
     endpoint_id: physical-squidstat-endpoint
     facility_ids: [ot2-liquid-handling]
-    availability: {available: false, observed_at: "2026-08-09T00:00:00Z", availability_ref: dynamical/bundle/reference-lab/facility.yaml}
-    admission: {status: pending, authority_id: facility-operator-pending, authority_kind: facility_operator, evidence_refs: []}
+    availability: {available: false, observed_at: '2026-08-09T00:00:00Z', availability_ref: dynamical/bundle/reference-lab/facility.yaml}
+    admission:
+      status: pending
+      authority_id: facility-operator-pending
+      authority_kind: facility_operator
+      evidence_refs: []
     validity_envelope: []
     cost: {currency: USD, fixed: 0.0}
-    duration: {minimum_s: 0.0, typical_s: 120.0, maximum_s: 120.0}
-    failures: [{code: physical-provider-unavailable, description: No admitted physical OER measurement receipt exists., recoverable: true}]
-    policy: {permitted: false, policy_tags: [physical-run-required], safety_limit_ids: [], required_approval_ids: [physical-execution-approval]}
-    adapter_links: [{adapter_id: pending-physical-squidstat-adapter, adapter_version: 0.1.0, endpoint_ref: physical-squidstat-endpoint}]
+    duration: {minimum_s: 0.0, typical_s: 0.0, maximum_s: 0.0}
+    failures:
+    - {code: physical-provider-unavailable, description: No admitted physical SDL1 protocol response or duration receipt exists;
+        zero is unavailable-work bookkeeping., recoverable: true}
+    policy:
+      permitted: false
+      policy_tags: [physical-run-required]
+      safety_limit_ids: []
+      required_approval_ids: [physical-execution-approval]
+    adapter_links:
+    - {adapter_id: pending-physical-squidstat-adapter, adapter_version: 0.1.0, endpoint_ref: physical-squidstat-endpoint}
   - provider_id: physical-ac-clean-electrode-pending
     operation_id: clean-electrode
     evidence_class: physical

@@ -20,8 +20,10 @@ MANIFEST = REFERENCE_LAB / "facility.yaml"
 FASTCAT_LAB = REFERENCE_LAB.parent / "fastcat"
 
 
-def _write_measure_oer_requirement(path: Path) -> Path:
-    """One-step measure-oer requirement used by the authority attack tests."""
+def _write_oer_requirement(path: Path, *, lab: Path) -> Path:
+    """Request the attacked provider's actual operation and supported current point."""
+
+    operation_id = "estimate-oer" if lab == REFERENCE_LAB else "measure-oer"
 
     requirement = {
         "document_type": "dynamical.campaign-requirement",
@@ -34,7 +36,7 @@ def _write_measure_oer_requirement(path: Path) -> Path:
             "proof_requirements": [
                 {
                     "id": "oer-proof",
-                    "operation_id": "measure-oer",
+                    "operation_id": operation_id,
                     "output_port_ids": ["overpotential_v"],
                     "minimum_evidence_class": "simulator",
                     "acceptance_rule": "overpotential_v is recorded",
@@ -53,14 +55,14 @@ def _write_measure_oer_requirement(path: Path) -> Path:
         "steps": [
             {
                 "step_id": "measure",
-                "operation_id": "measure-oer",
+                "operation_id": operation_id,
                 "minimum_evidence_class": "simulator",
                 "parameters": [
                     {
                         "name": "current_density_a_cm2",
                         "value_type": "number",
                         "unit": "A/cm^2",
-                        "value": 0.010,
+                        "value": 0.020 if lab == REFERENCE_LAB else 0.010,
                     }
                 ],
                 "input_bindings": [
@@ -367,7 +369,7 @@ def test_coordinated_authority_rehash_fails_closed(tmp_path: Path, capsys) -> No
 def test_self_admitted_physical_provider_is_demoted_not_trusted(
     tmp_path: Path, capsys, lab: Path, forged_id: str
 ) -> None:
-    """Attack repro: an agent flips every measure-oer provider to ``evidence_class:
+    """Attack repro: an agent flips the targeted OER provider to ``evidence_class:
     physical`` in its own registry and passes that forged registry to both
     ``compose`` and ``compile``.
 
@@ -442,7 +444,7 @@ def test_self_admitted_physical_provider_is_demoted_not_trusted(
     assert provider["proposed_admission"] == "admitted"
     assert any(item["code"] == "PROVIDER_SELF_ADMITTED" for item in inspected["validation_reasons"])
 
-    requirement_path = _write_measure_oer_requirement(tmp_path / "requirement.yaml")
+    requirement_path = _write_oer_requirement(tmp_path / "requirement.yaml", lab=lab)
     composition_path = tmp_path / "composition.json"
     compose_rc = main(
         [
@@ -491,7 +493,7 @@ def test_known_provider_with_modified_safety_fields_is_not_trusted(
     forged_registry = tmp_path / "registry.yaml"
     forged_registry.write_text(yaml.safe_dump(registry, sort_keys=False), encoding="utf-8")
 
-    requirement_path = _write_measure_oer_requirement(tmp_path / "requirement.yaml")
+    requirement_path = _write_oer_requirement(tmp_path / "requirement.yaml", lab=lab)
     composition_path = tmp_path / "composition.json"
     compose_rc = main(
         [

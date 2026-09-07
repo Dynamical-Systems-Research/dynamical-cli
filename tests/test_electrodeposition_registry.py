@@ -131,7 +131,7 @@ def _coverage_requirement(
                     "step_id": "measure",
                     "operation_id": "measure-oer",
                     "minimum_evidence_class": "simulator",
-                    "parameters": [_parameter("current_density_a_cm2", "number", "A/cm^2", 0.020)],
+                    "parameters": [_parameter("protocol_id", "string", "1", "sdl1-oer-2c5a911")],
                     "input_bindings": [_sample_input_binding()],
                     "depends_on": ["clean"],
                     "required_policy_tags": [],
@@ -231,6 +231,9 @@ def _run_coverage_campaign(
                 "instrument.temperature_observed_c",
                 "instrument.residual_volume_ml",
                 "commanded_charge_c",
+                "potential_at_10ma_cm2_v",
+                "corrected_potential_at_10ma_cm2_v",
+                "ohmic_resistance_ohm",
             ):
                 if channel.name == name:
                     summary[name] = channel.value
@@ -254,6 +257,9 @@ def test_coverage_campaign_fails_closed_on_unknown_physical_response(tmp_path: P
         "volume_applied_ml",
         "instrument.temperature_observed_c",
         "instrument.residual_volume_ml",
+        "potential_at_10ma_cm2_v",
+        "corrected_potential_at_10ma_cm2_v",
+        "ohmic_resistance_ohm",
     ):
         assert result[name] is None
     assert result["commanded_charge_c"] == pytest.approx(-0.002827 * 60)
@@ -262,6 +268,19 @@ def test_coverage_campaign_fails_closed_on_unknown_physical_response(tmp_path: P
 
     events = read_trace(tmp_path / "trace.ndjson")
     assert check_invariants(events) == []
+    measurement = next(
+        event.observation
+        for event in events
+        if event.observation and event.observation.provider_id == "ac-sdl1-oer-protocol"
+    )
+    assert (
+        next(
+            channel.value
+            for channel in measurement.channels
+            if channel.name == "current_density_a_cm2"
+        )
+        == 0.01
+    )
 
 
 def test_sample_declared_at_removed_station_holds_before_run():
@@ -290,14 +309,14 @@ def test_tampered_instrument_module_fails_closed_on_declared_hash(
     output as if the declared hash still bound it.
     """
 
-    import dynamical.instruments.ac_oer as ac_oer
+    import dynamical.instruments.ac_sdl1_oer as protocol_model
 
-    tampered = tmp_path / "ac_oer_tampered.py"
+    tampered = tmp_path / "ac_sdl1_oer_tampered.py"
     tampered.write_text(
-        Path(ac_oer.__file__).read_text(encoding="utf-8") + "\n# tampered\n",
+        Path(protocol_model.__file__).read_text(encoding="utf-8") + "\n# tampered\n",
         encoding="utf-8",
     )
-    monkeypatch.setattr(ac_oer, "__file__", str(tampered))
+    monkeypatch.setattr(protocol_model, "__file__", str(tampered))
 
     result = _run_coverage_campaign(tmp_path)
 
@@ -510,3 +529,83 @@ def test_well_cleaning_preserves_deposition_commands_and_existing_film():
     }
     assert result.outputs["instrument.residual_volume_ml"] is None
     assert result.outputs["instrument.acid_commanded_ml"] == 0.5
+
+
+def _measurement_only_requirement(
+    *, operation_id="measure-oer", parameters=None, evidence="simulator"
+):
+    document = _coverage_requirement().model_dump(mode="json")
+    step = document["steps"][-1]
+    step["operation_id"] = operation_id
+    step["depends_on"] = []
+    step["minimum_evidence_class"] = evidence
+    if parameters is not None:
+        step["parameters"] = parameters
+    document["steps"] = [step]
+    document["objective"]["proof_requirements"][0]["operation_id"] = operation_id
+    document["objective"]["proof_requirements"][0]["minimum_evidence_class"] = evidence
+    return CampaignRequirement.model_validate(document)
+
+
+def test_sdl1_measurement_admits_only_the_fixed_source_protocol():
+    result = compose_virtual_sdl(
+        _measurement_only_requirement(), load_capability_registry(REGISTRY)
+    )
+    assert result.status == "COMPILED", result.reason_codes
+    assert result.virtual_sdl is not None
+    binding = result.virtual_sdl.operation_bindings[0]
+    assert binding.operation_id == "measure-oer"
+    assert binding.provider_id == "ac-sdl1-oer-protocol"
+    assert [(item.name, item.value) for item in binding.parameters] == [
+        ("protocol_id", "sdl1-oer-2c5a911")
+    ]
+
+
+@pytest.mark.parametrize("current", [0.01, 0.02, 0.2])
+def test_current_only_measurement_does_not_bypass_the_sdl1_protocol(current):
+    requirement = _measurement_only_requirement(
+        parameters=[_parameter("current_density_a_cm2", "number", "A/cm^2", current)]
+    )
+    result = compose_virtual_sdl(requirement, load_capability_registry(REGISTRY))
+    assert result.status == "HOLD"
+    assert result.virtual_sdl is None
+    assert {
+        reason.code for reason in result.reasons if reason.provider_id == "ac-sdl1-oer-protocol"
+    } == {"MISSING_PARAMETER", "UNKNOWN_PARAMETER"}
+
+
+@pytest.mark.parametrize("current", [0.02, 0.05])
+def test_ampere_estimation_keeps_its_separate_simulator_basis(current):
+    requirement = _measurement_only_requirement(
+        operation_id="estimate-oer",
+        parameters=[_parameter("current_density_a_cm2", "number", "A/cm^2", current)],
+    )
+    result = compose_virtual_sdl(requirement, load_capability_registry(REGISTRY))
+    assert result.status == "COMPILED", result.reason_codes
+    assert result.virtual_sdl is not None
+    binding = result.virtual_sdl.operation_bindings[0]
+    assert binding.provider_id == "ac-oer-simulator"
+    assert binding.evidence_class == "simulator"
+
+
+def test_physical_sdl1_protocol_remains_unadmitted():
+    result = compose_virtual_sdl(
+        _measurement_only_requirement(evidence="physical"), load_capability_registry(REGISTRY)
+    )
+    assert result.status == "HOLD"
+    assert result.virtual_sdl is None
+    assert "PROVIDER_NOT_ADMITTED" in result.reason_codes
+
+
+@pytest.mark.parametrize("current", [0.01, 0.2])
+def test_sdl1_protocol_currents_do_not_expand_ampere_estimator_validity(current):
+    requirement = _measurement_only_requirement(
+        operation_id="estimate-oer",
+        parameters=[_parameter("current_density_a_cm2", "number", "A/cm^2", current)],
+    )
+    result = compose_virtual_sdl(requirement, load_capability_registry(REGISTRY))
+    assert result.status == "HOLD"
+    assert any(
+        reason.provider_id == "ac-oer-simulator" and reason.code == "VALUE_OUT_OF_RANGE"
+        for reason in result.reasons
+    )

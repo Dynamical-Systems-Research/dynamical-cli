@@ -54,6 +54,7 @@ CURRENT_DENSITY_MIN_A_CM2 = 0.020
 CURRENT_DENSITY_MAX_A_CM2 = 0.050
 
 
+@register("estimate-oer", "ac-oer-simulator")
 @register("measure-oer", "ac-oer-simulator")
 def measure_oer(request: InstrumentRequest) -> InstrumentResult:
     j = float(request.parameters["current_density_a_cm2"])

@@ -2168,6 +2168,8 @@ def _envelope_in_force(capability: Mapping[str, Any]) -> dict[str, Any]:
             "minimum": spec.get("minimum"),
             "maximum": spec.get("maximum"),
         }
+        if spec.get("enum") is not None:
+            envelope[name]["enum"] = spec["enum"]
     return envelope
 
 
