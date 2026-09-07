@@ -84,6 +84,44 @@ License: MIT.
 The raw dataset (1.5 GB) is not redistributed here; the calibration evidence
 records its source URL, retrieval hashes, and extraction procedure.
 
+## FastCat physical dataset
+
+The frozen FastCat OER prediction table and calibration evidence derive from
+*Multimetallic OER Catalyst Discovery Dataset from Autonomous Robotic Synthesis
+and Electrochemical Characterization*, version 1 (2025-06-27), by Nis
+Fisker-Bødker, Jin Hyun Chang, Enzo Raffaele Moretti, and Tejs Vegge.
+DOI [10.11583/DTU.28494185.v1](https://doi.org/10.11583/DTU.28494185.v1).
+
+Copyright (c) Technical University of Denmark, 2025. The DTU dataset record
+identifies the license as MIT; its README and plotting scripts carry the DTU
+copyright notice. This is a different platform from AC SDL1. Dynamical authored
+the fitted predictor and frozen prediction table; neither is AC model code.
+The raw dataset is not redistributed.
+
+```
+MIT License
+
+Copyright (c) Technical University of Denmark, 2025
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
 ## Non-endorsement
 
 No endorsement is implied by the Acceleration Consortium, the Technical

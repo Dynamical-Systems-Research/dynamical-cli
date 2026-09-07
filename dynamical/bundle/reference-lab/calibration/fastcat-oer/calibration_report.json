@@ -11,6 +11,37 @@
     "method": "split-conformal, one fixed pipeline"
   },
   "output": "overpotential_v = E@10mA - 1.229 V (O2/H2O vs RHE), at exactly 0.010 A/cm^2",
+  "pool_evaluation": {
+    "cohort": "54 causal-pool compositions; distinct from the original 27-composition validation cohort",
+    "coverage_at_frozen_q": 0.9074074074074074,
+    "evaluation_role": "post-study evaluation; not a new calibration or an admission decision",
+    "interval_gate": {
+      "decision": "retain the frozen constant half-width",
+      "passed": false,
+      "per_row_coverage": 0.7592592592592593,
+      "width_error_bootstrap_lower_bound": -0.10402660917750857,
+      "width_error_spearman": 0.09718933233607131
+    },
+    "limitations": [
+      "The original validation MAE does not describe accuracy on these pool compositions.",
+      "FastCat data have been used for training, development, validation and pool evaluation; no untouched cohort remains for another held-out validation.",
+      "Single-run labels do not establish composition-specific measurement uncertainty."
+    ],
+    "mae_mv": 48.41002462489007,
+    "n_compositions": 54,
+    "replicated_labels": 11,
+    "single_run_labels": 43,
+    "source_record": {
+      "aggregate_result_lines": [
+        7938,
+        7950
+      ],
+      "gate_freeze_commit": "0ccde54",
+      "report": "provider/INTERVAL_GATE_EVAL.json",
+      "study_commit": "e3f4a51",
+      "transcript_id": "40d0d5f8-9142-4306-b582-7f48b6bf1af6"
+    }
+  },
   "provider_id": "ac-oer-twin",
   "schema_version": "ac-oer-twin.calibration-report.v1",
   "study_provenance_sha256": {

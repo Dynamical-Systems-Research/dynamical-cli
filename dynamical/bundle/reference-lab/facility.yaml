@@ -1606,7 +1606,7 @@ calibration_evidence:
   - squidstat.current_density_a_cm2
   condition_domain:
     squidstat.current_density_a_cm2: exactly 0.010 A/cm^2 (calibrated basis; chronopotentiometry tail medians per the frozen protocol)
-    squidstat.overpotential_v: predicted only for the 72 frozen-table compositions under the frozen per-pool conditioning; one-time sealed validation passed 9/9 predeclared gates (MAE 22.2 mV)
+    squidstat.overpotential_v: predicted only for the 72 frozen-table compositions under the frozen per-pool conditioning; the original 27-composition validation passed 9/9 predeclared gates (MAE 22.2 mV); the later 54-composition causal-pool evaluation had MAE 48.4 mV
   validation_design: cross_condition
   metrics:
   - name: held-out-e10-mae
@@ -1636,10 +1636,13 @@ calibration_evidence:
   limitations:
   - The calibrated basis is exactly 0.010 A/cm^2; no other current density is predicted.
   - Predictions exist only for the 72 frozen-table compositions under the frozen per-pool conditioning; all other compositions are refused.
-  - Held-out labels are predominantly single physical runs; the certified replicate noise floor (20.8 mV median within-replicate SD) bounds achievable residuals.
+  - The later 54-composition causal-pool evaluation had MAE 48.4 mV; 43 labels were single physical runs and 11 had replicates. This is a distinct cohort from the original 27-composition validation (MAE 22.2 mV).
+  - The reported replicate variability is 20.8 mV median within-replicate SD; it is not a composition-specific uncertainty estimate or a deterministic lower bound on prediction error.
+  - The per-row interval gate failed on the pool evaluation; the frozen constant interval covered 49 of 54 labels (0.907). The constant half-width stays unchanged.
+  - No untouched FastCat cohort remains for another held-out validation; these results do not authorize recalibration or stronger predictive claims.
   - The interval half-width (0.104969 V at 90% target coverage) reflects split-conformal calibration on 22 development compositions.
   split_rule_ref: calibration/fastcat-oer/calibration_report.json
-  split_rule_sha256: c4d79ebe0836575f09c09002560670e844e9532462c6fe617bd071fa629d8c79
+  split_rule_sha256: 4a0c612a870ba532380f60a571e7f28d80ffd9a5aa45db872d13b473c2e77dc3
   fit_artifact_ref: calibration/fastcat-oer/prediction_table.json
   fit_artifact_sha256: 098245794ec3925a16777b3df18eb9fcaf06816588f46cd562dbd8b957fb2728
 - id: ampere2-oer-cp-2050
