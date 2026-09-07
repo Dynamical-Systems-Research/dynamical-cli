@@ -13,6 +13,7 @@ FastCat interval revision remains recorded.
 - Compose selects the installed facility from the requirement's declared source
   workstation; `--facility` overrides selection. Registry defaults follow that
   selection. HOLD and capability errors explain facility discovery and recovery.
+  Unknown-operation recovery lists capabilities when neither facility supports it.
 - Correct the SDL1 display name, Ni-tape working electrode and carried tool roles.
   Remove the old workstation/asset IDs and label schematic geometry assumptions.
 - Replace ultrasound power percentage with Arduino temperature and timed-relay
@@ -20,7 +21,8 @@ FastCat interval revision remains recorded.
   cathodic −0.002827 A / 60 s deposition with Arduino temperature setup.
 - Replace cleaning volume/time parameters with `use_acid` and `acid_dwell_s`;
   preserve deposit history. Pipettes dispense; pumps rinse/drain. Electrolyte
-  volume retains its requested precision; mixture aliquots truncate to integer µL.
+  volume retains requested precision as a declared Dynamical bookkeeping convention;
+  upstream's integer-input limitation is explicit. Mixture aliquots truncate to integer µL.
 - Rename source-command output ports: ultrasound/temperature commands, nominal
   pipette volume and `commanded_charge_c`. Unknown physical delivery, temperature,
   deposited mass/thickness and residual liquid remain null. Source-command

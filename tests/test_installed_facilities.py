@@ -278,5 +278,13 @@ def test_unknown_operation_and_facility_explain_installed_selection(capsys):
     assert main(["capabilities", "--operation", "deposit-chemical-bath", "--json"]) == 2
     error = capsys.readouterr().err
     assert "--facility fastcat --operation deposit-chemical-bath --json" in error
+    for facility in ("sdl1", "fastcat"):
+        assert main(["capabilities", "--facility", facility, "--operation", "not-installed"]) == 2
+        error = capsys.readouterr().err
+        recovery = error.split("Next: ", 1)[1].strip().split()
+        assert "--operation" not in recovery
+        assert "--json" not in recovery
+        assert main(recovery[1:]) == 0
+        assert "Registry:" in capsys.readouterr().out
     assert main(["capabilities", "--facility", "bogus"]) == 2
     assert "installed facilities: sdl1, fastcat" in capsys.readouterr().err

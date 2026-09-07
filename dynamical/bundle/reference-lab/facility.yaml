@@ -55,8 +55,10 @@ facility:
   - This bundle supplies no measured SDL1 campaign rows or calibrated physical response predictions.
   - A compiled stage proves scene composition only. Embodied evidence needs a preserved real execution trace, render,
     replay, and inspection. No physical execution is claimed.
-  - SDL1 adapters record source-defined commands only. Mixture aliquoting truncates to integer uL; electrolyte dispensing
-    preserves its nominal volume. Both issue commands in strokes no greater than 1000 uL. The 3.895 mL admission
+  - Mixture aliquoting follows upstream integer-uL truncation. Fractional electrolyte volumes are Dynamical nominal
+    bookkeeping; the upstream range loop requires Python integer mL inputs (experiment.py:1433-1456), and the example
+    supplies integer 3. This extension does not establish upstream execution or measured delivery. Upstream pipette
+    strokes are at most 1000 uL. The 3.895 mL admission
     cap follows the labware definition; parameters.py declares 3.9 mL and the main recipe uses 2.5 mL bath plus
     a later 3 mL electrolyte fill. Command inventory is not measured delivered volume.
   - The reference deposition command is cathodic -0.002827 A at a 35 degC setpoint for 60 s (the upstream function

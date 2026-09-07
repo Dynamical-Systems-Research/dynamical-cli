@@ -24,8 +24,8 @@ capabilities:
       state_type: number
       unit: mL
       required: true
-      description: Nominal pipette volume command; this electrolyte path does not truncate to integer microlitres.
-        No measured delivery.
+      description: Nominal volume bookkeeping; preserving fractional mL is a Dynamical convention, not upstream
+        execution or measured delivery. The pinned upstream range loop requires Python integer mL inputs.
     - id: volume_applied_ml
       state_type: number
       unit: mL

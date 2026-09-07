@@ -268,12 +268,19 @@ def main(argv: Sequence[str] | None = None) -> int:
                     available = ", ".join(
                         sorted(item.operation_id for item in registry.capabilities)
                     )
+                    other_alias = "fastcat" if bundle == SDL1 else "sdl1"
+                    other_registry = load_capability_registry(
+                        ALIASES[other_alias] / "registry.yaml"
+                    )
+                    next_command = f"dynamical capabilities --facility {other_alias}"
+                    if any(
+                        item.operation_id == args.operation for item in other_registry.capabilities
+                    ):
+                        next_command += f" --operation {shlex.quote(args.operation)} --json"
                     raise ValueError(
                         f"unknown operation {args.operation!r}; available operations: {available}\n"
                         "Installed facilities: sdl1, fastcat. Select the requirement's facility.\n"
-                        f"Next: dynamical capabilities --facility "
-                        f"{'fastcat' if bundle == SDL1 else 'sdl1'} "
-                        f"--operation {shlex.quote(args.operation)} --json"
+                        f"Next: {next_command}"
                     )
                 result = {
                     "schema_version": "dynamical.capability-detail.v1",

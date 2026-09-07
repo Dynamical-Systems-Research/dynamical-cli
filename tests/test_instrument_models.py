@@ -367,7 +367,7 @@ def test_command_bookkeeping_does_not_claim_physically_applied_parameters(
     assert result.reasons == []
 
 
-def test_aliquot_truncation_is_distinct_from_electrolyte_dispensing():
+def test_fractional_electrolyte_bookkeeping_is_a_dynamical_convention():
     request = _request(_bath_sample(), volume_ml=1.0009, chemical="Ni")
     aliquot = instruments.resolve("aliquot-to-well", "ac-ot2-simulator")(request)
     dispense = instruments.resolve("dispense-electrolyte", "ac-ot2-simulator")(request)

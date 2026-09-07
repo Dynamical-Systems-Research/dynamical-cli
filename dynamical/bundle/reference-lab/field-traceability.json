@@ -2983,7 +2983,7 @@
       },
       "/facility/claim_boundary/9": {
         "classification": "dynamical_convention",
-        "value_sha256": "88247bb867a8355f3a7891232f5f560d9facbebd616477eeb05139ee505bcb5d"
+        "value_sha256": "fd6df38d2ff5f8021ed63f0d44a1797472d3945143a41c6ed1c71ec6a46a05b9"
       },
       "/facility/frame/length_unit": {
         "classification": "dynamical_convention",
@@ -9857,17 +9857,16 @@
       "value_sha256": "505d9af85447a6a2609aa9caa7a5833b5414299782c657b3290d6bcac6f0c32e"
     },
     {
-      "claim_limit": "A source-defined command or analysis rule only; this does not prove delivered settings, response accuracy or predictive calibration.",
-      "classification": "upstream_protocol",
-      "derivation": "dispense-electrolyte.volume_commanded_ml: Nominal pipette command after integer-microlitre encoding; no delivery measurement. Any summed or integrated nominal command is computed by the cited adapter; physical delivery is not inferred.",
+      "claim_limit": "No assertion that fractional inputs execute upstream or that nominal volume was physically delivered.",
+      "classification": "dynamical_convention",
+      "derivation": "The adapter preserves fractional nominal mL. Upstream scales mL to uL then uses Python range, requiring integer input; fractional handling is a Dynamical bookkeeping extension.",
       "document": "registry.yaml",
       "pointer": "/capabilities/0/output_ports/1/description",
       "source_ids": [
         "cap-adapter-ac_opentron",
-        "cap-pipette-int",
-        "cap-pipette-strokes"
+        "cap-electrolyte-pipette"
       ],
-      "value_sha256": "de31d2d528bf448e82be46b650bc5a1bddfb610b935dd0616ab6e2f7429c7687"
+      "value_sha256": "c2a8de4c1df14f8f3c947b00cc14b68f1fdeb775e352104738ce68102dc08e1e"
     },
     {
       "claim_limit": "A source-defined command or analysis rule only; this does not prove delivered settings, response accuracy or predictive calibration.",
@@ -11311,7 +11310,7 @@
       "kind": "upstream_file",
       "locator": {
         "line_end": 1460,
-        "line_start": 1455
+        "line_start": 1432
       },
       "path": "example/experiment.py",
       "revision": "2c5a911",
