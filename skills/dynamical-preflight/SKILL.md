@@ -1,11 +1,15 @@
 ---
 name: dynamical-preflight
-description: Build a source-bound map of a laboratory starting environment and freeze the smallest verified state for a Dynamical campaign. Use before composition when raw experimental, calibration, model, instrument, or facility records define the starting state. Return READY or a material HOLD without admitting providers or granting physical or qualification authority.
+description: Freeze a verified starting state before a Dynamical campaign is composed. Use when someone has lab records such as calibration reports, instrument logs, custody or sample spreadsheets, or prior campaign artifacts, and wants to start, continue, or branch a campaign, or asks where to start. Returns READY or HOLD; admits nothing.
 ---
 
 # Dynamical Preflight
 
 Map the starting scientific environment, then freeze its supported campaign state.
+
+Return the exact command for every Dynamical operation you name. A step
+described without its command is incomplete; do not paraphrase a command
+into prose.
 
 ```text
 raw records and installed contracts
@@ -15,9 +19,9 @@ raw records and installed contracts
 → Dynamical compose
 ```
 
-This skill ends at the compose handoff. `$dynamical` owns campaign execution,
-runtime lineage, replay, and branches. `$dynamical-instrument` assesses a missing
-capability and can create only a pending proposal.
+This skill ends at the compose handoff. The `dynamical` skill owns campaign
+execution, runtime lineage, replay, and branches. The `dynamical-instrument`
+skill assesses a missing capability and can create only a pending proposal.
 
 ## Discover the bounded baseline
 
@@ -78,17 +82,24 @@ known sides of incomplete state.
 Ask the user only when a missing fact can change state, reconstruction, the campaign,
 evidence class, or authority. Use the native question tool. Group one to three short
 questions and state why each answer matters. Keep `HOLD` when the user cannot resolve
-the gap. Route a real missing capability to `$dynamical-instrument`; do not admit it.
+the gap. Route a real missing capability to the `dynamical-instrument` skill; do not admit it.
 
 ## Freeze once
 
 Run the deterministic finalizer with exact compose inputs:
 
 ```bash
-python skills/dynamical-preflight/scripts/validate_receipt.py mapping.json \
-  --requirement requirement.yaml --registry registry.yaml \
+uv tool run --from dynamical-cli python \
+  "${CLAUDE_PLUGIN_ROOT:-$CODEX_HOME/skills}/dynamical-preflight/scripts/validate_receipt.py" \
+  mapping.json --requirement requirement.yaml --registry registry.yaml \
   --facility facility.yaml --output preflight.json
 ```
+
+The finalizer imports the installed `dynamical` package, so it must run inside
+the environment that provides it. A bare `python`/`python3` on `PATH` will fail
+with `ModuleNotFoundError: No module named 'dynamical'` when the CLI was
+installed with `uv tool install dynamical-cli`. Inside a cloned repository, use
+`uv run python skills/dynamical-preflight/scripts/validate_receipt.py` instead.
 
 The finalizer hashes sources, assigns IDs, resolves links, checks cutoff closure,
 selects state facts and relations, derives `READY` or `HOLD`, binds the existing

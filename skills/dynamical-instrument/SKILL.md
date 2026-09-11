@@ -1,9 +1,13 @@
 ---
 name: dynamical-instrument
-description: Assess source evidence and create the smallest supported pending Dynamical integration for a computational model, experimental dataset, instrument, or facility interface. Use when an agent must map partial or complete source material to simulator, archived-replay, calibrated-twin, or physical-proposal contracts, or when a campaign HOLD identifies a missing capability. Keep evidence limits explicit; do not grant provider admission, facility approval, or physical authority.
+description: Turn source material for a model, dataset, instrument, or facility into the smallest pending Dynamical integration. Use when a campaign HOLDs on a missing capability, or when someone wants to onboard a simulator, archived data, a calibrated twin, or a hardware API. Proposes only; grants no admission or physical authority.
 ---
 
 # Dynamical Instrument
+
+Return the exact command for every Dynamical operation you name. A step
+described without its command is incomplete; do not paraphrase a command
+into prose.
 
 For a first proposal, start with the [provider-onboarding example](https://github.com/Dynamical-Systems-Research/dynamical-cli/tree/main/examples/provider-onboarding).
 
