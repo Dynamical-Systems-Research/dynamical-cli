@@ -897,6 +897,10 @@ def test_preflight_waiver_is_recorded_in_the_compose_receipt(tmp_path: Path, cap
     assert receipt["next_command"] == f"dynamical compile {composition} -o compiled-world"
     saved = json.loads(composition.read_text(encoding="utf-8"))
     assert saved["sources"].get("preflight") is None
+    # The waiver is part of the artifact, not only of the stdout receipt.
+    assert saved["sources"]["preflight_skip"] == {"reason": NO_PREFLIGHT[-1]}
+    assert main(["validate", str(composition), "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["valid"] is True
 
     assert main(["compose", str(requirement), *NO_PREFLIGHT]) == 0
     payload = json.loads(capsys.readouterr().out)
@@ -940,7 +944,9 @@ def test_receipt_chain_names_the_next_command_at_every_step(
     assert simulated["next_command"] == "dynamical validate trace.ndjson --json"
     validated = run(simulated["next_command"])
     assert validated["valid"] is True
-    assert validated["next_command"] == "dynamical run trace.ndjson --mode replay -o replay.ndjson"
+    assert validated["next_command"] == (
+        "dynamical run trace.ndjson --mode replay -o trace.replay.ndjson"
+    )
     # Without the branch worlds, validate names the restore point as data, not as a
     # command it cannot complete.
     assert "branch_command" not in validated
@@ -951,7 +957,7 @@ def test_receipt_chain_names_the_next_command_at_every_step(
     assert validated["core_ir_sha256"] == compiled["core_ir_sha256"]
     replayed = run(validated["next_command"])
     assert replayed["mode"] == "replay"
-    assert replayed["next_command"] == "dynamical validate replay.ndjson --json"
+    assert replayed["next_command"] == "dynamical validate trace.replay.ndjson --json"
     replay_validated = run(replayed["next_command"])
     assert replay_validated["valid"] is True
     assert "next_command" not in replay_validated
@@ -967,7 +973,7 @@ def test_receipt_chain_names_the_next_command_at_every_step(
     assert main(["validate", "trace.ndjson"]) == 0
     text = capsys.readouterr().out
     assert text.startswith("VALID: trace.ndjson")
-    assert "Next: dynamical run trace.ndjson --mode replay -o replay.ndjson" in text
+    assert "Next: dynamical run trace.ndjson --mode replay -o trace.replay.ndjson" in text
 
     # The run receipt printed without -o names validate for the default output.
     assert main(["run", "compiled-world"]) == 0
@@ -1022,3 +1028,140 @@ def test_branch_command_is_fully_resolved_or_absent(tmp_path: Path, capsys, monk
         args = ["validate", artifact, "--json", "--compiled-world", "parent-world"]
         assert main([*args, "--child-world", "child-world"]) == 2
         assert "apply to a valid simulate trace" in capsys.readouterr().err
+
+
+def test_hold_recovery_with_a_stale_receipt_names_a_rebind_not_a_reuse(
+    tmp_path: Path, capsys, monkeypatch
+) -> None:
+    """A receipt bound to the wrong facility cannot compose against the right one;
+    the HOLD recovery must freeze the same map against the declared facility, not
+    hand back the stale receipt with a switched --facility."""
+
+    from _fixtures import write_reference_mapping
+
+    monkeypatch.chdir(tmp_path)
+    Path("fc-req.yaml").write_bytes(
+        (REPOSITORY / "examples" / "fastcat-oer" / "requirement.yaml").read_bytes()
+    )
+    write_reference_mapping(tmp_path)
+    preflight = ["preflight", "mapping.json", "--requirement", "fc-req.yaml"]
+    assert main([*preflight, "--facility", "sdl1", "-o", "sdl1bound.json"]) == 0
+    capsys.readouterr()
+    stale = Path("sdl1bound.json").read_bytes()
+
+    compose = ["compose", "fc-req.yaml", "--preflight", "sdl1bound.json", "--facility", "sdl1"]
+    assert main([*compose, "-o", "composition.json"]) == 1
+    hold = json.loads(capsys.readouterr().out)
+    assert hold["status"] == "HOLD"
+    recovery = shlex.split(hold["next_command"])
+    assert recovery[:2] == ["dynamical", "preflight"]
+    assert "--preflight" not in recovery
+    assert recovery[recovery.index("--facility") + 1] == "fastcat"
+    assert recovery[-2:] == ["-o", "sdl1bound.fastcat.json"]
+
+    # The recovery runs as written, and its own next command composes.
+    assert main(recovery[1:]) == 0
+    rebound = json.loads(capsys.readouterr().out)
+    assert rebound["status"] == "READY"
+    assert main(shlex.split(rebound["next_command"])[1:]) == 0
+    composed = json.loads(capsys.readouterr().out)
+    assert composed["status"] == "COMPILED"
+    assert composed["preflight"]["state_id"] == rebound["state_id"]
+    assert Path("sdl1bound.json").read_bytes() == stale
+
+    # A receipt that does not record its map gets the inspection hint, not a guess.
+    receipt = json.loads(stale)
+    del receipt["mapping"]
+    Path("unmapped.json").write_text(json.dumps(receipt), encoding="utf-8")
+    compose = ["compose", "fc-req.yaml", "--preflight", "unmapped.json", "--facility", "sdl1"]
+    assert main([*compose, "-o", "composition.json"]) == 1
+    hold = json.loads(capsys.readouterr().out)
+    assert hold["next_command"] == "dynamical capabilities --facility sdl1"
+    assert "--preflight" not in hold["next_command"]
+
+
+def test_waiver_persists_without_moving_content_hashes(tmp_path: Path, capsys) -> None:
+    """The persisted waiver enters resolution_sha256 (the artifact's identity) and
+    nothing else: the content hashes of a waived and a receipt-bound composition of
+    the same requirement are equal, and a composition without a waiver has no key."""
+
+    from _fixtures import write_reference_mapping
+    from pydantic import ValidationError
+
+    from dynamical.composition import CompositionSources, PreflightSkip
+
+    requirement = write_reference_requirement(tmp_path / "requirement.yaml")
+    mapping = write_reference_mapping(tmp_path)
+    receipt = tmp_path / "preflight.json"
+    assert (
+        main(["preflight", str(mapping), "--requirement", str(requirement), "-o", str(receipt)])
+        == 0
+    )
+    capsys.readouterr()
+    bound, waived = tmp_path / "bound.json", tmp_path / "waived.json"
+    assert main(["compose", str(requirement), "--preflight", str(receipt), "-o", str(bound)]) == 0
+    capsys.readouterr()
+    assert main(["compose", str(requirement), *NO_PREFLIGHT, "-o", str(waived)]) == 0
+    capsys.readouterr()
+    bound_doc = json.loads(bound.read_text(encoding="utf-8"))
+    waived_doc = json.loads(waived.read_text(encoding="utf-8"))
+
+    assert bound_doc["composition_sha256"] == waived_doc["composition_sha256"]
+    assert bound_doc["request_sha256"] == waived_doc["request_sha256"]
+    assert bound_doc["resolution_sha256"] != waived_doc["resolution_sha256"]
+    assert "preflight_skip" not in bound_doc["sources"]
+    assert "preflight" not in waived_doc["sources"]
+    assert waived_doc["sources"]["preflight_skip"] == {"reason": NO_PREFLIGHT[-1]}
+    assert main(["compile", str(waived), "-o", str(tmp_path / "waived-world")]) == 0
+    capsys.readouterr()
+
+    with pytest.raises(ValidationError):
+        PreflightSkip(reason="")
+    with pytest.raises(ValidationError, match="cannot both bind"):
+        CompositionSources.model_validate(
+            {**waived_doc["sources"], "preflight": bound_doc["sources"]["preflight"]}
+        )
+
+
+def test_replay_never_overwrites_its_source(tmp_path: Path, capsys, monkeypatch) -> None:
+    """A simulate trace named replay.ndjson is the trap: validate's replay command
+    must not name the source as its output, and replay must refuse the alias even
+    when asked directly, including through a symlink."""
+
+    from dynamical.campaign import CampaignValidationError
+    from dynamical.replay import replay_trace
+
+    monkeypatch.chdir(tmp_path)
+    requirement = write_reference_requirement(tmp_path / "requirement.yaml")
+    assert main(["compose", str(requirement), *NO_PREFLIGHT, "-o", "composition.json"]) == 0
+    capsys.readouterr()
+    assert main(["compile", "composition.json", "-o", "compiled-world"]) == 0
+    capsys.readouterr()
+    Path("sub").mkdir()
+    assert main(["run", "compiled-world", "-o", "sub/replay.ndjson"]) == 0
+    capsys.readouterr()
+    source = Path("sub/replay.ndjson")
+    before = source.read_bytes()
+
+    assert main(["validate", "sub/replay.ndjson", "--json"]) == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report["next_command"] == (
+        "dynamical run sub/replay.ndjson --mode replay -o sub/replay.replay.ndjson"
+    )
+    assert main(shlex.split(report["next_command"])[1:]) == 0
+    capsys.readouterr()
+    assert source.read_bytes() == before
+    assert Path("sub/replay.replay.ndjson").is_file()
+
+    assert main(["run", "sub/replay.ndjson", "--mode", "replay", "-o", "sub/replay.ndjson"]) == 2
+    assert "aliases the source trace" in capsys.readouterr().err
+    assert source.read_bytes() == before
+
+    Path("sub/alias.ndjson").symlink_to("replay.ndjson")
+    assert main(["run", "sub/replay.ndjson", "--mode", "replay", "-o", "sub/alias.ndjson"]) == 2
+    assert "aliases the source trace" in capsys.readouterr().err
+    assert source.read_bytes() == before
+
+    with pytest.raises(CampaignValidationError, match="aliases the source trace"):
+        replay_trace(source, source)
+    assert source.read_bytes() == before

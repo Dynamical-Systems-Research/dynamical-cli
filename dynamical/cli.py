@@ -103,6 +103,39 @@ def _branch_command(
     )
 
 
+def _preflight_rebind_command(receipt: Path, requirement: Path, facility_alias: str) -> str | None:
+    """The exact preflight that freezes a receipt's map against another facility.
+
+    Returns None when the receipt does not record its map or the map is gone; the
+    caller then keeps the capability-inspection hint rather than guessing a path.
+    """
+
+    try:
+        recorded = json.loads(receipt.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    mapping = recorded.get("mapping") if isinstance(recorded, dict) else None
+    mapping_path = (
+        Path(mapping["path"]) if isinstance(mapping, dict) and mapping.get("path") else None
+    )
+    if mapping_path is None or not mapping_path.is_file():
+        return None
+    rebound = receipt.with_name(f"{receipt.stem}.{facility_alias}{receipt.suffix or '.json'}")
+    return shlex.join(
+        [
+            "dynamical",
+            "preflight",
+            str(mapping_path),
+            "--requirement",
+            str(requirement),
+            "--facility",
+            facility_alias,
+            "-o",
+            str(rebound),
+        ]
+    )
+
+
 def _print_json(value: object, *, compact: bool = False) -> None:
     if compact:
         print(json.dumps(value, sort_keys=True, separators=(",", ":")))
@@ -431,6 +464,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                 registry=args.registry,
                 facility=args.facility,
             )
+            # Record the map this receipt froze, so a later recovery (a facility
+            # rebind after a HOLD) can name the exact preflight to run again.
+            receipt["mapping"] = {
+                "path": str(args.mapping.resolve()),
+                "sha256": hashlib.sha256(args.mapping.read_bytes()).hexdigest(),
+            }
             ready = receipt["status"] == "READY"
             if ready:
                 # The chain entry: the exact compose handoff, with the selectors the
@@ -739,6 +778,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
         if args.command == "compose":
             from .composition import (
+                PreflightSkip,
                 authority_hold_reasons,
                 compose_files,
                 demote_untrusted_admissions,
@@ -877,6 +917,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.facility,
                 installed_registry=installed_registry,
                 preflight_binding=preflight_binding,
+                preflight_skip=PreflightSkip(reason=args.reason) if args.no_preflight else None,
             )
             routing_hint = {}
             if result.status == "HOLD":
@@ -891,20 +932,30 @@ def main(argv: Sequence[str] | None = None) -> int:
                     suggested_alias = next(
                         name for name, root in ALIASES.items() if root == suggested
                     )
-                    command = [
-                        "dynamical",
-                        "compose",
-                        str(args.requirement),
-                        "--facility",
-                        suggested_alias,
-                    ]
-                    if args.output is not None:
-                        command.extend(["-o", str(args.output)])
-                    if args.preflight is not None:
-                        command.extend(["--preflight", str(args.preflight)])
-                    if args.no_preflight:
-                        command.extend(["--no-preflight", "--reason", args.reason])
-                    routing_hint["next_command"] = shlex.join(command)
+                    if args.preflight is None:
+                        # No receipt in play: re-compose against the declared facility,
+                        # carrying the waiver that let this compose run at all.
+                        command = [
+                            "dynamical",
+                            "compose",
+                            str(args.requirement),
+                            "--facility",
+                            suggested_alias,
+                        ]
+                        if args.output is not None:
+                            command.extend(["-o", str(args.output)])
+                        if args.no_preflight:
+                            command.extend(["--no-preflight", "--reason", args.reason])
+                        routing_hint["next_command"] = shlex.join(command)
+                    else:
+                        rebind = _preflight_rebind_command(
+                            args.preflight, args.requirement, suggested_alias
+                        )
+                        if rebind is not None:
+                            # The receipt is bound to the wrong facility's records, so
+                            # reusing it cannot compose; freeze the same map against the
+                            # declared facility instead.
+                            routing_hint["next_command"] = rebind
             untrusted_admissions = [
                 item.model_dump(mode="json", exclude_none=True) for item in self_admission_reasons
             ]
@@ -1026,8 +1077,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 kind = report.get("kind")
                 path_arg = str(args.path)
                 if kind == "campaign" and report.get("mode") == "simulate":
+                    # Derived from the source stem so the command can never name its
+                    # own source as the output; replay refuses that alias regardless.
+                    replay_output = args.path.with_name(f"{args.path.stem}.replay.ndjson")
                     report["next_command"] = shlex.join(
-                        ["dynamical", "run", path_arg, "--mode", "replay", "-o", "replay.ndjson"]
+                        ["dynamical", "run", path_arg, "--mode", "replay", "-o", str(replay_output)]
                     )
                     if branching:
                         report["branch_command"] = _branch_command(
