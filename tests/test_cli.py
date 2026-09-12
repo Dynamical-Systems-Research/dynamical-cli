@@ -1096,7 +1096,7 @@ def test_hold_recovery_with_a_stale_receipt_names_a_rebind_not_a_reuse(
     hold = json.loads(capsys.readouterr().out)
     assert hold["next_command"] == "dynamical capabilities --facility sdl1"
 
-    # A map outside cwd is recorded by its absolute path, the only portable form left.
+    # A sibling source tree remains portable when the containing campaign moves.
     outside = tmp_path.parent / f"{tmp_path.name}-outside"
     outside.mkdir()
     for name in ("mapping.json", "records.json"):
@@ -1105,8 +1105,8 @@ def test_hold_recovery_with_a_stale_receipt_names_a_rebind_not_a_reuse(
         main([*preflight[:1], str(outside / "mapping.json"), *preflight[2:], "-o", "far.json"]) == 0
     )
     capsys.readouterr()
-    assert json.loads(Path("far.json").read_text())["mapping"]["path"] == str(
-        (outside / "mapping.json").resolve()
+    assert json.loads(Path("far.json").read_text())["mapping"]["path"] == (
+        f"../{outside.name}/mapping.json"
     )
 
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import shlex
 import sys
 from collections.abc import Sequence
@@ -37,17 +38,9 @@ BRANCH_EXAMPLE = (
 
 
 def _portable_path(path: Path) -> str:
-    """Render a path relative to cwd when it is under cwd, else absolute.
+    """Keep command paths relative to the campaign's working directory."""
 
-    Receipts are replayed, branched, and shared; a command that only runs on the
-    filesystem that produced it is a placeholder in disguise.
-    """
-
-    resolved = path.resolve()
-    try:
-        return str(resolved.relative_to(Path.cwd().resolve()))
-    except ValueError:
-        return str(resolved)
+    return os.path.relpath(path.resolve(), Path.cwd().resolve())
 
 
 def _compile_manifest(world: Path, label: str) -> dict[str, object]:
@@ -96,7 +89,7 @@ def _branch_command(
             source_world=compiled_world,
             child_world=child_world,
             at_event_id=at_event,
-            output=None,
+            output=trace.with_name(f"{trace.stem}.child.ndjson"),
             seed=0,
         )
     except CampaignValidationError as exc:
@@ -452,10 +445,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 requirement=args.requirement,
                 registry=args.registry,
                 facility=args.facility,
+                receipt_dir=args.output.parent,
             )
             # Record the map this receipt froze, so a later recovery (a facility
             # rebind after a HOLD) can name the exact preflight to run again. The
-            # path is portable (relative to cwd when under it); the sha256 is what
+            # path is relative to cwd; the sha256 is what
             # identifies the map, so a moved or edited file is detected.
             receipt["mapping"] = {
                 "path": _portable_path(args.mapping),
@@ -465,12 +459,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             if ready:
                 # The chain entry: the exact compose handoff, with the selectors the
                 # caller supplied so compose resolves the same records.
-                command = ["dynamical", "compose", str(args.requirement)]
-                command += ["--preflight", str(args.output)]
+                command = ["dynamical", "compose", _portable_path(args.requirement)]
+                command += ["--preflight", _portable_path(args.output)]
                 if args.supplied_registry is not None:
-                    command += ["--registry", str(args.supplied_registry)]
+                    command += ["--registry", _portable_path(args.supplied_registry)]
                 if args.supplied_facility is not None:
-                    command += ["--facility", str(args.supplied_facility)]
+                    selector = args.supplied_facility
+                    command += [
+                        "--facility",
+                        str(selector) if str(selector) in ALIASES else _portable_path(selector),
+                    ]
                 command += ["-o", "composition.json"]
                 receipt["next_command"] = shlex.join(command)
             write_preflight_receipt(receipt, args.output)

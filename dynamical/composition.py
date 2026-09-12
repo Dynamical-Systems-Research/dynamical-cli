@@ -421,6 +421,8 @@ def load_preflight_binding(
         ):
             continue
         path = Path(record["path"])
+        if not path.is_absolute():
+            path = Path(source).parent / path
         if not path.is_file() or file_sha256(path) != record.get("sha256"):
             raise ValueError(f"preflight state source changed: {path}")
         if path.stat().st_size != record.get("size_bytes"):

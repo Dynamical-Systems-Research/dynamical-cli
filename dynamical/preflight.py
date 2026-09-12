@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -91,7 +92,9 @@ def _evidence(items: Any, source_ids: dict[str, str]) -> list[dict[str, str]]:
     return sorted(output, key=_json)
 
 
-def _sources(data: dict[str, Any], base: Path) -> tuple[list[dict[str, Any]], dict[str, str]]:
+def _sources(
+    data: dict[str, Any], base: Path, receipt_dir: Path | None
+) -> tuple[list[dict[str, Any]], dict[str, str]]:
     output: dict[str, dict[str, Any]] = {}
     refs: dict[str, str] = {}
     for item in _records(data, "sources"):
@@ -111,7 +114,8 @@ def _sources(data: dict[str, Any], base: Path) -> tuple[list[dict[str, Any]], di
             digest = _file_hash(path)
             if record.get("sha256") not in {None, digest}:
                 raise ValueError(f"source {item['ref']} hash differs from its bytes")
-            record.update(path=str(path), sha256=digest, size_bytes=path.stat().st_size)
+            locator = os.path.relpath(path, receipt_dir) if receipt_dir is not None else str(path)
+            record.update(path=locator, sha256=digest, size_bytes=path.stat().st_size)
             record.setdefault("format", path.suffix.lstrip(".") or "binary")
         elif not all(record.get(key) is not None for key in ("sha256", "size_bytes", "format")):
             raise ValueError(f"remote source {item['ref']} needs hash, size, and format")
@@ -135,13 +139,14 @@ def finalize(
     requirement: Path,
     registry: Path,
     facility: Path,
+    receipt_dir: Path | None = None,
 ) -> dict[str, Any]:
     """Return the receipt for one mapping bound to exact compose inputs."""
 
     if extra := sorted(set(data) - MAPPING_FIELDS):
         raise ValueError(f"unknown mapping fields: {extra}")
     created = _time(data.get("created_at_utc"), "created_at_utc")
-    sources, source_ids = _sources(data, mapping_path.parent)
+    sources, source_ids = _sources(data, mapping_path.parent, receipt_dir)
     root_refs = data.get("discovery_roots")
     if not isinstance(root_refs, list) or any(ref not in source_ids for ref in root_refs):
         raise ValueError("discovery_roots must resolve to sources")

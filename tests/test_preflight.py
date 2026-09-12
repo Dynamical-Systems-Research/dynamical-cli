@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import os
 import shlex
 from pathlib import Path
 
@@ -403,6 +404,7 @@ def test_cli_returns_compact_preflight_binding(tmp_path: Path, capsys) -> None:
 def test_preflight_verb_writes_a_ready_receipt_that_names_the_compose_handoff(
     tmp_path: Path, capsys, monkeypatch
 ) -> None:
+    monkeypatch.chdir(tmp_path)
     requirement = write_reference_requirement(tmp_path / "requirement.yaml")
     mapping = write_reference_mapping(tmp_path)
     receipt_path = tmp_path / "preflight.json"
@@ -425,9 +427,9 @@ def test_preflight_verb_writes_a_ready_receipt_that_names_the_compose_handoff(
         [
             "dynamical",
             "compose",
-            str(requirement),
+            "requirement.yaml",
             "--preflight",
-            str(receipt_path),
+            "preflight.json",
             "-o",
             "composition.json",
         ]
@@ -440,7 +442,6 @@ def test_preflight_verb_writes_a_ready_receipt_that_names_the_compose_handoff(
     assert receipt["state"]["state_sha256"] == preflight_state_sha256(receipt)
 
     # The chain entry runs as written and binds the same state identity.
-    monkeypatch.chdir(tmp_path)
     handoff = shlex.split(summary["next_command"])
     assert handoff[0] == "dynamical"
     assert main(handoff[1:]) == 0
@@ -452,6 +453,55 @@ def test_preflight_verb_writes_a_ready_receipt_that_names_the_compose_handoff(
     )
     assert "preflight_skipped" not in compose_receipt
     assert (tmp_path / "composition.json").is_file()
+
+
+@pytest.mark.parametrize("absolute", [False, True])
+@pytest.mark.parametrize("custom_selectors", [False, True])
+def test_preflight_handoff_survives_relocation_and_rejects_changed_evidence(
+    tmp_path: Path, capsys, monkeypatch, absolute: bool, custom_selectors: bool
+) -> None:
+    root = tmp_path / "original campaign"
+    inputs = root / "inputs"
+    work = root / "work"
+    work.mkdir(parents=True)
+    mapping = write_reference_mapping(inputs)
+    requirement = write_reference_requirement(inputs / "requirement.yaml")
+    receipt_path = work / "receipts" / "preflight.json"
+    monkeypatch.chdir(work)
+
+    def argument(path: Path) -> str:
+        return str(path) if absolute else os.path.relpath(path, work)
+
+    args = ["preflight", argument(mapping), "--requirement", argument(requirement)]
+    if custom_selectors:
+        for flag, source in (("--registry", DEFAULT_REGISTRY), ("--facility", DEFAULT_FACILITY)):
+            destination = inputs / source.name
+            destination.write_bytes(source.read_bytes())
+            args += [flag, argument(destination)]
+    assert main([*args, "-o", argument(receipt_path)]) == 0
+    summary = json.loads(capsys.readouterr().out)
+    command = shlex.split(summary["next_command"])[1:]
+    assert not any(Path(arg).is_absolute() for arg in command)
+    before = receipt_path.read_bytes()
+    assert json.loads(before)["sources"][0]["path"] == "../../inputs/records.json"
+    assert main(command) == 0
+    capsys.readouterr()
+
+    moved = tmp_path / "relocated campaign"
+    root.rename(moved)
+    monkeypatch.chdir(moved / "work")
+    assert main(command) == 0
+    composed = json.loads(capsys.readouterr().out)
+    assert composed["preflight"]["receipt_sha256"] == hashlib.sha256(before).hexdigest()
+    assert Path("receipts/preflight.json").read_bytes() == before
+
+    source = moved / "inputs" / "records.json"
+    source.write_bytes(source.read_bytes() + b"\n")
+    assert main(command) == 2
+    assert "preflight state source changed" in capsys.readouterr().err
+    source.unlink()
+    assert main(command) == 2
+    assert "preflight state source changed" in capsys.readouterr().err
 
 
 def test_preflight_verb_propagates_explicit_selectors_into_the_handoff(

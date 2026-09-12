@@ -2894,6 +2894,9 @@ def run_cli(args: argparse.Namespace) -> int:
     if restore_from is not None:
         from .restore import _prepare_restore
 
+        if getattr(args, "dry_run", False) and output_value is None:
+            source = Path(restore_from)
+            output_value = source.with_name(f"{source.stem}.child.ndjson")
         context = _prepare_restore(
             source_trace=restore_from,
             source_world=args.restore_world,
@@ -2903,7 +2906,7 @@ def run_cli(args: argparse.Namespace) -> int:
             seed=int(getattr(args, "seed", 0) or 0),
         )
         if context.output is not None:
-            output_path = context.output
+            output_path = Path(output_value)
         if getattr(args, "dry_run", False):
             # The executed form of this exact restore is the next command.
             executed = [
@@ -2920,7 +2923,7 @@ def run_cli(args: argparse.Namespace) -> int:
             seed = int(getattr(args, "seed", 0) or 0)
             if seed:
                 executed += ["--seed", str(seed)]
-            executed += ["-o", str(output_value) if output_value else "child.ndjson"]
+            executed += ["-o", str(output_value)]
             ready = {
                 "status": "ready",
                 "execution_status": "not_executed",
