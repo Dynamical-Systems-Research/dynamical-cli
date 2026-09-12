@@ -982,10 +982,9 @@ def test_receipt_chain_names_the_next_command_at_every_step(
     # The run receipt printed without -o names validate for the default output.
     assert main(["run", "compiled-world"]) == 0
     full_receipt = json.loads(capsys.readouterr().out)
-    assert full_receipt["output"] == str(tmp_path / "run.simulate.ndjson")
-    assert full_receipt["next_command"] == shlex.join(
-        ["dynamical", "validate", str(tmp_path / "run.simulate.ndjson"), "--json"]
-    )
+    assert full_receipt["output"] == "run.simulate.ndjson"
+    assert full_receipt["next_command"] == "dynamical validate run.simulate.ndjson --json"
+    assert (tmp_path / "run.simulate.ndjson").is_file()
 
 
 def test_branch_command_is_fully_resolved_or_absent(tmp_path: Path, capsys, monkeypatch) -> None:
@@ -1062,6 +1061,13 @@ def test_hold_recovery_with_a_stale_receipt_names_a_rebind_not_a_reuse(
     assert "--preflight" not in recovery
     assert recovery[recovery.index("--facility") + 1] == "fastcat"
     assert recovery[-2:] == ["-o", "sdl1bound.fastcat.json"]
+    # The map is named portably: relative to cwd, never by the absolute path of
+    # the machine that produced the receipt.
+    assert recovery[2] == "mapping.json"
+    assert not any(Path(item).is_absolute() for item in recovery[2:])
+    recorded = json.loads(stale)["mapping"]
+    assert recorded["path"] == "mapping.json"
+    assert recorded["sha256"] == hashlib.sha256(Path("mapping.json").read_bytes()).hexdigest()
 
     # The recovery runs as written, and its own next command composes.
     assert main(recovery[1:]) == 0
@@ -1082,6 +1088,26 @@ def test_hold_recovery_with_a_stale_receipt_names_a_rebind_not_a_reuse(
     hold = json.loads(capsys.readouterr().out)
     assert hold["next_command"] == "dynamical capabilities --facility sdl1"
     assert "--preflight" not in hold["next_command"]
+
+    # A map whose bytes no longer match the receipt's sha256 is detected, not reused.
+    Path("mapping.json").write_text(Path("mapping.json").read_text() + "\n", encoding="utf-8")
+    compose = ["compose", "fc-req.yaml", "--preflight", "sdl1bound.json", "--facility", "sdl1"]
+    assert main([*compose, "-o", "composition.json"]) == 1
+    hold = json.loads(capsys.readouterr().out)
+    assert hold["next_command"] == "dynamical capabilities --facility sdl1"
+
+    # A map outside cwd is recorded by its absolute path, the only portable form left.
+    outside = tmp_path.parent / f"{tmp_path.name}-outside"
+    outside.mkdir()
+    for name in ("mapping.json", "records.json"):
+        (outside / name).write_bytes((tmp_path / name).read_bytes())
+    assert (
+        main([*preflight[:1], str(outside / "mapping.json"), *preflight[2:], "-o", "far.json"]) == 0
+    )
+    capsys.readouterr()
+    assert json.loads(Path("far.json").read_text())["mapping"]["path"] == str(
+        (outside / "mapping.json").resolve()
+    )
 
 
 def test_waiver_persists_without_moving_content_hashes(tmp_path: Path, capsys) -> None:

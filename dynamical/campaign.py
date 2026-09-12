@@ -2887,7 +2887,9 @@ def run_cli(args: argparse.Namespace) -> int:
     input_path = Path(input_value)
     mode = RunMode(str(getattr(args, "mode", RunMode.SIMULATE.value)))
     output_value = getattr(args, "output", None)
-    output_path = Path(output_value) if output_value else Path.cwd() / f"run.{mode.value}.ndjson"
+    # The default output stays relative so the receipt's paths and next_command are
+    # portable; the file still lands in cwd.
+    output_path = Path(output_value) if output_value else Path(f"run.{mode.value}.ndjson")
     restore_from = getattr(args, "restore_from", None)
     if restore_from is not None:
         from .restore import _prepare_restore

@@ -128,8 +128,8 @@ dynamical compose requirement.yaml --preflight preflight.json -o composition.jso
 dynamical compile composition.json -o compiled-world
 dynamical run compiled-world -o trace.ndjson
 dynamical validate trace.ndjson --json
-dynamical run trace.ndjson --mode replay -o replay.ndjson
-dynamical validate replay.ndjson --json
+dynamical run trace.ndjson --mode replay -o trace.replay.ndjson
+dynamical validate trace.replay.ndjson --json
 ```
 
 The quickstart records a 35 °C temperature setpoint and a 30 s ultrasound

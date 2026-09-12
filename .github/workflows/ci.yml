@@ -120,5 +120,5 @@ jobs:
           "$smoke_venv/bin/dynamical" validate compiled-world --json >/dev/null
           "$smoke_venv/bin/dynamical" run compiled-world -o trace.ndjson
           "$smoke_venv/bin/dynamical" validate trace.ndjson --json >/dev/null
-          "$smoke_venv/bin/dynamical" run trace.ndjson --mode replay -o replay.ndjson
-          "$smoke_venv/bin/dynamical" validate replay.ndjson --json >/dev/null
+          "$smoke_venv/bin/dynamical" run trace.ndjson --mode replay -o trace.replay.ndjson
+          "$smoke_venv/bin/dynamical" validate trace.replay.ndjson --json >/dev/null

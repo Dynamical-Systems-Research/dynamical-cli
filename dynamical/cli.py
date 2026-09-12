@@ -36,6 +36,20 @@ BRANCH_EXAMPLE = (
 )
 
 
+def _portable_path(path: Path) -> str:
+    """Render a path relative to cwd when it is under cwd, else absolute.
+
+    Receipts are replayed, branched, and shared; a command that only runs on the
+    filesystem that produced it is a placeholder in disguise.
+    """
+
+    resolved = path.resolve()
+    try:
+        return str(resolved.relative_to(Path.cwd().resolve()))
+    except ValueError:
+        return str(resolved)
+
+
 def _compile_manifest(world: Path, label: str) -> dict[str, object]:
     manifest = world / "compile_manifest.json"
     if not world.is_dir() or not manifest.is_file():
@@ -106,8 +120,9 @@ def _branch_command(
 def _preflight_rebind_command(receipt: Path, requirement: Path, facility_alias: str) -> str | None:
     """The exact preflight that freezes a receipt's map against another facility.
 
-    Returns None when the receipt does not record its map or the map is gone; the
-    caller then keeps the capability-inspection hint rather than guessing a path.
+    Returns None when the receipt does not record its map, the map is gone, or its
+    bytes no longer match the recorded sha256; the caller then keeps the
+    capability-inspection hint rather than naming a path it cannot vouch for.
     """
 
     try:
@@ -115,17 +130,19 @@ def _preflight_rebind_command(receipt: Path, requirement: Path, facility_alias: 
     except (OSError, ValueError):
         return None
     mapping = recorded.get("mapping") if isinstance(recorded, dict) else None
-    mapping_path = (
-        Path(mapping["path"]) if isinstance(mapping, dict) and mapping.get("path") else None
-    )
-    if mapping_path is None or not mapping_path.is_file():
+    if not isinstance(mapping, dict) or not mapping.get("path") or not mapping.get("sha256"):
+        return None
+    mapping_path = Path(mapping["path"])
+    if not mapping_path.is_file():
+        return None
+    if hashlib.sha256(mapping_path.read_bytes()).hexdigest() != mapping["sha256"]:
         return None
     rebound = receipt.with_name(f"{receipt.stem}.{facility_alias}{receipt.suffix or '.json'}")
     return shlex.join(
         [
             "dynamical",
             "preflight",
-            str(mapping_path),
+            _portable_path(mapping_path),
             "--requirement",
             str(requirement),
             "--facility",
@@ -437,9 +454,11 @@ def main(argv: Sequence[str] | None = None) -> int:
                 facility=args.facility,
             )
             # Record the map this receipt froze, so a later recovery (a facility
-            # rebind after a HOLD) can name the exact preflight to run again.
+            # rebind after a HOLD) can name the exact preflight to run again. The
+            # path is portable (relative to cwd when under it); the sha256 is what
+            # identifies the map, so a moved or edited file is detected.
             receipt["mapping"] = {
-                "path": str(args.mapping.resolve()),
+                "path": _portable_path(args.mapping),
                 "sha256": hashlib.sha256(args.mapping.read_bytes()).hexdigest(),
             }
             ready = receipt["status"] == "READY"
