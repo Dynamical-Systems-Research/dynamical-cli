@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import yaml
+from _fixtures import NO_PREFLIGHT
 
 from dynamical.cli import main
 from dynamical.installed import FASTCAT, SDL1
@@ -44,7 +45,20 @@ def test_fastcat_runs_without_inventing_transfer_or_cell_loading(tmp_path, capsy
         tmp_path / "world",
         tmp_path / "trace.ndjson",
     )
-    assert main(["compose", str(requirement), "--facility", "fastcat", "-o", str(composition)]) == 0
+    assert (
+        main(
+            [
+                "compose",
+                str(requirement),
+                "--facility",
+                "fastcat",
+                *NO_PREFLIGHT,
+                "-o",
+                str(composition),
+            ]
+        )
+        == 0
+    )
     capsys.readouterr()
     assert main(["compile", str(composition), "-o", str(world)]) == 0
     capsys.readouterr()
@@ -76,7 +90,7 @@ def test_facility_id_does_not_grant_modified_manifest_authority(tmp_path, capsys
     payload["facility"]["claim_boundary"] = ["Forged fully verified physical laboratory"]
     proposal = tmp_path / "facility.yaml"
     proposal.write_text(yaml.safe_dump(payload))
-    assert main(["compose", str(requirement), "--facility", str(proposal)]) == 1
+    assert main(["compose", str(requirement), "--facility", str(proposal), *NO_PREFLIGHT]) == 1
     receipt = json.loads(capsys.readouterr().out)
     assert receipt["status"] == "HOLD"
     assert receipt["authority_anchor"] == "installed_bundle"
@@ -84,7 +98,7 @@ def test_facility_id_does_not_grant_modified_manifest_authority(tmp_path, capsys
 
 def test_fastcat_requirement_cannot_use_sdl1_authority(tmp_path, capsys):
     requirement = fastcat_requirement(tmp_path / "requirement.yaml")
-    assert main(["compose", str(requirement), "--facility", "sdl1"]) == 1
+    assert main(["compose", str(requirement), "--facility", "sdl1", *NO_PREFLIGHT]) == 1
     assert json.loads(capsys.readouterr().out)["status"] == "HOLD"
 
 
@@ -236,9 +250,22 @@ def test_unchanged_model_sample_is_a_read_not_a_custody_transition(tmp_path, mon
 def test_declared_station_selects_same_artifact_as_explicit_facility(tmp_path, capsys):
     requirement = fastcat_requirement(tmp_path / "requirement.yaml")
     implicit, explicit = tmp_path / "implicit.json", tmp_path / "explicit.json"
-    assert main(["compose", str(requirement), "-o", str(implicit)]) == 0
+    assert main(["compose", str(requirement), *NO_PREFLIGHT, "-o", str(implicit)]) == 0
     capsys.readouterr()
-    assert main(["compose", str(requirement), "--facility", "fastcat", "-o", str(explicit)]) == 0
+    assert (
+        main(
+            [
+                "compose",
+                str(requirement),
+                "--facility",
+                "fastcat",
+                *NO_PREFLIGHT,
+                "-o",
+                str(explicit),
+            ]
+        )
+        == 0
+    )
     capsys.readouterr()
     assert implicit.read_bytes() == explicit.read_bytes()
 
@@ -248,7 +275,10 @@ def test_wrong_facility_hold_supplies_runnable_recovery(tmp_path, capsys):
 
     requirement = fastcat_requirement(tmp_path / "requirement with spaces.yaml")
     output = tmp_path / "composition with spaces.json"
-    assert main(["compose", str(requirement), "--facility", "sdl1", "-o", str(output)]) == 1
+    assert (
+        main(["compose", str(requirement), "--facility", "sdl1", *NO_PREFLIGHT, "-o", str(output)])
+        == 1
+    )
     receipt = json.loads(capsys.readouterr().out)
     assert receipt["facility_id"] == "ac-electrodeposition-cell"
     assert receipt["installed_facilities"] == ["sdl1", "fastcat"]

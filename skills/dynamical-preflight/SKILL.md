@@ -1,6 +1,6 @@
 ---
 name: dynamical-preflight
-description: Build a source-bound map of a laboratory starting environment and freeze the smallest verified state for a Dynamical campaign. Use before composition when raw experimental, calibration, model, instrument, or facility records define the starting state. Return READY or a material HOLD without admitting providers or granting physical or qualification authority.
+description: Freeze the starting state from lab records before a Dynamical campaign is composed. Use when someone has lab records such as calibration reports, instrument logs, custody or sample spreadsheets, or prior campaign artifacts, and wants to start, continue, or branch a campaign, or asks where to start. Returns READY or HOLD; approves nothing.
 ---
 
 # Dynamical Preflight
@@ -10,14 +10,14 @@ Map the starting scientific environment, then freeze its supported campaign stat
 ```text
 raw records and installed contracts
 → baseline environment map
-→ deterministic finalizer
+→ dynamical preflight
 → frozen state
-→ Dynamical compose
+→ dynamical compose
 ```
 
-This skill ends at the compose handoff. `$dynamical` owns campaign execution,
-runtime lineage, replay, and branches. `$dynamical-instrument` assesses a missing
-capability and can create only a pending proposal.
+This skill ends at the compose handoff. The `dynamical` skill owns campaign
+execution, runtime lineage, replay, and branches. The `dynamical-instrument`
+skill assesses a missing capability and can create only a pending proposal.
 
 ## Discover the bounded baseline
 
@@ -78,30 +78,27 @@ known sides of incomplete state.
 Ask the user only when a missing fact can change state, reconstruction, the campaign,
 evidence class, or authority. Use the native question tool. Group one to three short
 questions and state why each answer matters. Keep `HOLD` when the user cannot resolve
-the gap. Route a real missing capability to `$dynamical-instrument`; do not admit it.
+the gap. Route a real missing capability to the `dynamical-instrument` skill; do not approve it.
 
 ## Freeze once
 
-Run the deterministic finalizer with exact compose inputs:
+Freeze the map with the compose inputs. `--registry` and `--facility` default to
+the installed records for the requirement's facility, exactly as `compose`
+resolves them; pass them only when `compose` will receive them too:
 
 ```bash
-python skills/dynamical-preflight/scripts/validate_receipt.py mapping.json \
-  --requirement requirement.yaml --registry registry.yaml \
-  --facility facility.yaml --output preflight.json
+dynamical preflight mapping.json --requirement requirement.yaml -o preflight.json
 ```
 
-The finalizer hashes sources, assigns IDs, resolves links, checks cutoff closure,
-selects state facts and relations, derives `READY` or `HOLD`, binds the existing
-registry and facility digests, and calculates the state identity. It does not decide
-scientific meaning. Run it as documented. Read its implementation only if it reports
-an unexpected failure. Do not edit or repair its receipt by hand.
+The receipt hashes sources, assigns IDs, resolves links, checks cutoff closure,
+selects state facts and relations, derives `READY` or `HOLD`, binds the registry
+and facility digests, and calculates the state identity. It does not decide
+scientific meaning. Do not edit or repair it by hand.
 
-For `READY`, return the receipt path, state ID, digest, cutoff, and:
+A `READY` receipt carries the compose handoff in `next_command`; return the
+receipt path, state ID, digest, cutoff, and that command as written. `compose`
+refuses a new campaign without a `READY` receipt.
 
-```bash
-dynamical compose <requirement> --preflight <receipt> -o <composition>
-```
-
-For `HOLD`, return the known state, material gaps, and next valid route. Never claim
-provider admission, physical authority, exact replay, physical repetition, or
-qualification from preflight alone.
+For `HOLD`, return the known state, the `material_gaps` from the receipt, and the
+next valid route. Never claim provider approval, physical authority, exact replay,
+physical repetition, or qualification from preflight alone.

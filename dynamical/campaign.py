@@ -7,6 +7,7 @@ import hashlib
 import json
 import math
 import re
+import shlex
 import sys
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
@@ -1341,9 +1342,17 @@ def validate_events(events: Sequence[TraceEvent]) -> dict[str, Any]:
             "Trace validation only; no embodied or physical evidence binding is established.",
         ),
         "authority_anchor": events[0].provenance.get("authority_anchor", "installed_bundle"),
+        # Identity of the compiled world this trace ran against, in the compile
+        # receipt's field names, so a restore source can be checked before use.
+        "world_sha256": events[0].world_hash,
+        "core_ir_sha256": events[0].ir_hash,
     }
     if source_evidence_classes:
         result["source_evidence_classes"] = source_evidence_classes
+    observation_event_ids = [event.event_id for event in events if event.observation is not None]
+    if observation_event_ids:
+        # The default restore point for a branch: the state recorded last.
+        result["last_observation_event_id"] = observation_event_ids[-1]
     return result
 
 
@@ -2878,11 +2887,16 @@ def run_cli(args: argparse.Namespace) -> int:
     input_path = Path(input_value)
     mode = RunMode(str(getattr(args, "mode", RunMode.SIMULATE.value)))
     output_value = getattr(args, "output", None)
-    output_path = Path(output_value) if output_value else Path.cwd() / f"run.{mode.value}.ndjson"
+    # The default output stays relative so the receipt's paths and next_command are
+    # portable; the file still lands in cwd.
+    output_path = Path(output_value) if output_value else Path(f"run.{mode.value}.ndjson")
     restore_from = getattr(args, "restore_from", None)
     if restore_from is not None:
         from .restore import _prepare_restore
 
+        if getattr(args, "dry_run", False) and output_value is None:
+            source = Path(restore_from)
+            output_value = source.with_name(f"{source.stem}.child.ndjson")
         context = _prepare_restore(
             source_trace=restore_from,
             source_world=args.restore_world,
@@ -2892,8 +2906,24 @@ def run_cli(args: argparse.Namespace) -> int:
             seed=int(getattr(args, "seed", 0) or 0),
         )
         if context.output is not None:
-            output_path = context.output
+            output_path = Path(output_value)
         if getattr(args, "dry_run", False):
+            # The executed form of this exact restore is the next command.
+            executed = [
+                "dynamical",
+                "run",
+                str(input_path),
+                "--restore-from",
+                str(restore_from),
+                "--restore-world",
+                str(args.restore_world),
+                "--restore-at-event",
+                str(args.restore_at_event),
+            ]
+            seed = int(getattr(args, "seed", 0) or 0)
+            if seed:
+                executed += ["--seed", str(seed)]
+            executed += ["-o", str(output_value)]
             ready = {
                 "status": "ready",
                 "execution_status": "not_executed",
@@ -2904,6 +2934,7 @@ def run_cli(args: argparse.Namespace) -> int:
                 "restored_sample_count": len(context.initial_samples),
                 "expected_run_id": context.expected_run_id,
                 "validation_reasons": [],
+                "next_command": shlex.join(executed),
             }
             print(json.dumps(ready, sort_keys=True, separators=(",", ":")))
             return 0
@@ -2966,6 +2997,9 @@ def run_cli(args: argparse.Namespace) -> int:
         )
         result["authority_anchor"] = "installed_bundle"
     receipt = {"output": str(output_path), **result}
+    # Every run receipt names the validate step, whether or not -o was given:
+    # without -o the trace still lands at output_path.
+    receipt["next_command"] = shlex.join(["dynamical", "validate", str(output_path), "--json"])
     if output_value:
         compact_receipt = {
             key: receipt[key]
@@ -2989,10 +3023,10 @@ def run_cli(args: argparse.Namespace) -> int:
                 "embodied_evidence_bound",
                 "claim_boundary",
                 "authority_anchor",
+                "next_command",
             )
             if key in receipt
         }
-        compact_receipt["next_command"] = f"dynamical validate {output_path} --json"
         print(json.dumps(compact_receipt, sort_keys=True, separators=(",", ":")))
     else:
         print(json.dumps(receipt, indent=2, sort_keys=True))

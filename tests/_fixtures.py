@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -92,6 +93,92 @@ REFERENCE_REQUIREMENT = {
 def write_reference_requirement(path: Path) -> Path:
     path.write_text(yaml.safe_dump(REFERENCE_REQUIREMENT, sort_keys=False), encoding="utf-8")
     return path
+
+
+# compose fails closed without a READY preflight receipt; tests that exercise
+# other behaviour waive it explicitly, the way a user would.
+NO_PREFLIGHT = (
+    "--no-preflight",
+    "--reason",
+    "test fixture composes without a frozen starting state",
+)
+
+
+def reference_mapping(source: str | Path, *, value: float = 1.0) -> dict[str, Any]:
+    """One preflight map that freezes a single readback from the record at ``source``."""
+
+    return {
+        "created_at_utc": "2026-08-29T12:00:00Z",
+        "discovery_roots": ["records"],
+        "sources": [
+            {
+                "ref": "records",
+                "path": str(source),
+                "available_at": "2026-08-29T11:00:00Z",
+                "disposition": "state",
+                "owner": "example-lab",
+                "license": "CC-BY-4.0",
+                "reduction_level": "raw-enough detector record",
+            }
+        ],
+        "entities": [
+            {
+                "ref": "sample",
+                "kind": "sample",
+                "source_native_ids": {"sample_id": "sample-1", "lot_id": "lot-1"},
+                "evidence_refs": [{"source_ref": "records", "locator": "/sample"}],
+            },
+            {
+                "ref": "instrument",
+                "kind": "instrument",
+                "source_native_ids": {"instrument_id": "balance-1"},
+                "evidence_refs": [{"source_ref": "records", "locator": "/instrument"}],
+            },
+        ],
+        "facts": [
+            {
+                "ref": "mass",
+                "subject_ref": "sample",
+                "field": "mass",
+                "value": value,
+                "kind": "readback",
+                "unit": "g",
+                "uncertainty": {"standard": 0.01, "unit": "g"},
+                "observed_at": "2026-08-29T10:59:00Z",
+                "available_at": "2026-08-29T11:00:00Z",
+                "state_path": "/sample/mass",
+                "material_effects": ["decision", "reconstruction"],
+                "evidence_refs": [{"source_ref": "records", "locator": "/mass"}],
+            }
+        ],
+        "relations": [
+            {
+                "ref": "measured-by",
+                "subject_ref": "sample",
+                "predicate": "measured_by",
+                "object_ref": "instrument",
+                "status": "verified",
+                "available_at": "2026-08-29T11:00:00Z",
+                "state_defining": True,
+                "evidence_refs": [{"source_ref": "records", "locator": "/run"}],
+            }
+        ],
+        "gaps": [],
+    }
+
+
+def write_reference_mapping(directory: Path, *, value: float = 1.0) -> Path:
+    """Write ``records.json`` and a ``mapping.json`` that cites it by relative path."""
+
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "records.json").write_text(
+        json.dumps({"mass": value, "sample": "sample-1"}), encoding="utf-8"
+    )
+    mapping = directory / "mapping.json"
+    mapping.write_text(
+        json.dumps(reference_mapping("records.json", value=value), indent=2), encoding="utf-8"
+    )
+    return mapping
 
 
 def _identity_fields(run_id: str) -> dict[str, Any]:

@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import shlex
 import sys
 from collections.abc import Sequence
@@ -30,6 +31,119 @@ RESTORE_EXAMPLE = (
     "dynamical run child-world --restore-from parent.ndjson --restore-world parent-world "
     "--restore-at-event simulate-abc123:event:000006 -o child.ndjson"
 )
+BRANCH_EXAMPLE = (
+    "dynamical validate parent.ndjson --json --compiled-world parent-world "
+    "--child-world child-world"
+)
+
+
+def _portable_path(path: Path) -> str:
+    """Keep command paths relative to the campaign's working directory."""
+
+    return os.path.relpath(path.resolve(), Path.cwd().resolve())
+
+
+def _compile_manifest(world: Path, label: str) -> dict[str, object]:
+    manifest = world / "compile_manifest.json"
+    if not world.is_dir() or not manifest.is_file():
+        raise ValueError(
+            f"{label} is not a compiled world: {world}\n"
+            f"Example: dynamical compile composition.json -o {shlex.quote(str(world))}"
+        )
+    return json.loads(manifest.read_text(encoding="utf-8"))
+
+
+def _branch_command(
+    trace: Path, compiled_world: Path, child_world: Path, report: dict[str, object]
+) -> str:
+    """The exact dry-run restore that branches from ``trace``, or a ValueError.
+
+    Every component is verified before it is named: the trace must be a simulate
+    trace that is not itself a restored child, the compiled world must be the one
+    the trace ran against, the child world must be a compiled world, the restore
+    point is the trace's last observation, and the restore check the named
+    command performs must itself pass here first. A command that would fail is
+    never emitted.
+    """
+
+    from .campaign import CampaignValidationError
+    from .restore import _prepare_restore
+
+    if "source_evidence_classes" in report:
+        raise ValueError(f"a restored child trace cannot be a restore source: {trace}")
+    at_event = report.get("last_observation_event_id")
+    if not isinstance(at_event, str):
+        raise ValueError(f"trace has no observation to restore at: {trace}")
+    manifest = _compile_manifest(compiled_world, "restore source world")
+    world_matches = manifest.get("world_sha256") == report.get("world_sha256")
+    if not world_matches or manifest.get("core_ir_sha256") != report.get("core_ir_sha256"):
+        raise ValueError(
+            f"compiled world does not match the trace: {compiled_world}\n"
+            f"The trace ran against world_sha256 {report.get('world_sha256')}; pass the "
+            "compiled world it was run from."
+        )
+    _compile_manifest(child_world, "child world")
+    try:
+        _prepare_restore(
+            source_trace=trace,
+            source_world=compiled_world,
+            child_world=child_world,
+            at_event_id=at_event,
+            output=trace.with_name(f"{trace.stem}.child.ndjson"),
+            seed=0,
+        )
+    except CampaignValidationError as exc:
+        raise ValueError(f"branch from {trace} at {at_event} is not possible: {exc}") from exc
+    return shlex.join(
+        [
+            "dynamical",
+            "run",
+            str(child_world),
+            "--restore-from",
+            str(trace),
+            "--restore-world",
+            str(compiled_world),
+            "--restore-at-event",
+            at_event,
+            "--dry-run",
+        ]
+    )
+
+
+def _preflight_rebind_command(receipt: Path, requirement: Path, facility_alias: str) -> str | None:
+    """The exact preflight that freezes a receipt's map against another facility.
+
+    Returns None when the receipt does not record its map, the map is gone, or its
+    bytes no longer match the recorded sha256; the caller then keeps the
+    capability-inspection hint rather than naming a path it cannot vouch for.
+    """
+
+    try:
+        recorded = json.loads(receipt.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    mapping = recorded.get("mapping") if isinstance(recorded, dict) else None
+    if not isinstance(mapping, dict) or not mapping.get("path") or not mapping.get("sha256"):
+        return None
+    mapping_path = Path(mapping["path"])
+    if not mapping_path.is_file():
+        return None
+    if hashlib.sha256(mapping_path.read_bytes()).hexdigest() != mapping["sha256"]:
+        return None
+    rebound = receipt.with_name(f"{receipt.stem}.{facility_alias}{receipt.suffix or '.json'}")
+    return shlex.join(
+        [
+            "dynamical",
+            "preflight",
+            _portable_path(mapping_path),
+            "--requirement",
+            str(requirement),
+            "--facility",
+            facility_alias,
+            "-o",
+            str(rebound),
+        ]
+    )
 
 
 def _print_json(value: object, *, compact: bool = False) -> None:
@@ -55,7 +169,9 @@ def _saved_composition(path: Path):
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="dynamical",
-        description="Discover, compose, compile, run, and validate facility operations.",
+        description=(
+            "Discover, preflight, compose, compile, run, and validate facility operations."
+        ),
     )
     parser.add_argument("--version", action="version", version=f"dynamical {_VERSION}")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -72,7 +188,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     capabilities_parser.add_argument(
         "--operation",
-        help="return one operation and its admitted provider candidates",
+        help="return one operation and its approved provider candidates",
     )
     capabilities_parser.add_argument("--json", action="store_true", dest="as_json")
     capabilities_parser.add_argument(
@@ -108,13 +224,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     compose_parser = commands.add_parser(
         "compose",
-        help="select admitted providers for a requirement",
+        help="select approved providers for a requirement",
         epilog=(
             "Examples:\n"
-            "  dynamical compose requirement.yaml -o composition.json\n"
             "  dynamical compose requirement.yaml --preflight preflight.json "
             "-o composition.json\n"
             "  dynamical compose --schema\n\n"
+            "A new campaign composes only against a READY preflight receipt; "
+            "dynamical preflight writes one. "
             "Use capability detail for operation ports and parameters. "
             "Use --schema for requirement fields."
         ),
@@ -126,6 +243,18 @@ def build_parser() -> argparse.ArgumentParser:
         "--preflight",
         type=Path,
         help="READY preflight receipt to bind by digest; requires --output",
+    )
+    compose_parser.add_argument(
+        "--no-preflight",
+        action="store_true",
+        help=(
+            "compose without a frozen starting state; requires --reason, which the receipt "
+            "records as preflight_skipped"
+        ),
+    )
+    compose_parser.add_argument(
+        "--reason",
+        help="why this campaign composes without a preflight receipt; only with --no-preflight",
     )
     compose_parser.add_argument(
         "--schema",
@@ -147,6 +276,48 @@ def build_parser() -> argparse.ArgumentParser:
             "checked against installed authority"
         ),
     )
+
+    preflight_parser = commands.add_parser(
+        "preflight",
+        help="freeze the starting state from a map of lab records",
+        epilog=(
+            "Examples:\n"
+            "  dynamical preflight mapping.json --requirement requirement.yaml "
+            "-o preflight.json\n"
+            "  dynamical preflight mapping.json --requirement requirement.yaml "
+            "--registry registry.yaml --facility facility.yaml -o preflight.json\n\n"
+            "A READY receipt names the compose handoff in next_command. "
+            "A HOLD receipt lists its material gaps; it approves nothing."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    preflight_parser.add_argument(
+        "mapping",
+        nargs="?",
+        type=Path,
+        help="agent-authored JSON map of sources, entities, facts, relations, and gaps",
+    )
+    preflight_parser.add_argument(
+        "--requirement",
+        type=Path,
+        help="campaign requirement the frozen state will be composed against",
+    )
+    preflight_parser.add_argument(
+        "--registry",
+        type=Path,
+        default=None,
+        help="registry to bind by digest; defaults to the selected facility's installed registry",
+    )
+    preflight_parser.add_argument(
+        "--facility",
+        type=Path,
+        default=None,
+        help=(
+            "installed facility (sdl1 or fastcat) or manifest path; defaults to the "
+            "requirement-selected facility, exactly as compose resolves it"
+        ),
+    )
+    preflight_parser.add_argument("-o", "--output", type=Path, help="receipt path")
 
     run_parser = commands.add_parser(
         "run",
@@ -173,7 +344,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--restore-world", type=Path, help="source compiled world")
     run_parser.add_argument("--restore-at-event", help="source observation event ID")
     run_parser.add_argument(
-        "--dry-run", action="store_true", help="run restore preflight without child execution"
+        "--dry-run", action="store_true", help="run the restore check without child execution"
     )
     run_parser.add_argument(
         "--compiled-world",
@@ -192,14 +363,29 @@ def build_parser() -> argparse.ArgumentParser:
         epilog=(
             "Examples:\n"
             "  dynamical validate compiled-world --json\n"
-            "  dynamical validate trace.ndjson --json\n\n"
+            "  dynamical validate trace.ndjson --json\n"
+            f"  {BRANCH_EXAMPLE}\n\n"
+            "A valid simulate trace names its replay in next_command and its last "
+            "observation in last_observation_event_id. With both --compiled-world and "
+            "--child-world it also names the exact dry-run restore in branch_command.\n\n"
             "Campaign requirements are compose inputs:\n"
-            "  dynamical compose requirement.yaml -o composition.json"
+            "  dynamical compose requirement.yaml --preflight preflight.json "
+            "-o composition.json"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     validate_parser.add_argument("path", type=Path)
     validate_parser.add_argument("--json", action="store_true", dest="as_json")
+    validate_parser.add_argument(
+        "--compiled-world",
+        type=Path,
+        help="the compiled world this trace ran against; checked against the trace",
+    )
+    validate_parser.add_argument(
+        "--child-world",
+        type=Path,
+        help="the compiled child world to branch into; requires --compiled-world",
+    )
     return parser
 
 
@@ -207,8 +393,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
-        if args.command in {"capabilities", "compose"} and not getattr(args, "schema", False):
-            if args.command == "compose" and args.facility is None:
+        if args.command in {"capabilities", "compose", "preflight"} and not getattr(
+            args, "schema", False
+        ):
+            # preflight and compose resolve the facility and registry identically, so
+            # the receipt's handoff digests are the ones compose recomputes.
+            args.supplied_facility = args.facility
+            args.supplied_registry = args.registry
+            if args.command in {"compose", "preflight"} and args.facility is None:
                 args.facility = (
                     requirement_facility(args.requirement)
                     if args.requirement is not None and args.requirement.is_file()
@@ -216,6 +408,93 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
             args.facility = facility_path(args.facility)
             args.registry = registry_path(args.registry, args.facility)
+        if args.command == "preflight":
+            from .preflight import finalize, load_mapping, material_gaps
+            from .preflight import write_receipt as write_preflight_receipt
+
+            if args.mapping is None or args.requirement is None or args.output is None:
+                message = (
+                    "preflight requires a mapping, --requirement, and --output\n"
+                    "Example: dynamical preflight mapping.json --requirement requirement.yaml "
+                    "-o preflight.json"
+                )
+                if args.mapping is not None and args.requirement is not None:
+                    # Next: names only the real inputs supplied plus the receipt this
+                    # command creates; an unknown input is never guessed.
+                    next_command = [
+                        "dynamical",
+                        "preflight",
+                        str(args.mapping),
+                        "--requirement",
+                        str(args.requirement),
+                    ]
+                    if args.supplied_registry is not None:
+                        next_command += ["--registry", str(args.supplied_registry)]
+                    if args.supplied_facility is not None:
+                        next_command += ["--facility", str(args.supplied_facility)]
+                    next_command += ["-o", "preflight.json"]
+                    message += f"\nNext: {shlex.join(next_command)}"
+                raise ValueError(message)
+            if not args.mapping.is_file():
+                raise ValueError(f"preflight mapping does not exist: {args.mapping}")
+            if not args.requirement.is_file():
+                raise ValueError(f"campaign requirement does not exist: {args.requirement}")
+            receipt = finalize(
+                load_mapping(args.mapping),
+                args.mapping,
+                requirement=args.requirement,
+                registry=args.registry,
+                facility=args.facility,
+                receipt_dir=args.output.parent,
+            )
+            # Record the map this receipt froze, so a later recovery (a facility
+            # rebind after a HOLD) can name the exact preflight to run again. The
+            # path is relative to cwd; the sha256 is what
+            # identifies the map, so a moved or edited file is detected.
+            receipt["mapping"] = {
+                "path": _portable_path(args.mapping),
+                "sha256": hashlib.sha256(args.mapping.read_bytes()).hexdigest(),
+            }
+            ready = receipt["status"] == "READY"
+            if ready:
+                # The chain entry: the exact compose handoff, with the selectors the
+                # caller supplied so compose resolves the same records.
+                command = ["dynamical", "compose", _portable_path(args.requirement)]
+                command += ["--preflight", _portable_path(args.output)]
+                if args.supplied_registry is not None:
+                    command += ["--registry", _portable_path(args.supplied_registry)]
+                if args.supplied_facility is not None:
+                    selector = args.supplied_facility
+                    command += [
+                        "--facility",
+                        str(selector) if str(selector) in ALIASES else _portable_path(selector),
+                    ]
+                command += ["-o", "composition.json"]
+                receipt["next_command"] = shlex.join(command)
+            write_preflight_receipt(receipt, args.output)
+            summary = {
+                "status": receipt["status"],
+                "execution_status": "not_executed",
+                "output": str(args.output),
+                "state_id": receipt["state"]["state_id"],
+                "state_sha256": receipt["state"]["state_sha256"],
+                "evidence_cutoff": receipt["state"]["evidence_cutoff"],
+                "next_action": receipt["next_action"],
+                "evidence_classes": [],
+                "embodied_evidence_bound": False,
+                "claim_boundary": (
+                    "Frozen starting state only; no provider approval, physical authority, "
+                    "or qualification."
+                ),
+                "authority_anchor": "installed_bundle",
+                "validation_reasons": [],
+            }
+            if ready:
+                summary["next_command"] = receipt["next_command"]
+            else:
+                summary["material_gaps"] = material_gaps(receipt)
+            _print_json(summary, compact=True)
+            return 0 if ready else 1
         if args.command == "capabilities":
             from .composition import authority_hold_reasons, demote_untrusted_admissions
             from .schema import load_capability_registry, load_facility_manifest
@@ -488,6 +767,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
         if args.command == "compose":
             from .composition import (
+                PreflightSkip,
                 authority_hold_reasons,
                 compose_files,
                 demote_untrusted_admissions,
@@ -496,14 +776,21 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             from .schema import (
                 CampaignRequirement,
+                load_campaign_requirement,
                 load_capability_registry,
                 load_facility_manifest,
             )
 
             if args.schema:
-                if args.requirement is not None or args.output is not None or args.preflight:
+                if (
+                    args.requirement is not None
+                    or args.output is not None
+                    or args.preflight
+                    or args.no_preflight
+                    or args.reason
+                ):
                     raise ValueError(
-                        "--schema does not accept a requirement, --output, or --preflight\n"
+                        "--schema does not accept a requirement, --output, or preflight flags\n"
                         "Example: dynamical compose --schema"
                     )
                 print(json.dumps(CampaignRequirement.model_json_schema(), indent=2, sort_keys=True))
@@ -511,10 +798,42 @@ def main(argv: Sequence[str] | None = None) -> int:
             if args.requirement is None:
                 raise ValueError(
                     "compose requires a campaign requirement path\n"
-                    "Example: dynamical compose campaign.yaml -o composition.json"
+                    "Example: dynamical compose campaign.yaml --preflight preflight.json "
+                    "-o composition.json"
                 )
             if not args.requirement.is_file():
                 raise ValueError(f"campaign requirement does not exist: {args.requirement}")
+            # A wrong document type must surface as such before the preflight gate.
+            load_campaign_requirement(args.requirement)
+            requirement_arg = shlex.quote(str(args.requirement))
+            if args.no_preflight and args.preflight is not None:
+                raise ValueError(
+                    "--no-preflight cannot be combined with --preflight\n"
+                    f"Example: dynamical compose {requirement_arg} --preflight preflight.json "
+                    "-o composition.json"
+                )
+            if args.no_preflight and not args.reason:
+                raise ValueError(
+                    "--no-preflight requires --reason so the receipt records the omission\n"
+                    f"Example: dynamical compose {requirement_arg} --no-preflight "
+                    "--reason 'why the starting state is not frozen' -o composition.json"
+                )
+            if args.reason and not args.no_preflight:
+                raise ValueError(
+                    "--reason is accepted only with --no-preflight\n"
+                    f"Example: dynamical compose {requirement_arg} --preflight preflight.json "
+                    "-o composition.json"
+                )
+            if args.preflight is None and not args.no_preflight:
+                # Fail closed: the frozen starting state is the campaign root, so a new
+                # campaign cannot compose without it. The Next line is the chain entry.
+                raise ValueError(
+                    "compose requires a READY preflight receipt for a new campaign\n"
+                    f"Example: dynamical compose {requirement_arg} --preflight preflight.json "
+                    "-o composition.json\n"
+                    f"Next: dynamical preflight mapping.json --requirement {requirement_arg} "
+                    "-o preflight.json"
+                )
             if args.preflight is not None and args.output is None:
                 raise ValueError(
                     "--preflight requires --output so the receipt stays out of agent context\n"
@@ -587,6 +906,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.facility,
                 installed_registry=installed_registry,
                 preflight_binding=preflight_binding,
+                preflight_skip=PreflightSkip(reason=args.reason) if args.no_preflight else None,
             )
             routing_hint = {}
             if result.status == "HOLD":
@@ -601,18 +921,30 @@ def main(argv: Sequence[str] | None = None) -> int:
                     suggested_alias = next(
                         name for name, root in ALIASES.items() if root == suggested
                     )
-                    command = [
-                        "dynamical",
-                        "compose",
-                        str(args.requirement),
-                        "--facility",
-                        suggested_alias,
-                    ]
-                    if args.output is not None:
-                        command.extend(["-o", str(args.output)])
-                    if args.preflight is not None:
-                        command.extend(["--preflight", str(args.preflight)])
-                    routing_hint["next_command"] = shlex.join(command)
+                    if args.preflight is None:
+                        # No receipt in play: re-compose against the declared facility,
+                        # carrying the waiver that let this compose run at all.
+                        command = [
+                            "dynamical",
+                            "compose",
+                            str(args.requirement),
+                            "--facility",
+                            suggested_alias,
+                        ]
+                        if args.output is not None:
+                            command.extend(["-o", str(args.output)])
+                        if args.no_preflight:
+                            command.extend(["--no-preflight", "--reason", args.reason])
+                        routing_hint["next_command"] = shlex.join(command)
+                    else:
+                        rebind = _preflight_rebind_command(
+                            args.preflight, args.requirement, suggested_alias
+                        )
+                        if rebind is not None:
+                            # The receipt is bound to the wrong facility's records, so
+                            # reusing it cannot compose; freeze the same map against the
+                            # declared facility instead.
+                            routing_hint["next_command"] = rebind
             untrusted_admissions = [
                 item.model_dump(mode="json", exclude_none=True) for item in self_admission_reasons
             ]
@@ -660,6 +992,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                         "state_sha256": preflight_binding.state_sha256,
                         "evidence_cutoff": preflight_binding.evidence_cutoff,
                     }
+                if args.no_preflight:
+                    receipt["preflight_skipped"] = {"reason": args.reason}
                 if result.status == "COMPILED":
                     receipt["next_command"] = f"dynamical compile {args.output} -o compiled-world"
                 _print_json(receipt, compact=True)
@@ -678,6 +1012,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 payload.update(routing_hint)
                 if untrusted_admissions:
                     payload["untrusted_admissions"] = untrusted_admissions
+                if args.no_preflight:
+                    payload["preflight_skipped"] = {"reason": args.reason}
                 _print_json(payload)
             return 0 if result.status == "COMPILED" else 1
         if args.command == "run":
@@ -708,6 +1044,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "validate":
             if not args.path.exists():
                 raise ValueError(f"validation input does not exist: {args.path}")
+            branch_worlds = (args.compiled_world, args.child_world)
+            branching = any(value is not None for value in branch_worlds)
+            if branching and not all(value is not None for value in branch_worlds):
+                raise ValueError(
+                    "--compiled-world and --child-world must appear together\n"
+                    f"Example: {BRANCH_EXAMPLE}"
+                )
             report = validate_path(args.path)
             report.setdefault("execution_status", "passed" if report.get("valid") else "failed")
             report.setdefault("evidence_classes", [])
@@ -718,6 +1061,34 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             report.setdefault("authority_anchor", "installed_bundle")
             report.setdefault("validation_reasons", report.get("failures", []))
+            if report.get("valid"):
+                # The chain exit: a validated artifact names what it can feed next.
+                kind = report.get("kind")
+                path_arg = str(args.path)
+                if kind == "campaign" and report.get("mode") == "simulate":
+                    # Derived from the source stem so the command can never name its
+                    # own source as the output; replay refuses that alias regardless.
+                    replay_output = args.path.with_name(f"{args.path.stem}.replay.ndjson")
+                    report["next_command"] = shlex.join(
+                        ["dynamical", "run", path_arg, "--mode", "replay", "-o", str(replay_output)]
+                    )
+                    if branching:
+                        report["branch_command"] = _branch_command(
+                            args.path, args.compiled_world, args.child_world, report
+                        )
+                elif branching:
+                    raise ValueError(
+                        "--compiled-world and --child-world apply to a valid simulate trace\n"
+                        f"Example: {BRANCH_EXAMPLE}"
+                    )
+                elif kind == "composition_result" and report.get("status") == "COMPILED":
+                    report["next_command"] = shlex.join(
+                        ["dynamical", "compile", path_arg, "-o", "compiled-world"]
+                    )
+                elif kind == "compiled_world" and report.get("execution_status") == "ready":
+                    report["next_command"] = shlex.join(
+                        ["dynamical", "run", path_arg, "-o", "trace.ndjson"]
+                    )
             if args.as_json:
                 print(json.dumps(report, indent=2, sort_keys=True))
             elif report.get("valid"):
@@ -727,6 +1098,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                     if key in report
                 )
                 print(f"VALID: {args.path} [{summary}]")
+                if "next_command" in report:
+                    print(f"Next: {report['next_command']}")
+                if "branch_command" in report:
+                    print(f"Branch: {report['branch_command']}")
             else:
                 print(f"FAILED: {args.path}")
                 for failure in report.get("failures", []):

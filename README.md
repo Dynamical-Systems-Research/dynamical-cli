@@ -117,15 +117,19 @@ means that Dynamical stopped because required evidence or authority is missing.
 Download the example requirement and run the complete virtual workflow:
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/Dynamical-Systems-Research/dynamical-cli/main/examples/quickstart/requirement.yaml
+base=https://raw.githubusercontent.com/Dynamical-Systems-Research/dynamical-cli/main/examples/quickstart
+curl -fsSLO "$base/requirement.yaml"
+curl -fsSLO "$base/records.json"
+curl -fsSLO "$base/mapping.json"
 
 dynamical capabilities --facility sdl1
-dynamical compose requirement.yaml --facility sdl1 -o composition.json
+dynamical preflight mapping.json --requirement requirement.yaml -o preflight.json
+dynamical compose requirement.yaml --preflight preflight.json -o composition.json
 dynamical compile composition.json -o compiled-world
 dynamical run compiled-world -o trace.ndjson
 dynamical validate trace.ndjson --json
-dynamical run trace.ndjson --mode replay -o replay.ndjson
-dynamical validate replay.ndjson --json
+dynamical run trace.ndjson --mode replay -o trace.replay.ndjson
+dynamical validate trace.replay.ndjson --json
 ```
 
 The quickstart records a 35 °C temperature setpoint and a 30 s ultrasound
@@ -134,78 +138,38 @@ physical temperature and conditioning response remain unknown. Traces record
 commands, available observations, constraints, sample history, and accounting;
 command-only adapters do not claim physically applied settings.
 
+`preflight` freezes the declared starting state in `records.json` and returns
+`READY` or `HOLD`. `compose` refuses a new campaign without a `READY` receipt.
+A receipt names the next command in `next_command` when a next step exists, so an
+agent follows the chain from preflight to validation without reconstructing a
+command. A `HOLD` and a validated replay name none.
+
 Use `dynamical compose --schema` to inspect the requirement schema. Use
 `dynamical capabilities --operation <operation-id> --json` to inspect the typed
 contract for one operation.
 
 ### Snapshot and branch a campaign
 
-Branch a new campaign from the sample state recorded at one observation in a
-completed simulation trace:
-
-```bash
-dynamical run child-world \
-  --restore-from parent.ndjson \
-  --restore-world parent-world \
-  --restore-at-event simulate-abc123:event:000006 \
-  --dry-run
-
-dynamical run child-world \
-  --restore-from parent.ndjson \
-  --restore-world parent-world \
-  --restore-at-event simulate-abc123:event:000006 \
-  -o child.ndjson
-```
-
-Restore validates and reruns the parent up to the selected observation. The
-rerun must match the recorded trace bytes before Dynamical reads the sample
-state. Restore does not change the parent or copy parent actions into the child
-campaign. It does not support physical runs, runs from the 3D execution layer,
-`HOLD` results, or state supplied directly by a user. The child trace reports
-source and child evidence classes separately. A restored child trace can be
-replayed, but it cannot be a restore source. Repeating the exact child command
-reuses only a matching validated output and returns `"reused": true`; it never
-overwrites a conflicting file. Use `dynamical run --help` for the full flag
-list.
+A validated simulate trace can seed a new campaign from the sample state
+recorded at one of its observations. Restore reruns the parent up to that
+observation and requires the rerun to match the recorded trace bytes before
+Dynamical reads the sample state. It never changes the parent or copies parent
+actions into the child, and it does not support physical runs, runs from the 3D
+execution layer, `HOLD` results, or state supplied directly by a user. The child
+trace reports source and child evidence classes separately; a restored child
+can be replayed but cannot be a restore source. Once the child world is
+compiled, `dynamical validate <trace> --compiled-world <parent-world>
+--child-world <child-world>` returns the checked branch command in
+`branch_command`; `dynamical run --help` lists the restore flags.
 
 ## Run many campaigns
 
 Dynamical runs one campaign per process. Codex, Claude Code, or a scheduler can
-run campaigns sequentially or in parallel and control the model, condition,
-candidate pool, repeat, and worker count. Dynamical records the composition,
-compiled world, trace, and validation result for each cell.
-
-Store one predeclared requirement in each YAML file under `requirements/`.
-Give each file a unique, stable name. This example runs up to eight cells at
-the same time:
-
-```bash
-mkdir -p runs
-
-find requirements -type f -name '*.yaml' -print0 |
-  xargs -0 -P 8 -I {} sh -c '
-    set -eu
-    requirement_path=$1
-    cell_id=$(basename "$requirement_path" .yaml)
-    cell_dir="runs/$cell_id"
-    mkdir -p "$cell_dir"
-
-    dynamical compose "$requirement_path" \
-      -o "$cell_dir/composition.json" \
-      > "$cell_dir/compose-receipt.json"
-
-    dynamical compile "$cell_dir/composition.json" \
-      -o "$cell_dir/compiled-world" \
-      > "$cell_dir/compile-receipt.json"
-
-    dynamical run "$cell_dir/compiled-world" \
-      -o "$cell_dir/trace.ndjson" \
-      > "$cell_dir/run-receipt.json"
-
-    dynamical validate "$cell_dir/trace.ndjson" --json \
-      > "$cell_dir/validation.json"
-  ' sh '{}'
-```
+run arms sequentially or in parallel and control the model, condition,
+candidate pool, repeat, and worker count. Give each arm its own requirement,
+starting-state map, and output directory; Dynamical records the composition,
+compiled world, trace, and validation result for each arm, and each receipt
+names the next command.
 
 For agent studies, save the model, prompt, condition, candidate pool, repeat,
 and agent transcript beside these artifacts. Add a trace to the final analysis
@@ -231,9 +195,11 @@ the next physical experiment, a no-request decision with its reason, or HOLD.
 
 ## How Dynamical works
 
-Dynamical exposes five commands:
+Dynamical exposes six commands:
 
 - `capabilities` lists operations and the providers that can perform them.
+- `preflight` freezes the starting state from lab records and returns `READY`
+  or `HOLD`.
 - `compose` matches a research requirement to approved providers.
 - `compile` builds the virtual laboratory and its execution rules.
 - `run` starts a simulation, replay, or branched virtual campaign.
@@ -259,7 +225,7 @@ its delivery and responses for their intended use and authorize physical work.
 A valid workflow, a finite comparison of predictions, and a prospective
 physical prediction are different claims. None alone demonstrates agent
 learning. The agent owns the scientific decision; the CLI must preserve the
-admission, provenance, and limits of the evidence used for that decision.
+approval, provenance, and limits of the evidence used for that decision.
 
 The reusable unit is a scientific capability. Each capability states its inputs,
 outputs, units, limits, uncertainty, failure states, source records, and
@@ -292,7 +258,7 @@ allowed the command: `evidence_classes`,
 The installed `--facility sdl1` and `--facility fastcat` selectors choose
 separate authority bundles. Custom registry and facility paths are proposals;
 they cannot grant themselves approval. In v0.1, installed records define
-provider admission.
+provider approval.
 
 `capabilities --registry <path>` inspects a proposal without activating it. Its
 receipt reports whether each provider is approved after comparison with the

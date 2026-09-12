@@ -1,4 +1,4 @@
 interface:
   display_name: "Dynamical"
   short_description: "Compose and run evidence-bound virtual laboratories"
-  default_prompt: "Use $dynamical to investigate this scientific objective. Establish a verified starting state from available records, compose only admitted capabilities, adapt the campaign from validated evidence, and return the evidence behind the next physical request, a no-request decision with its reason, or HOLD."
+  default_prompt: "Use $dynamical to investigate this scientific objective. Establish the starting state from available records, compose only approved capabilities, adapt the campaign from validated evidence, and return the evidence behind the next physical request, a no-request decision with its reason, or HOLD."

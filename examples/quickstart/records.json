@@ -1,0 +1,10 @@
+{
+  "record_type": "declared-starting-state",
+  "note": "Declared example starting state for the quickstart. Not a measured record.",
+  "recorded_at_utc": "2026-09-01T00:00:00Z",
+  "sample": {
+    "sample_id": "sample-quickstart-01",
+    "station_id": "ot2-liquid-handling",
+    "well": "cartridge-1"
+  }
+}

@@ -1,6 +1,6 @@
 ---
 name: dynamical-instrument
-description: Assess source evidence and create the smallest supported pending Dynamical integration for a computational model, experimental dataset, instrument, or facility interface. Use when an agent must map partial or complete source material to simulator, archived-replay, calibrated-twin, or physical-proposal contracts, or when a campaign HOLD identifies a missing capability. Keep evidence limits explicit; do not grant provider admission, facility approval, or physical authority.
+description: Turn source material for a model, dataset, instrument, or facility into the smallest pending Dynamical integration. Use when a campaign HOLDs on a missing capability, or when someone wants to onboard a simulator, archived data, a calibrated twin, or a hardware API. Proposes only; grants no approval or physical authority.
 ---
 
 # Dynamical Instrument
@@ -10,7 +10,7 @@ For a first proposal, start with the [provider-onboarding example](https://githu
 Match the requested scope. For an assessment, inventory the evidence, select the
 supported route, and report gaps without editing files. For implementation,
 create the smallest candidate integration that the supplied evidence supports.
-The candidate can define and test an adapter. It cannot admit itself.
+The candidate can define and test an adapter. It cannot approve itself.
 
 If a scientific objective, requirement, `HOLD` receipt, or study report is
 supplied, use it to identify the needed capability and evidence gap. It does not
@@ -43,7 +43,7 @@ evidence, calibration, and authority contracts. Preserve the upstream standard,
 version, driver identity, and digest.
 
 Support for a transport or hardware standard does not prove scientific
-calibration, provider admission, safe physical operation, or facility
+calibration, provider approval, safe physical operation, or facility
 authority. If the standard or its conformance endpoint is unavailable, keep the
 route pending and do not guess its contract.
 
@@ -69,7 +69,7 @@ Choose the smallest route that the supplied evidence supports:
 | Executable computational model | `simulator` provider proposal | Repeated calls share model assumptions and are not independent evidence. |
 | Historical experiments | Archived replay | Reproduce realized evidence only; do not invent unseen outcomes. |
 | Model plus independent held-out validation | `calibrated_twin` candidate | Require uncertainty checks and a declared validity envelope. |
-| Hardware API, standard driver, or protocol | Physical provider proposal | Reuse the supplied interface. Transport support does not prove calibration, admission, safety, or physical authority. |
+| Hardware API, standard driver, or protocol | Physical provider proposal | Reuse the supplied interface. Transport support does not prove calibration, approval, safety, or physical authority. |
 
 All routes are proposals until the installed authority accepts their complete
 records. Historical data alone does not support a counterfactual twin, and a
@@ -84,24 +84,24 @@ Author only the layers that the inventory supports. Omit unsupported layers and 
 3. Add a `CapabilityProvider` proposal with `admission.status: pending` only when the evidence supports every required provider field. Otherwise omit the provider and report the missing fields.
 4. Add facility records only when the evidence identifies the endpoint and bindings. Authority-bearing facility records remain proposals until an independent installed authority accepts them.
 5. Bind each external artifact by digest and license. Mark unresolved assets `pending` or `unlicensed`. Do not generate substitute CAD or claim source geometry from a URI alone.
-6. Add one minimal example. Exercise the adapter only when it exists; otherwise demonstrate the proposal reaching structured `HOLD`. Test observable types, limits, failures, sample-state effects, trace-compatible observations, and HOLD. Do not manufacture an admitted runtime trace, or test source text or fixed campaign order.
+6. Add one minimal example. Exercise the adapter only when it exists; otherwise demonstrate the proposal reaching structured `HOLD`. Test observable types, limits, failures, sample-state effects, trace-compatible observations, and HOLD. Do not manufacture an approved runtime trace, or test source text or fixed campaign order.
 
 Use a supplied simulator only as candidate execution evidence. A simulator developed with the adapter is not independent verification of that adapter. Never operate physical hardware without separate facility authority.
 
-## Validate without self-admission
+## Validate without self-approval
 
 Run the repository's targeted formatting, tests, package checks, and the relevant CLI path. Demonstrate only what the evidence supports:
 
 - Candidate records pass the relevant schema and package checks.
 - An implemented adapter accepts and returns the declared types and units, and documented limits fail closed.
 - Same-unit conformance tests prove that observations cannot become applied parameters without an explicit provider value.
-- The proposal returns a structured `HOLD` when no admitted provider exists. If the CLI writes a composition artifact, it passes `dynamical validate`; otherwise preserve the direct HOLD receipt.
-- A proposed provider cannot survive as admitted unless its complete authority-bearing record matches the installed authority bundle.
+- The proposal returns a structured `HOLD` when no approved provider exists. If the CLI writes a composition artifact, it passes `dynamical validate`; otherwise preserve the direct HOLD receipt.
+- A proposed provider cannot survive as `admitted` unless its complete authority-bearing record matches the installed authority bundle.
 - Missing calibration, verification, licensing, facility approval, or physical authority remains explicit.
 
-Do not route the example through an existing admitted provider to obtain a passing trace for the new candidate.
+Do not route the example through an existing approved provider to obtain a passing trace for the new candidate.
 
-Do not change admission, safety, validation, or physical-routing code to make a candidate pass. If the current provider-independent contract cannot express a required, source-backed behavior, preserve the failing case and identify the smallest contract gap for human review.
+Do not change approval, safety, validation, or physical-routing code to make a candidate pass. If the current provider-independent contract cannot express a required, source-backed behavior, preserve the failing case and identify the smallest contract gap for human review.
 
 ## Return the contribution
 
@@ -117,7 +117,7 @@ Report:
 - Missing independent verification, calibration gates, license evidence, facility approval, safety review, or physical authority.
 - Claims supported by simulation, and claims that remain unproven about the physical instrument.
 
-Do not call the contribution admitted, calibrated, physical, or safe unless the independent authority and evidence already exist in the installed Dynamical contracts.
+Do not call the contribution approved, calibrated, physical, or safe unless the independent authority and evidence already exist in the installed Dynamical contracts.
 
 ## Naming
 
@@ -125,8 +125,8 @@ Identity is orthogonal to lineage. Name so that recalibration never renames.
 
 - Operation: device-independent `verb-noun` (`measure-oer`, `deposit-chemical-bath`).
 - Adapter module: `{family}_{device_or_process}.py` (`ac_oer_twin.py`). Never a dataset name.
-- Provider: `{family}-{device_or_process}-{evidence_role}`; evidence-role suffixes: `-simulator` (simulator evidence), `-twin` (calibrated-twin evidence), physical providers end `-pending` until admitted.
+- Provider: `{family}-{device_or_process}-{evidence_role}`; evidence-role suffixes: `-simulator` (simulator evidence), `-twin` (calibrated-twin evidence), physical providers end `-pending` until approved.
 - Model binding: `{provider}-model`.
 - Calibration evidence: `{dataset}-{output}` (`fastcat-oer`); the ONLY place dataset names appear.
 - Authority: `{org}-{authority_kind}-{evidence_scope}-{date}`.
-- Registry id: `{org}-{family}-{contents}-{date}`, date bumped on every admission change.
+- Registry id: `{org}-{family}-{contents}-{date}`, date bumped on every approval change.

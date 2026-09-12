@@ -451,6 +451,13 @@ def replay_trace(
     runtime_receipt: str | Path | None = None,
 ) -> dict[str, Any]:
     source_path = Path(source)
+    output_path = Path(output)
+    # The source trace is the artifact being preserved; writing the replay over it
+    # would destroy it silently. samefile also catches symlinks and path aliases.
+    if output_path.exists() and output_path.samefile(source_path):
+        raise CampaignValidationError(
+            f"replay output aliases the source trace: {output_path}; select a new path"
+        )
     source_hash = file_sha256(source_path)
     source_events = read_trace(source_path)
     if (compiled_world is None) != (runtime_receipt is None):

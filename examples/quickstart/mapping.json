@@ -1,0 +1,53 @@
+{
+  "created_at_utc": "2026-09-01T00:00:00Z",
+  "discovery_roots": ["records"],
+  "sources": [
+    {
+      "ref": "records",
+      "path": "records.json",
+      "available_at": "2026-09-01T00:00:00Z",
+      "disposition": "state",
+      "owner": "quickstart example",
+      "reduction_level": "declared starting state"
+    }
+  ],
+  "entities": [
+    {
+      "ref": "sample",
+      "kind": "sample",
+      "source_native_ids": {"sample_id": "sample-quickstart-01"},
+      "evidence_refs": [{"source_ref": "records", "locator": "/sample/sample_id"}]
+    },
+    {
+      "ref": "well",
+      "kind": "well",
+      "source_native_ids": {"station_id": "ot2-liquid-handling", "well": "cartridge-1"},
+      "evidence_refs": [{"source_ref": "records", "locator": "/sample/well"}]
+    }
+  ],
+  "facts": [
+    {
+      "ref": "sample-location",
+      "subject_ref": "sample",
+      "field": "location",
+      "value": "cartridge-1",
+      "kind": "declared",
+      "available_at": "2026-09-01T00:00:00Z",
+      "state_path": "/sample/location",
+      "evidence_refs": [{"source_ref": "records", "locator": "/sample/well"}]
+    }
+  ],
+  "relations": [
+    {
+      "ref": "held-in",
+      "subject_ref": "sample",
+      "predicate": "held_in",
+      "object_ref": "well",
+      "status": "declared",
+      "available_at": "2026-09-01T00:00:00Z",
+      "state_defining": true,
+      "evidence_refs": [{"source_ref": "records", "locator": "/sample"}]
+    }
+  ],
+  "gaps": []
+}

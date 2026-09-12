@@ -158,6 +158,12 @@ class PreflightBinding(StrictModel):
     facility_sha256: Sha256
 
 
+class PreflightSkip(StrictModel):
+    """The audited record of composing without a frozen starting state."""
+
+    reason: str = Field(min_length=1)
+
+
 class CompositionSources(StrictModel):
     """Protected source snapshots needed to compile a saved composition."""
 
@@ -171,6 +177,9 @@ class CompositionSources(StrictModel):
     registry_sha256: str
     facility_sha256: str
     preflight: PreflightBinding | None = None
+    # Persisted beside the binding it stands in for, so the waiver survives in the
+    # artifact and in resolution_sha256, not only in the stdout receipt.
+    preflight_skip: PreflightSkip | None = None
     # Not "isaac": openusd never calls a live embodied backend, so it is the target
     # that compiles fastest and needs nothing installed beyond this package -- the
     # right default for a save that mostly exists to record what was composed, not to
@@ -181,6 +190,12 @@ class CompositionSources(StrictModel):
     # compilation raise "resolves to multiple facility action types" -- see
     # _select_capability_binding's constraint-id disambiguation.
     default_target: Literal["isaac", "openusd"] = "openusd"
+
+    @model_validator(mode="after")
+    def preflight_shape(self) -> CompositionSources:
+        if self.preflight is not None and self.preflight_skip is not None:
+            raise ValueError("a composition cannot both bind a preflight receipt and skip one")
+        return self
 
 
 class CompositionResult(StrictModel):
@@ -406,6 +421,8 @@ def load_preflight_binding(
         ):
             continue
         path = Path(record["path"])
+        if not path.is_absolute():
+            path = Path(source).parent / path
         if not path.is_file() or file_sha256(path) != record.get("sha256"):
             raise ValueError(f"preflight state source changed: {path}")
         if path.stat().st_size != record.get("size_bytes"):
@@ -1567,6 +1584,7 @@ def compose_files(
     *,
     installed_registry: CapabilityRegistry | None = None,
     preflight_binding: PreflightBinding | None = None,
+    preflight_skip: PreflightSkip | None = None,
 ) -> CompositionResult:
     """Compose a requirement against files an agent supplies.
 
@@ -1623,6 +1641,7 @@ def compose_files(
         registry_sha256=canonical_sha256(registry.model_dump(mode="json")),
         facility_sha256=canonical_sha256(facility.model_dump(mode="json")),
         preflight=preflight_binding,
+        preflight_skip=preflight_skip,
     )
     payload = result.model_dump(mode="json", exclude_none=True)
     payload["sources"] = sources.model_dump(mode="json", exclude_none=True)

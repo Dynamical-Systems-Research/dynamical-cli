@@ -36,8 +36,8 @@ dynamical compose requirement.yaml --facility fastcat -o composition.json
 dynamical compile composition.json -o compiled-world
 dynamical run compiled-world -o trace.ndjson
 dynamical validate trace.ndjson --json
-dynamical run trace.ndjson --mode replay -o replay.ndjson
-dynamical validate replay.ndjson --json
+dynamical run trace.ndjson --mode replay -o trace.replay.ndjson
+dynamical validate trace.replay.ndjson --json
 ```
 
 Dynamical writes `root.usda` and the selected provider records to the compiled
