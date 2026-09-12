@@ -59,7 +59,10 @@ jobs:
             "$validator_dir/codex-rs/skills/src/assets/samples/plugin-creator/scripts/validate_plugin.py" \
             .
           uv run python -c "import pathlib,yaml; data=yaml.safe_load(pathlib.Path('skills/dynamical-preflight/agents/openai.yaml').read_text()); assert data['interface']['display_name'] == 'Dynamical Preflight'"
-          uv run dynamical preflight --self-test
+          uv run dynamical preflight examples/quickstart/mapping.json \
+            --requirement examples/quickstart/requirement.yaml \
+            -o "$RUNNER_TEMP/quickstart-preflight.json" \
+            | uv run python -c "import json,sys; receipt=json.load(sys.stdin); assert receipt['status'] == 'READY', receipt"
           uv run python -m json.tool .agents/plugins/marketplace.json >/dev/null
 
       - name: Build and inspect the wheel and sdist
@@ -110,8 +113,8 @@ jobs:
           "$smoke_venv/bin/dynamical" compose --schema >composition-schema.json
           "$smoke_venv/bin/python" -m json.tool capabilities.json >/dev/null
           "$smoke_venv/bin/python" -m json.tool composition-schema.json >/dev/null
-          "$smoke_venv/bin/dynamical" preflight --self-test
-          "$smoke_venv/bin/dynamical" preflight mapping.json --requirement requirement.yaml -o preflight.json
+          "$smoke_venv/bin/dynamical" preflight mapping.json --requirement requirement.yaml -o preflight.json \
+            | "$smoke_venv/bin/python" -c "import json,sys; receipt=json.load(sys.stdin); assert receipt['status'] == 'READY', receipt"
           "$smoke_venv/bin/dynamical" compose requirement.yaml --preflight preflight.json -o composition.json
           "$smoke_venv/bin/dynamical" compile composition.json -o compiled-world
           "$smoke_venv/bin/dynamical" validate compiled-world --json >/dev/null

@@ -1,6 +1,6 @@
 ---
 name: dynamical-preflight
-description: Freeze a verified starting state before a Dynamical campaign is composed. Use when someone has lab records such as calibration reports, instrument logs, custody or sample spreadsheets, or prior campaign artifacts, and wants to start, continue, or branch a campaign, or asks where to start. Returns READY or HOLD; admits nothing.
+description: Freeze the starting state from lab records before a Dynamical campaign is composed. Use when someone has lab records such as calibration reports, instrument logs, custody or sample spreadsheets, or prior campaign artifacts, and wants to start, continue, or branch a campaign, or asks where to start. Returns READY or HOLD; approves nothing.
 ---
 
 # Dynamical Preflight
@@ -78,7 +78,7 @@ known sides of incomplete state.
 Ask the user only when a missing fact can change state, reconstruction, the campaign,
 evidence class, or authority. Use the native question tool. Group one to three short
 questions and state why each answer matters. Keep `HOLD` when the user cannot resolve
-the gap. Route a real missing capability to the `dynamical-instrument` skill; do not admit it.
+the gap. Route a real missing capability to the `dynamical-instrument` skill; do not approve it.
 
 ## Freeze once
 
@@ -100,5 +100,5 @@ receipt path, state ID, digest, cutoff, and that command as written. `compose`
 refuses a new campaign without a `READY` receipt.
 
 For `HOLD`, return the known state, the `material_gaps` from the receipt, and the
-next valid route. Never claim provider admission, physical authority, exact replay,
+next valid route. Never claim provider approval, physical authority, exact replay,
 physical repetition, or qualification from preflight alone.

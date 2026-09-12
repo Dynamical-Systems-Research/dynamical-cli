@@ -40,7 +40,7 @@ calibration.
 
 For a multi-arm or adaptive study, write one concise `study-report.json` from
 the preserved receipts and validated traces. It is an agent-authored summary,
-not a CLI-validated schema or authority record.
+it has no validator and is not an authority record.
 
 ```json
 {

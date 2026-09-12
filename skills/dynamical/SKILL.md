@@ -65,7 +65,7 @@ protocols, or experiments. When needed and permitted, search for and download
 relevant sources within approved network and cost limits. Record the source,
 version, and license, and hash downloaded data used in a campaign. External
 sources can inform research policy and campaign inputs; they do not grant
-provider admission, change evidence class, or authorize physical execution.
+provider approval, change evidence class, or authorize physical execution.
 Record only assumptions that materially affect the objective, evidence
 boundary, or execution envelope. Ask one concise question only when a missing
 choice would materially change the objective or require new authority.
@@ -73,7 +73,7 @@ choice would materially change the objective or require new authority.
 Begin reversible local virtual work without another confirmation. The agent owns
 the scientific policy: it can choose and revise hypotheses, instruments,
 providers, search variables, concurrency, and stopping as validated evidence
-changes. Continue while the campaign remains within admitted capabilities and
+changes. Continue while the campaign remains within approved capabilities and
 the approved compute, cost, and network envelope. Ask before changing the
 environment, incurring external spend, seeking new provider authority, or
 executing a physical experiment.
@@ -133,16 +133,6 @@ not fall back to printing the complete capability record. Use this documented
 shape first. Do not inspect keys before the first projection or query the same
 capability twice unless the first result is missing a required field.
 
-Use the six commands:
-
-- `dynamical capabilities` inspects capabilities, providers, and admission.
-- `dynamical preflight` freezes a verified starting state and returns `READY`
-  or `HOLD`.
-- `dynamical compose` binds a requirement to admitted providers.
-- `dynamical compile` creates backend artifacts from a valid composition.
-- `dynamical run` runs simulation or replay.
-- `dynamical validate` validates a composition, world, trace, or replay.
-
 For a normal new campaign, start here and follow each receipt's `next_command`
 through compose, compile, run, and validate:
 
@@ -151,14 +141,14 @@ dynamical capabilities --operation <operation-id> --json
 dynamical preflight <mapping> --requirement <requirement> -o <receipt>
 ```
 
-Compose admitted capabilities as a complete supported virtual laboratory or a
+Compose approved capabilities as a complete supported virtual laboratory or a
 purpose-built multi-instrument workflow. Select the composition from the
 scientific objective and available evidence. Keep each provider's evidence
 class; the full composition is not itself a `calibrated_twin`.
 
-The agent controls research policy. Dynamical controls admission, safety,
-evidence, cost, and authority. Do not bypass rejected providers, constraints,
-budgets, or approval rules.
+The agent controls research policy. Dynamical controls provider approval,
+safety, evidence, cost, and authority. Do not bypass rejected providers,
+constraints, budgets, or approval rules.
 
 Treat action parameters as command provenance. Record the exact commanded value
 as `requested`. Observations never supply an `applied` command value. Use the provider's explicit `applied` value; null means delivery is unknown.
@@ -169,24 +159,23 @@ ID and its source workstation in `facility_id`. Bind later `sample.state`
 inputs to that input and express chronology with `depends_on`. Compose selects
 the installed facility from that workstation; `--facility` explicitly overrides
 selection. Use the same selector for `capabilities`. Add transport only when the
-selected facility admits it and the physical workflow requires it.
+selected facility approves it and the physical workflow requires it.
 
 For a physical request, set `minimum_evidence_class: physical` on every custody,
 transfer, preparation, synthesis, and measurement step. A physical measurement
 step alone does not make the full campaign physical.
 
 A validated simulate trace's receipt names the replay command in
-`next_command` and its restore point in `last_observation_event_id`. To
-branch, compile the child world first, then validate the parent trace with
-`--compiled-world <parent-world> --child-world <child-world>`; the receipt
-names the exact dry-run restore in `branch_command` only after the restore
-preflight passes, and otherwise refuses with the reason. For an embodied
-replay, also pass both `--compiled-world` and `--runtime-receipt` to `run`;
-one binding without the other is invalid.
+`next_command` and its restore point in `last_observation_event_id`.
+`dynamical validate <trace> --compiled-world <parent-world> --child-world
+<child-world>` returns a checked `branch_command` once the child world is
+compiled; without those flags, validate returns the restore point as data. For
+an embodied replay, pass both `--compiled-world` and `--runtime-receipt` to
+`run`; one binding without the other is invalid.
 
-Restore, branch and replay detail for continuing from verified virtual state
-is in `references/campaign-continuation.md`. Read it before resuming, branching
-or replaying a preserved campaign.
+Restore and replay rules for continuing a preserved campaign are in
+`references/campaign-continuation.md`. Read it before resuming, branching or
+replaying one.
 
 ## Run adaptive autoresearch
 
@@ -206,7 +195,7 @@ For every experiment:
    mechanically before writing the report.
 5. Preserve the arm, receipts, validation results, and available hashes.
 
-Continue without renewed approval while the campaign stays inside admitted
+Continue without renewed approval while the campaign stays inside approved
 capabilities and its approved compute, cost, network, and authority envelope.
 Pause when the agent's scientific stopping condition is met or when progress
 requires an environment change, external spend, new provider authority, or
@@ -234,7 +223,7 @@ final exit status before reading outputs.
 Validate completed experiments before they change the next decision. Preserve a
 decision-point snapshot when evidence changes the research policy.
 
-Run counterfactual arms only through admitted executable providers that support
+Run counterfactual arms only through approved executable providers that support
 the changed inputs. Archived replay can return only realized observations; it
 cannot generate unseen outcomes.
 
@@ -254,30 +243,24 @@ evidence. Preserve every `HOLD` receipt. If the receipt names a saved output,
 validate that output with `dynamical validate` and preserve the validation
 result. Do not pass the command receipt itself to `dynamical validate`. If
 `HOLD` identifies an incomplete requirement, author a corrected requirement
-without changing admission or authority. Do not repeat an unchanged command after `HOLD`. Correct a wrong facility
+without changing approval or authority. Do not repeat an unchanged command after `HOLD`. Correct a wrong facility
 selector when the receipt or capability discovery identifies it; changing the
-selector does not require changing a scientifically valid requirement. If no admitted route exists, continue
+selector does not require changing a scientifically valid requirement. If no approved route exists, continue
 only after the missing evidence, provider, policy, budget, safety condition, or
 authority changes.
 
 If `HOLD` identifies a missing capability and source material is available, use
 the `dynamical-instrument` skill with the requirement and `HOLD` receipt to assess or
 prepare a pending proposal. The campaign remains `HOLD` until the installed
-authority admits the provider; referral grants no admission, facility access,
+authority approves the provider; referral grants no approval, facility access,
 or physical authority.
-
-Modal is optional external orchestration. If the user selects it, use one
-isolated function per arm, immutable inputs, private outputs, and the same
-Dynamical version and authority bundle. Publish an arm output as evidence only
-after validation. Do not add Modal to the Dynamical package or make it required
-for local sequential or concurrent studies.
 
 ## Preserve snapshots and return the study report
 
 Use existing receipt hashes as the experiment snapshot; do not create another
 snapshot protocol. For a multi-arm or adaptive study, write one concise
 agent-authored `study-report.json` from the preserved receipts and validated
-traces. The snapshot fields, the full report schema, the branch rules and the
+traces. The snapshot fields, the full report format, the branch rules and the
 physical-comparison rules are in `references/study-report.md`. Read it before
 writing either artifact.
 

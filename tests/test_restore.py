@@ -813,7 +813,7 @@ def test_restore_argument_shape_errors(restore_lab: RestoreLab, args: list[str])
 
 
 def test_validate_names_a_verified_branch_command(restore_lab: RestoreLab, tmp_path: Path) -> None:
-    """With both worlds supplied, validate runs the restore preflight itself and
+    """With both worlds supplied, validate runs the restore check itself and
     names the exact dry-run that branches at the parent's last observation. The
     named command runs as written, and its receipt names the executed restore."""
 

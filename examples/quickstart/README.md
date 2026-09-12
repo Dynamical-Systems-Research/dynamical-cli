@@ -9,8 +9,9 @@ the resulting temperature or conditioning effect.
 `records.json` is a declared example starting state for the sample, not a
 measured record. `mapping.json` maps it to one frozen fact and one relation.
 `dynamical preflight` freezes that map into a `READY` receipt; `compose`
-accepts the requirement only with that receipt. Every receipt names the next
-command in `next_command`.
+accepts the requirement only with that receipt. A receipt names the next
+command in `next_command` when a next step exists; the validated replay at the
+end names none.
 
 Run these commands from this directory:
 

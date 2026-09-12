@@ -4,7 +4,7 @@ Install `dynamical-cli`. A provider supplies one scientific operation. A
 simulator provider supplies software evidence. It does not supply physical
 evidence.
 
-A calibrated-twin admission applies to a particular provider output and its
+A calibrated-twin approval applies to a particular provider output and its
 declared calibration domain; it does not qualify an entire facility. `HOLD` means that Dynamical stopped because required evidence or
 authority is missing.
 

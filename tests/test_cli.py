@@ -135,7 +135,11 @@ def test_each_command_has_one_copyable_example() -> None:
         "dynamical compose requirement.yaml -o composition.json" not in help_by_command["compose"]
     )
     assert "requirement_id: example-requirement" not in help_by_command["compose"]
-    assert "dynamical preflight --self-test" in help_by_command["preflight"]
+    assert (
+        "dynamical preflight mapping.json --requirement requirement.yaml"
+        in help_by_command["preflight"]
+    )
+    assert "self-test" not in help_by_command["preflight"]
     assert "Campaign requirements are compose inputs" in help_by_command["validate"]
 
 
@@ -986,7 +990,7 @@ def test_receipt_chain_names_the_next_command_at_every_step(
 
 def test_branch_command_is_fully_resolved_or_absent(tmp_path: Path, capsys, monkeypatch) -> None:
     """validate names a branch only when every component is verified, including the
-    restore preflight the named command would perform. The SDL1 reference trace
+    restore check the named command would perform. The SDL1 reference trace
     records custody without complete sample state, so it is not a restore source:
     the answer is an exit-2 error with restore's reason, never a template."""
 

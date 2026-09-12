@@ -54,7 +54,7 @@ def _branch_command(
     Every component is verified before it is named: the trace must be a simulate
     trace that is not itself a restored child, the compiled world must be the one
     the trace ran against, the child world must be a compiled world, the restore
-    point is the trace's last observation, and the restore preflight the named
+    point is the trace's last observation, and the restore check the named
     command performs must itself pass here first. A command that would fail is
     never emitted.
     """
@@ -178,7 +178,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     capabilities_parser.add_argument(
         "--operation",
-        help="return one operation and its admitted provider candidates",
+        help="return one operation and its approved provider candidates",
     )
     capabilities_parser.add_argument("--json", action="store_true", dest="as_json")
     capabilities_parser.add_argument(
@@ -214,7 +214,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     compose_parser = commands.add_parser(
         "compose",
-        help="select admitted providers for a requirement",
+        help="select approved providers for a requirement",
         epilog=(
             "Examples:\n"
             "  dynamical compose requirement.yaml --preflight preflight.json "
@@ -269,16 +269,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     preflight_parser = commands.add_parser(
         "preflight",
-        help="freeze a verified starting state from a map of lab records",
+        help="freeze the starting state from a map of lab records",
         epilog=(
             "Examples:\n"
             "  dynamical preflight mapping.json --requirement requirement.yaml "
             "-o preflight.json\n"
             "  dynamical preflight mapping.json --requirement requirement.yaml "
-            "--registry registry.yaml --facility facility.yaml -o preflight.json\n"
-            "  dynamical preflight --self-test\n\n"
+            "--registry registry.yaml --facility facility.yaml -o preflight.json\n\n"
             "A READY receipt names the compose handoff in next_command. "
-            "A HOLD receipt lists its material gaps; it admits nothing."
+            "A HOLD receipt lists its material gaps; it approves nothing."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -308,14 +307,7 @@ def build_parser() -> argparse.ArgumentParser:
             "requirement-selected facility, exactly as compose resolves it"
         ),
     )
-    preflight_parser.add_argument(
-        "-o", "--output", type=Path, help="receipt path; required unless --self-test"
-    )
-    preflight_parser.add_argument(
-        "--self-test",
-        action="store_true",
-        help="check that the state identity moves with the frozen state's content",
-    )
+    preflight_parser.add_argument("-o", "--output", type=Path, help="receipt path")
 
     run_parser = commands.add_parser(
         "run",
@@ -342,7 +334,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--restore-world", type=Path, help="source compiled world")
     run_parser.add_argument("--restore-at-event", help="source observation event ID")
     run_parser.add_argument(
-        "--dry-run", action="store_true", help="run restore preflight without child execution"
+        "--dry-run", action="store_true", help="run the restore check without child execution"
     )
     run_parser.add_argument(
         "--compiled-world",
@@ -391,10 +383,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
-        if (
-            args.command in {"capabilities", "compose", "preflight"}
-            and not getattr(args, "schema", False)
-            and not getattr(args, "self_test", False)
+        if args.command in {"capabilities", "compose", "preflight"} and not getattr(
+            args, "schema", False
         ):
             # preflight and compose resolve the facility and registry identically, so
             # the receipt's handoff digests are the ones compose recomputes.
@@ -409,27 +399,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             args.facility = facility_path(args.facility)
             args.registry = registry_path(args.registry, args.facility)
         if args.command == "preflight":
-            from .preflight import finalize, load_mapping, material_gaps, self_test
+            from .preflight import finalize, load_mapping, material_gaps
             from .preflight import write_receipt as write_preflight_receipt
 
-            if args.self_test:
-                if any(
-                    value is not None
-                    for value in (
-                        args.mapping,
-                        args.requirement,
-                        args.registry,
-                        args.facility,
-                        args.output,
-                    )
-                ):
-                    raise ValueError(
-                        "--self-test does not accept a mapping or path flags\n"
-                        "Example: dynamical preflight --self-test\n"
-                        "Next: dynamical preflight --self-test"
-                    )
-                _print_json(self_test(), compact=True)
-                return 0
             if args.mapping is None or args.requirement is None or args.output is None:
                 message = (
                     "preflight requires a mapping, --requirement, and --output\n"
@@ -494,7 +466,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "evidence_classes": [],
                 "embodied_evidence_bound": False,
                 "claim_boundary": (
-                    "Frozen starting state only; no provider admission, physical authority, "
+                    "Frozen starting state only; no provider approval, physical authority, "
                     "or qualification."
                 ),
                 "authority_anchor": "installed_bundle",

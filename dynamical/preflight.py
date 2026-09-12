@@ -2,7 +2,7 @@
 
 The mapping is agent-authored. This module hashes its sources, assigns content
 identities, resolves links, checks cutoff closure, selects the frozen state, and
-derives READY or HOLD. It decides nothing scientific and admits nothing.
+derives READY or HOLD. It decides nothing scientific and approves nothing.
 """
 
 from __future__ import annotations
@@ -366,35 +366,3 @@ def material_gaps(receipt: dict[str, Any]) -> list[dict[str, Any]]:
 def write_receipt(receipt: dict[str, Any], output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-
-
-def self_test() -> dict[str, str]:
-    """Check that the state identity moves with the frozen state's content."""
-
-    receipt = {
-        "facts": [
-            {
-                "fact_id": "f",
-                "subject_id": "e",
-                "field": "mass",
-                "value": 1,
-                "kind": "observation",
-                "available_at": "2026-01-01T00:00:00Z",
-                "state_path": "/sample/mass",
-                "evidence_refs": [],
-                "input_ids": [],
-            }
-        ],
-        "relations": [],
-        "state": {
-            "fact_ids": ["f"],
-            "relation_ids": [],
-            "evidence_cutoff": "2026-01-01T00:00:00Z",
-            "parent": None,
-        },
-    }
-    first = preflight_state_sha256(receipt)
-    receipt["facts"][0]["value"] = 2
-    if preflight_state_sha256(receipt) == first:
-        raise RuntimeError("preflight state identity did not change with its content")
-    return {"check": "preflight-finalizer", "status": "passed"}

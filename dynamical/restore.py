@@ -1,4 +1,4 @@
-"""Private restore preflight for verified virtual sample ledgers."""
+"""Private restore check for verified virtual sample ledgers."""
 
 from __future__ import annotations
 

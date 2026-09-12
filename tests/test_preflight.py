@@ -552,18 +552,7 @@ def test_preflight_verb_hold_lists_material_gaps_and_names_no_command(
     assert not composition.exists()
 
 
-def test_preflight_self_test_and_missing_inputs(tmp_path: Path, capsys) -> None:
-    assert main(["preflight", "--self-test"]) == 0
-    assert json.loads(capsys.readouterr().out) == {
-        "check": "preflight-finalizer",
-        "status": "passed",
-    }
-
-    assert main(["preflight", "--self-test", "-o", str(tmp_path / "out.json")]) == 2
-    error = capsys.readouterr().err
-    assert "Example: dynamical preflight --self-test" in error
-    assert "Next: dynamical preflight --self-test" in error
-
+def test_preflight_missing_inputs_fail_closed(tmp_path: Path, capsys) -> None:
     # With no real inputs supplied there is no Next: a guessed input is not a command.
     assert main(["preflight"]) == 2
     error = capsys.readouterr().err
