@@ -117,10 +117,14 @@ means that Dynamical stopped because required evidence or authority is missing.
 Download the example requirement and run the complete virtual workflow:
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/Dynamical-Systems-Research/dynamical-cli/main/examples/quickstart/requirement.yaml
+base=https://raw.githubusercontent.com/Dynamical-Systems-Research/dynamical-cli/main/examples/quickstart
+curl -fsSLO "$base/requirement.yaml"
+curl -fsSLO "$base/records.json"
+curl -fsSLO "$base/mapping.json"
 
 dynamical capabilities --facility sdl1
-dynamical compose requirement.yaml --facility sdl1 -o composition.json
+dynamical preflight mapping.json --requirement requirement.yaml -o preflight.json
+dynamical compose requirement.yaml --preflight preflight.json -o composition.json
 dynamical compile composition.json -o compiled-world
 dynamical run compiled-world -o trace.ndjson
 dynamical validate trace.ndjson --json
@@ -133,6 +137,11 @@ command in one stationary SDL1 well. Its proof covers command bookkeeping;
 physical temperature and conditioning response remain unknown. Traces record
 commands, available observations, constraints, sample history, and accounting;
 command-only adapters do not claim physically applied settings.
+
+`preflight` freezes the declared starting state in `records.json` and returns
+`READY` or `HOLD`. `compose` refuses a new campaign without a `READY` receipt.
+Every receipt names the next command in `next_command`, so an agent follows the
+chain from preflight to validation without reconstructing a command.
 
 Use `dynamical compose --schema` to inspect the requirement schema. Use
 `dynamical capabilities --operation <operation-id> --json` to inspect the typed
@@ -157,6 +166,11 @@ dynamical run child-world \
   -o child.ndjson
 ```
 
+Once the child world is compiled, `dynamical validate parent.ndjson --json
+--compiled-world parent-world --child-world child-world` checks the parent
+world against the trace and returns the exact dry-run command above in
+`branch_command`, restoring at the parent's last observation.
+
 Restore validates and reruns the parent up to the selected observation. The
 rerun must match the recorded trace bytes before Dynamical reads the sample
 state. Restore does not change the parent or copy parent actions into the child
@@ -175,9 +189,9 @@ run campaigns sequentially or in parallel and control the model, condition,
 candidate pool, repeat, and worker count. Dynamical records the composition,
 compiled world, trace, and validation result for each cell.
 
-Store one predeclared requirement in each YAML file under `requirements/`.
-Give each file a unique, stable name. This example runs up to eight cells at
-the same time:
+Store one predeclared requirement in each YAML file under `requirements/`, with
+its starting-state map beside it as `<name>.mapping.json`. Give each file a
+unique, stable name. This example runs up to eight cells at the same time:
 
 ```bash
 mkdir -p runs
@@ -190,7 +204,13 @@ find requirements -type f -name '*.yaml' -print0 |
     cell_dir="runs/$cell_id"
     mkdir -p "$cell_dir"
 
+    dynamical preflight "requirements/$cell_id.mapping.json" \
+      --requirement "$requirement_path" \
+      -o "$cell_dir/preflight.json" \
+      > "$cell_dir/preflight-receipt.json"
+
     dynamical compose "$requirement_path" \
+      --preflight "$cell_dir/preflight.json" \
       -o "$cell_dir/composition.json" \
       > "$cell_dir/compose-receipt.json"
 
@@ -231,9 +251,11 @@ the next physical experiment, a no-request decision with its reason, or HOLD.
 
 ## How Dynamical works
 
-Dynamical exposes five commands:
+Dynamical exposes six commands:
 
 - `capabilities` lists operations and the providers that can perform them.
+- `preflight` freezes a verified starting state from lab records and returns
+  `READY` or `HOLD`.
 - `compose` matches a research requirement to approved providers.
 - `compile` builds the virtual laboratory and its execution rules.
 - `run` starts a simulation, replay, or branched virtual campaign.

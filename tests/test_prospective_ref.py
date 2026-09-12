@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 import yaml
-from _fixtures import write_reference_requirement
+from _fixtures import NO_PREFLIGHT, write_reference_requirement
 from pydantic import ValidationError
 from test_composition import _request
 
@@ -34,7 +34,7 @@ def _compose(tmp_path: Path, capsys, ref: dict[str, object] | None) -> tuple[dic
         document["prospective_ref"] = ref
         requirement.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
     composition = tmp_path / "composition.json"
-    assert main(["compose", str(requirement), "-o", str(composition)]) == 0
+    assert main(["compose", str(requirement), *NO_PREFLIGHT, "-o", str(composition)]) == 0
     receipt = json.loads(capsys.readouterr().out)
     saved = json.loads(composition.read_text(encoding="utf-8"))
     return receipt, saved

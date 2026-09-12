@@ -6,11 +6,18 @@ for one sample in the stationary SDL1 well. These settings follow the
 The adapter records commands only; it does not operate hardware or predict
 the resulting temperature or conditioning effect.
 
+`records.json` is a declared example starting state for the sample, not a
+measured record. `mapping.json` maps it to one frozen fact and one relation.
+`dynamical preflight` freezes that map into a `READY` receipt; `compose`
+accepts the requirement only with that receipt. Every receipt names the next
+command in `next_command`.
+
 Run these commands from this directory:
 
 ```bash
 dynamical capabilities --facility sdl1 --operation condition-ultrasonic --json
-dynamical compose requirement.yaml --facility sdl1 -o composition.json
+dynamical preflight mapping.json --requirement requirement.yaml -o preflight.json
+dynamical compose requirement.yaml --preflight preflight.json -o composition.json
 dynamical compile composition.json -o compiled-world
 dynamical run compiled-world -o trace.ndjson
 dynamical validate trace.ndjson --json

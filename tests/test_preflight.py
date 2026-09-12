@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import copy
-import importlib.util
+import hashlib
 import json
-from argparse import Namespace
+import shlex
 from pathlib import Path
 
 import pytest
 import yaml
-from _fixtures import write_reference_requirement
+from _fixtures import reference_mapping, write_reference_mapping, write_reference_requirement
 
 from dynamical.cli import DEFAULT_FACILITY, DEFAULT_REGISTRY, main
 from dynamical.composition import (
@@ -18,15 +18,12 @@ from dynamical.composition import (
     validate_composition_result,
     write_composition_result,
 )
+from dynamical.preflight import finalize
 from dynamical.schema import load_capability_registry
 
 REPOSITORY = Path(__file__).resolve().parents[1]
 REQUIREMENT = REPOSITORY / "examples/quickstart/requirement.yaml"
-FINALIZER_PATH = REPOSITORY / "skills/dynamical-preflight/scripts/validate_receipt.py"
-SPEC = importlib.util.spec_from_file_location("dynamical_preflight_finalizer", FINALIZER_PATH)
-assert SPEC is not None and SPEC.loader is not None
-FINALIZER = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(FINALIZER)
+QUICKSTART = REPOSITORY / "examples/quickstart"
 
 
 @pytest.fixture(autouse=True)
@@ -37,74 +34,17 @@ def current_reference_requirement(tmp_path: Path, monkeypatch):
     )
 
 
-def _mapping(source: Path, *, value: float = 1.0) -> dict[str, object]:
-    return {
-        "created_at_utc": "2026-08-29T12:00:00Z",
-        "discovery_roots": ["records"],
-        "sources": [
-            {
-                "ref": "records",
-                "path": str(source),
-                "available_at": "2026-08-29T11:00:00Z",
-                "disposition": "state",
-                "owner": "example-lab",
-                "license": "CC-BY-4.0",
-                "reduction_level": "raw-enough detector record",
-            }
-        ],
-        "entities": [
-            {
-                "ref": "sample",
-                "kind": "sample",
-                "source_native_ids": {"sample_id": "sample-1", "lot_id": "lot-1"},
-                "evidence_refs": [{"source_ref": "records", "locator": "/sample"}],
-            },
-            {
-                "ref": "instrument",
-                "kind": "instrument",
-                "source_native_ids": {"instrument_id": "balance-1"},
-                "evidence_refs": [{"source_ref": "records", "locator": "/instrument"}],
-            },
-        ],
-        "facts": [
-            {
-                "ref": "mass",
-                "subject_ref": "sample",
-                "field": "mass",
-                "value": value,
-                "kind": "readback",
-                "unit": "g",
-                "uncertainty": {"standard": 0.01, "unit": "g"},
-                "observed_at": "2026-08-29T10:59:00Z",
-                "available_at": "2026-08-29T11:00:00Z",
-                "state_path": "/sample/mass",
-                "material_effects": ["decision", "reconstruction"],
-                "evidence_refs": [{"source_ref": "records", "locator": "/mass"}],
-            }
-        ],
-        "relations": [
-            {
-                "ref": "measured-by",
-                "subject_ref": "sample",
-                "predicate": "measured_by",
-                "object_ref": "instrument",
-                "status": "verified",
-                "available_at": "2026-08-29T11:00:00Z",
-                "state_defining": True,
-                "evidence_refs": [{"source_ref": "records", "locator": "/run"}],
-            }
-        ],
-        "gaps": [],
-    }
+_mapping = reference_mapping
 
 
 def _finalize(mapping: dict[str, object], mapping_path: Path) -> dict[str, object]:
-    args = Namespace(
+    return finalize(
+        mapping,
+        mapping_path,
         requirement=REQUIREMENT,
         registry=DEFAULT_REGISTRY,
         facility=DEFAULT_FACILITY,
     )
-    return FINALIZER.finalize(mapping, mapping_path, args)
 
 
 def _write_case(tmp_path: Path, *, value: float = 1.0) -> tuple[Path, Path]:
@@ -351,12 +291,13 @@ def test_preflight_binds_supplied_registry_before_trusted_demotion(tmp_path: Pat
 
     source = tmp_path / "records.json"
     source.write_text("{}", encoding="utf-8")
-    args = Namespace(
+    receipt = finalize(
+        _mapping(source),
+        tmp_path / "mapping.json",
         requirement=REQUIREMENT,
         registry=registry_path,
         facility=DEFAULT_FACILITY,
     )
-    receipt = FINALIZER.finalize(_mapping(source), tmp_path / "mapping.json", args)
     receipt_path = tmp_path / "preflight.json"
     receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
     binding = load_preflight_binding(
@@ -457,3 +398,250 @@ def test_cli_returns_compact_preflight_binding(tmp_path: Path, capsys) -> None:
         "evidence_cutoff",
     }
     assert "facts" not in receipt
+
+
+def test_preflight_verb_writes_a_ready_receipt_that_names_the_compose_handoff(
+    tmp_path: Path, capsys, monkeypatch
+) -> None:
+    requirement = write_reference_requirement(tmp_path / "requirement.yaml")
+    mapping = write_reference_mapping(tmp_path)
+    receipt_path = tmp_path / "preflight.json"
+
+    assert (
+        main(
+            ["preflight", str(mapping), "--requirement", str(requirement), "-o", str(receipt_path)]
+        )
+        == 0
+    )
+    output = capsys.readouterr().out
+    assert "\n" not in output.rstrip("\n")
+    summary = json.loads(output)
+    assert summary["status"] == "READY"
+    assert summary["execution_status"] == "not_executed"
+    assert summary["next_action"] == {"action": "compose"}
+    assert summary["authority_anchor"] == "installed_bundle"
+    assert "facts" not in summary
+    assert summary["next_command"] == shlex.join(
+        [
+            "dynamical",
+            "compose",
+            str(requirement),
+            "--preflight",
+            str(receipt_path),
+            "-o",
+            "composition.json",
+        ]
+    )
+
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    assert receipt["document_type"] == "dynamical.preflight-receipt"
+    assert receipt["next_command"] == summary["next_command"]
+    assert receipt["state"]["state_id"] == summary["state_id"]
+    assert receipt["state"]["state_sha256"] == preflight_state_sha256(receipt)
+
+    # The chain entry runs as written and binds the same state identity.
+    monkeypatch.chdir(tmp_path)
+    handoff = shlex.split(summary["next_command"])
+    assert handoff[0] == "dynamical"
+    assert main(handoff[1:]) == 0
+    compose_receipt = json.loads(capsys.readouterr().out)
+    assert compose_receipt["status"] == "COMPILED"
+    assert compose_receipt["preflight"]["state_id"] == summary["state_id"]
+    assert compose_receipt["preflight"]["receipt_sha256"] == (
+        hashlib.sha256(receipt_path.read_bytes()).hexdigest()
+    )
+    assert "preflight_skipped" not in compose_receipt
+    assert (tmp_path / "composition.json").is_file()
+
+
+def test_preflight_verb_propagates_explicit_selectors_into_the_handoff(
+    tmp_path: Path, capsys
+) -> None:
+    requirement = write_reference_requirement(tmp_path / "requirement.yaml")
+    mapping = write_reference_mapping(tmp_path)
+    receipt_path = tmp_path / "preflight.json"
+
+    assert (
+        main(
+            [
+                "preflight",
+                str(mapping),
+                "--requirement",
+                str(requirement),
+                "--facility",
+                "sdl1",
+                "-o",
+                str(receipt_path),
+            ]
+        )
+        == 0
+    )
+    summary = json.loads(capsys.readouterr().out)
+    handoff = shlex.split(summary["next_command"])
+    assert handoff[-4:] == ["--facility", "sdl1", "-o", "composition.json"]
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    assert receipt["handoff"]["facility"]["path"] == str(DEFAULT_FACILITY.resolve())
+    assert receipt["handoff"]["registry"]["path"] == str(DEFAULT_REGISTRY.resolve())
+
+    composition = tmp_path / "composition.json"
+    assert main([*handoff[1:-2], "-o", str(composition)]) == 0
+    assert json.loads(capsys.readouterr().out)["status"] == "COMPILED"
+
+
+def test_preflight_verb_hold_lists_material_gaps_and_names_no_command(
+    tmp_path: Path, capsys
+) -> None:
+    requirement = write_reference_requirement(tmp_path / "requirement.yaml")
+    mapping_path = write_reference_mapping(tmp_path)
+    mapping = json.loads(mapping_path.read_text(encoding="utf-8"))
+    mapping["gaps"] = [
+        {
+            "ref": "calibration-gap",
+            "subject_ref": "instrument",
+            "reason": "current calibration record is missing",
+            "material": True,
+            "available_at": "2026-08-29T11:00:00Z",
+            "release_condition": "supply the calibration record",
+            "question": "Where is the current calibration record?",
+            "next_route": "dynamical-instrument",
+        }
+    ]
+    mapping_path.write_text(json.dumps(mapping), encoding="utf-8")
+    receipt_path = tmp_path / "preflight.json"
+
+    assert (
+        main(
+            [
+                "preflight",
+                str(mapping_path),
+                "--requirement",
+                str(requirement),
+                "-o",
+                str(receipt_path),
+            ]
+        )
+        == 1
+    )
+    summary = json.loads(capsys.readouterr().out)
+    assert summary["status"] == "HOLD"
+    assert "next_command" not in summary
+    assert summary["next_action"] == {"action": "dynamical-instrument"}
+    [gap] = summary["material_gaps"]
+    assert gap["question"].startswith("Where")
+    assert gap["release_condition"] == "supply the calibration record"
+    assert gap["next_route"] == "dynamical-instrument"
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    assert receipt["status"] == "HOLD"
+    assert "next_command" not in receipt
+
+    composition = tmp_path / "composition.json"
+    assert (
+        main(
+            [
+                "compose",
+                str(requirement),
+                "--preflight",
+                str(receipt_path),
+                "-o",
+                str(composition),
+            ]
+        )
+        == 2
+    )
+    assert "not READY" in capsys.readouterr().err
+    assert not composition.exists()
+
+
+def test_preflight_self_test_and_missing_inputs(tmp_path: Path, capsys) -> None:
+    assert main(["preflight", "--self-test"]) == 0
+    assert json.loads(capsys.readouterr().out) == {
+        "check": "preflight-finalizer",
+        "status": "passed",
+    }
+
+    assert main(["preflight", "--self-test", "-o", str(tmp_path / "out.json")]) == 2
+    error = capsys.readouterr().err
+    assert "Example: dynamical preflight --self-test" in error
+    assert "Next: dynamical preflight --self-test" in error
+
+    # With no real inputs supplied there is no Next: a guessed input is not a command.
+    assert main(["preflight"]) == 2
+    error = capsys.readouterr().err
+    assert "requires a mapping, --requirement, and --output" in error
+    assert "Example: dynamical preflight mapping.json" in error
+    assert "Next:" not in error
+    assert len(error.splitlines()) == 2
+
+    requirement = write_reference_requirement(tmp_path / "requirement.yaml")
+    mapping = write_reference_mapping(tmp_path)
+    assert main(["preflight", str(mapping), "--facility", "sdl1", "-o", "out.json"]) == 2
+    error = capsys.readouterr().err
+    assert "Next:" not in error
+
+    # With the real inputs supplied, Next: names them and the receipt it will create.
+    assert (
+        main(["preflight", str(mapping), "--requirement", str(requirement), "--facility", "sdl1"])
+        == 2
+    )
+    error = capsys.readouterr().err
+    next_command = error.split("Next: ", 1)[1].strip()
+    assert shlex.split(next_command) == [
+        "dynamical",
+        "preflight",
+        str(mapping),
+        "--requirement",
+        str(requirement),
+        "--facility",
+        "sdl1",
+        "-o",
+        "preflight.json",
+    ]
+    assert "<" not in next_command
+
+    absent = tmp_path / "absent.json"
+    assert (
+        main(
+            [
+                "preflight",
+                str(absent),
+                "--requirement",
+                str(requirement),
+                "-o",
+                str(tmp_path / "preflight.json"),
+            ]
+        )
+        == 2
+    )
+    error = capsys.readouterr().err
+    assert "preflight mapping does not exist" in error
+    assert str(absent) in error
+    assert not (tmp_path / "preflight.json").exists()
+
+
+def test_quickstart_example_runs_the_preflight_chain(tmp_path: Path, capsys, monkeypatch) -> None:
+    """The shipped example is the canonical path; its mapping must freeze READY."""
+
+    for name in ("requirement.yaml", "records.json", "mapping.json"):
+        (tmp_path / name).write_bytes((QUICKSTART / name).read_bytes())
+    monkeypatch.chdir(tmp_path)
+
+    assert (
+        main(
+            [
+                "preflight",
+                "mapping.json",
+                "--requirement",
+                "requirement.yaml",
+                "-o",
+                "preflight.json",
+            ]
+        )
+        == 0
+    )
+    summary = json.loads(capsys.readouterr().out)
+    assert summary["status"] == "READY"
+    assert summary["next_command"] == (
+        "dynamical compose requirement.yaml --preflight preflight.json -o composition.json"
+    )
+    assert main(shlex.split(summary["next_command"])[1:]) == 0
+    assert json.loads(capsys.readouterr().out)["status"] == "COMPILED"

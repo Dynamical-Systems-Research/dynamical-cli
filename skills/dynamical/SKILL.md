@@ -1,6 +1,6 @@
 ---
 name: dynamical
-description: Use Dynamical for autonomous research in materials and other physical systems. Start from a scientific question or engineering objective, construct and revise the required research environment, run adaptive virtual and approved physical experiments, preserve reproducible studies and branches, and use the resulting evidence for scientific decisions, model improvement, evaluation, and training.
+description: Run evidence-grounded research campaigns on materials and other physical systems. Use when someone states a scientific objective or engineering decision and wants to build a virtual lab, run and adapt experiments, replay or branch a study, or decide what to measure next. Owns campaign execution, lineage, and reporting.
 ---
 
 # Dynamical
@@ -80,20 +80,19 @@ executing a physical experiment.
 
 ## Establish the campaign root
 
-For each new experimental campaign, use `$dynamical-preflight` after the
+For each new experimental campaign, use the `dynamical-preflight` skill after the
 scientific objective and target decision are clear. Discover available
 experimental records, calibration reports, model records, campaign artifacts,
 registries, and facility metadata. Do not ask the user to find or manage
 metadata that is available from these sources.
 
-Use the preflight receipt as the campaign starting state. Compose only when it
-returns `READY`. If it reports a missing capability or unsupported calibration
-evidence, use `$dynamical-instrument` to assess the smallest pending proposal.
-Do not ask the user to call another Dynamical skill.
-
-```bash
-dynamical compose <requirement> --preflight <receipt> -o <composition>
-```
+Use the preflight receipt as the campaign starting state. `compose` accepts only
+a `READY` receipt; run the receipt's `next_command` as written. If preflight
+reports a missing capability or unsupported calibration evidence, use the
+`dynamical-instrument` skill to assess the smallest pending proposal. Do not ask
+the user to call another Dynamical skill. Pass `--no-preflight --reason <text>`
+only when the user explicitly waives the frozen starting state; the receipt
+records the omission.
 
 Do not rerun preflight for a direct interface operation or an unchanged
 continuation, replay, or branch. Run it again when the sample, process,
@@ -109,8 +108,7 @@ select another runtime during a campaign. Select each command in this order:
 3. An exact command in this skill.
 4. Targeted subcommand help only when the required syntax is still unknown.
 
-Do not run top-level `dynamical --help` before the first valid attempt. If a
-requirement or example names an operation, inspect it directly:
+If a requirement or example names an operation, inspect it directly:
 
 ```bash
 dynamical capabilities --operation <operation-id> --json
@@ -135,22 +133,22 @@ not fall back to printing the complete capability record. Use this documented
 shape first. Do not inspect keys before the first projection or query the same
 capability twice unless the first result is missing a required field.
 
-Use the five commands:
+Use the six commands:
 
 - `dynamical capabilities` inspects capabilities, providers, and admission.
+- `dynamical preflight` freezes a verified starting state and returns `READY`
+  or `HOLD`.
 - `dynamical compose` binds a requirement to admitted providers.
 - `dynamical compile` creates backend artifacts from a valid composition.
 - `dynamical run` runs simulation or replay.
 - `dynamical validate` validates a composition, world, trace, or replay.
 
-For a normal new campaign, use this direct path:
+For a normal new campaign, start here and follow each receipt's `next_command`
+through compose, compile, run, and validate:
 
 ```bash
 dynamical capabilities --operation <operation-id> --json
-dynamical compose <requirement> --preflight <receipt> -o <composition>
-dynamical compile <composition> -o <compiled-world>
-dynamical run <compiled-world> -o <trace>
-dynamical validate <trace> --json
+dynamical preflight <mapping> --requirement <requirement> -o <receipt>
 ```
 
 Compose admitted capabilities as a complete supported virtual laboratory or a
@@ -177,44 +175,18 @@ For a physical request, set `minimum_evidence_class: physical` on every custody,
 transfer, preparation, synthesis, and measurement step. A physical measurement
 step alone does not make the full campaign physical.
 
-Replay a simulator trace directly:
+A validated simulate trace's receipt names the replay command in
+`next_command` and its restore point in `last_observation_event_id`. To
+branch, compile the child world first, then validate the parent trace with
+`--compiled-world <parent-world> --child-world <child-world>`; the receipt
+names the exact dry-run restore in `branch_command` only after the restore
+preflight passes, and otherwise refuses with the reason. For an embodied
+replay, also pass both `--compiled-world` and `--runtime-receipt` to `run`;
+one binding without the other is invalid.
 
-```bash
-dynamical run trace.ndjson --mode replay -o replay.ndjson
-```
-
-For an embodied trace, also pass both `--compiled-world` and
-`--runtime-receipt`; one binding without the other is invalid.
-
-### Continue from verified virtual state
-
-Use restore only for a completed, validated simulate trace and admitted virtual
-source and child worlds. Preserve the parent's frozen preflight state. Run
-preflight again only when a state-defining input changed, then execute with the
-same inputs:
-
-```bash
-dynamical run child-world \
-  --restore-from parent.ndjson \
-  --restore-world parent-world \
-  --restore-at-event <observation-event-id> \
-  --dry-run
-
-dynamical run child-world \
-  --restore-from parent.ndjson \
-  --restore-world parent-world \
-  --restore-at-event <observation-event-id> \
-  -o child.ndjson
-```
-
-Inspect the structured preflight receipt before execution. Preserve the parent
-trace and world unchanged. Each child is a new campaign; parent actions validate
-and derive its initial ledger but are not copied or counted as child actions.
-Keep `source_evidence_classes` separate from the child `evidence_classes`.
-Physical, embodied, `HOLD`, and user-supplied state restore are unsupported.
-Repeat an exact child command only for safe reuse and require `"reused": true`
-with unchanged trace bytes. Stop on any prefix, authority, model, binding, or
-output conflict. Use `dynamical run --help` for the complete flag reference.
+Restore, branch and replay detail for continuing from verified virtual state
+is in `references/campaign-continuation.md`. Read it before resuming, branching
+or replaying a preserved campaign.
 
 ## Run adaptive autoresearch
 
@@ -289,7 +261,7 @@ only after the missing evidence, provider, policy, budget, safety condition, or
 authority changes.
 
 If `HOLD` identifies a missing capability and source material is available, use
-`$dynamical-instrument` with the requirement and `HOLD` receipt to assess or
+the `dynamical-instrument` skill with the requirement and `HOLD` receipt to assess or
 prepare a pending proposal. The campaign remains `HOLD` until the installed
 authority admits the provider; referral grants no admission, facility access,
 or physical authority.
@@ -300,87 +272,16 @@ Dynamical version and authority bundle. Publish an arm output as evidence only
 after validation. Do not add Modal to the Dynamical package or make it required
 for local sequential or concurrent studies.
 
-## Preserve experiment snapshots
+## Preserve snapshots and return the study report
 
-Use existing receipt hashes as the experiment snapshot. Do not create another
-snapshot protocol:
-
-```json
-{
-  "composition_sha256": "...",
-  "world_sha256": "...",
-  "adapter_pack_sha256": "...",
-  "trace_sha256": "...",
-  "source_trace_sha256": "..."
-}
-```
-
-Omit hashes that an arm did not produce.
-
-Replay reproduces the recorded campaign. To branch, create a new isolated arm
-from the parent evidence, record the parent hashes, and declare the changed
-inputs or research policy. Do not alter the parent artifacts.
-
-For evaluation or post-training, preserve the requirements, immutable arm
-inputs, agent transcript, receipts, validation results, status labels, and
-available hashes. Keep held-out outcomes sealed from the agent and research
-policy. Use these as source artifacts; do not create a second Dynamical schema.
-
-When authorized physical evidence becomes available, compare it with matched
-virtual observations for the same material or sample state, conditions,
-quantity, and units. Report error, rank preservation, uncertainty coverage, and
-validity-envelope failures only when the data support those comparisons. Keep
-evidence classes separate, and do not use campaign data as independent
-calibration.
-
-## Return an agent-authored study report
-
-For a multi-arm or adaptive study, write one concise `study-report.json` from
-the preserved receipts and validated traces. It is an agent-authored summary,
-not a CLI-validated schema or authority record.
-
-```json
-{
-  "document_type": "dynamical.agent-study-report",
-  "study_id": "...",
-  "objective": "...",
-  "decision_limiting_uncertainty": "...",
-  "selection_rule": "...",
-  "budget": {},
-  "arms": [
-    {
-      "arm_id": "...",
-      "status": "promoted",
-      "snapshot": {},
-      "metrics": {},
-      "decision_impact": "...",
-      "evidence_classes": [],
-      "validation_reasons": []
-    }
-  ],
-  "decision": "...",
-  "supported_claim": "...",
-  "rival_hypotheses": [],
-  "uncertainty": {},
-  "out_of_domain_results": [],
-  "raw_evidence_references": [],
-  "stopping_reason": "...",
-  "next_physical_experiment": "... or \"none\"",
-  "no_request_reason": "required when next_physical_experiment is none",
-  "physical_execution_status": "HOLD"
-}
-```
-
-`next_physical_experiment` is either the next physical request or `"none"`.
-When it is `"none"`, `no_request_reason` states why no physical measurement
-would change the decision. Ending without a physical request is a valid
-outcome of the study, not a failure.
-
-Use `decision_impact` to state what the arm tested and whether its validated
-result changed, confirmed, narrowed, or left the conclusion or decision
-unresolved.
+Use existing receipt hashes as the experiment snapshot; do not create another
+snapshot protocol. For a multi-arm or adaptive study, write one concise
+agent-authored `study-report.json` from the preserved receipts and validated
+traces. The snapshot fields, the full report schema, the branch rules and the
+physical-comparison rules are in `references/study-report.md`. Read it before
+writing either artifact.
 
 Validation checks structure, provenance, evidence, and authority. It does not
-prove scientific truth or optimality. Inspect observation events and their
-`observation.channels`; keep computational predictions, calibrated-model
-outputs, archived observations, and physical measurements separate.
+prove scientific truth or optimality. Keep computational predictions,
+calibrated-model outputs, archived observations, and physical measurements
+separate.

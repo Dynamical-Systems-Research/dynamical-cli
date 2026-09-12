@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shlex
 import subprocess
 import sys
 from pathlib import Path
 
 import pytest
 import yaml
-from _fixtures import write_reference_requirement
+from _fixtures import NO_PREFLIGHT, write_reference_requirement
 
 from dynamical.cli import DEFAULT_REGISTRY, main
 from dynamical.compiler import compile_facility
@@ -94,7 +95,7 @@ def _write_oer_requirement(path: Path, *, lab: Path) -> Path:
     return path
 
 
-def test_public_help_has_exactly_five_agent_commands() -> None:
+def test_public_help_has_exactly_six_agent_commands() -> None:
     completed = subprocess.run(
         [sys.executable, "-m", "dynamical.cli", "--help"],
         cwd=REPOSITORY,
@@ -104,14 +105,14 @@ def test_public_help_has_exactly_five_agent_commands() -> None:
     )
     assert completed.returncode == 0
     usage = completed.stdout
-    assert "{capabilities,compile,compose,run,validate}" in usage
+    assert "{capabilities,compile,compose,preflight,run,validate}" in usage
     assert "dynamical-calibrate" not in usage
     assert "counterfactual" not in usage
 
 
 def test_each_command_has_one_copyable_example() -> None:
     help_by_command = {}
-    for command in ("capabilities", "compose", "compile", "run", "validate"):
+    for command in ("capabilities", "preflight", "compose", "compile", "run", "validate"):
         completed = subprocess.run(
             [sys.executable, "-m", "dynamical.cli", command, "--help"],
             cwd=REPOSITORY,
@@ -129,7 +130,12 @@ def test_each_command_has_one_copyable_example() -> None:
         in help_by_command["capabilities"]
     )
     assert "dynamical compose --schema" in help_by_command["compose"]
+    assert "--preflight preflight.json" in help_by_command["compose"]
+    assert (
+        "dynamical compose requirement.yaml -o composition.json" not in help_by_command["compose"]
+    )
     assert "requirement_id: example-requirement" not in help_by_command["compose"]
+    assert "dynamical preflight --self-test" in help_by_command["preflight"]
     assert "Campaign requirements are compose inputs" in help_by_command["validate"]
 
 
@@ -174,7 +180,7 @@ def test_compose_receipt_is_compact_and_saved_sources_are_self_contained(
     requirement = write_reference_requirement(tmp_path / "requirement.yaml")
     composition = tmp_path / "composition.json"
 
-    assert main(["compose", str(requirement), "-o", str(composition)]) == 0
+    assert main(["compose", str(requirement), *NO_PREFLIGHT, "-o", str(composition)]) == 0
     receipt_output = capsys.readouterr().out
     assert "\n" not in receipt_output.rstrip("\n")
     receipt = json.loads(receipt_output)
@@ -202,7 +208,7 @@ def test_hold_receipt_has_reasons_and_no_compile_instruction(tmp_path: Path, cap
     hold_requirement.write_text(yaml.safe_dump(requirement, sort_keys=False), encoding="utf-8")
 
     composition = tmp_path / "hold.json"
-    assert main(["compose", str(hold_requirement), "-o", str(composition)]) == 1
+    assert main(["compose", str(hold_requirement), *NO_PREFLIGHT, "-o", str(composition)]) == 1
     receipt = json.loads(capsys.readouterr().out)
     assert receipt["status"] == "HOLD"
     assert receipt["reason_codes"]
@@ -229,7 +235,7 @@ def test_saved_composition_compiles_runs_and_validates_without_extra_flags(
     simulated = tmp_path / "simulate.ndjson"
     replayed = tmp_path / "replay.ndjson"
 
-    assert main(["compose", str(requirement), "-o", str(composition)]) == 0
+    assert main(["compose", str(requirement), *NO_PREFLIGHT, "-o", str(composition)]) == 0
     capsys.readouterr()
     assert main(["compile", str(composition), "-o", str(compiled)]) == 0
     compile_output = capsys.readouterr().out
@@ -297,7 +303,15 @@ def test_public_examples_use_their_own_facility_and_preserve_fastcat_provenance(
         requirement = REPOSITORY / "examples" / example / "requirement.yaml"
         assert (
             main(
-                ["compose", str(requirement), "--facility", facility_alias, "-o", str(composition)]
+                [
+                    "compose",
+                    str(requirement),
+                    "--facility",
+                    facility_alias,
+                    *NO_PREFLIGHT,
+                    "-o",
+                    str(composition),
+                ]
             )
             == 0
         )
@@ -312,7 +326,7 @@ def test_public_examples_use_their_own_facility_and_preserve_fastcat_provenance(
         assert main(["validate", str(trace), "--json"]) == 0
         assert json.loads(capsys.readouterr().out)["valid"] is True
         wrong_facility = "sdl1" if facility_alias == "fastcat" else "fastcat"
-        assert main(["compose", str(requirement), "--facility", wrong_facility]) == 1
+        assert main(["compose", str(requirement), "--facility", wrong_facility, *NO_PREFLIGHT]) == 1
         assert json.loads(capsys.readouterr().out)["status"] == "HOLD"
 
     onboarding = REPOSITORY / "examples" / "provider-onboarding"
@@ -333,6 +347,7 @@ def test_public_examples_use_their_own_facility_and_preserve_fastcat_provenance(
     hold_args = [
         "compose",
         str(onboarding / "requirement.yaml"),
+        *NO_PREFLIGHT,
         "--registry",
         str(registry),
         "-o",
@@ -348,7 +363,7 @@ def test_public_examples_use_their_own_facility_and_preserve_fastcat_provenance(
 def test_saved_composition_tampering_fails_closed(tmp_path: Path, capsys) -> None:
     requirement = write_reference_requirement(tmp_path / "requirement.yaml")
     composition = tmp_path / "composition.json"
-    assert main(["compose", str(requirement), "-o", str(composition)]) == 0
+    assert main(["compose", str(requirement), *NO_PREFLIGHT, "-o", str(composition)]) == 0
     capsys.readouterr()
 
     saved = json.loads(composition.read_text(encoding="utf-8"))
@@ -473,6 +488,7 @@ def test_self_admitted_physical_provider_is_demoted_not_trusted(
         [
             "compose",
             str(requirement_path),
+            *NO_PREFLIGHT,
             "--facility",
             str(lab / "facility.yaml"),
             "--registry",
@@ -522,6 +538,7 @@ def test_known_provider_with_modified_safety_fields_is_not_trusted(
         [
             "compose",
             str(requirement_path),
+            *NO_PREFLIGHT,
             "--facility",
             str(lab / "facility.yaml"),
             "--registry",
@@ -561,7 +578,9 @@ def test_modified_model_hash_in_agent_facility_is_refused(tmp_path: Path, capsys
     forged_facility.write_text(yaml.safe_dump(facility, sort_keys=False), encoding="utf-8")
 
     requirement_path = write_reference_requirement(tmp_path / "requirement.yaml")
-    compose_rc = main(["compose", str(requirement_path), "--facility", str(forged_facility)])
+    compose_rc = main(
+        ["compose", str(requirement_path), "--facility", str(forged_facility), *NO_PREFLIGHT]
+    )
     receipt = json.loads(capsys.readouterr().out)
     assert compose_rc == 1
     assert receipt["status"] == "HOLD"
@@ -591,7 +610,7 @@ def test_stripped_proof_requirements_fail_validation_and_replay(tmp_path: Path, 
     composition = tmp_path / "composition.json"
     compiled = tmp_path / "compiled"
     trace = tmp_path / "trace.ndjson"
-    assert main(["compose", str(requirement), "-o", str(composition)]) == 0
+    assert main(["compose", str(requirement), *NO_PREFLIGHT, "-o", str(composition)]) == 0
     capsys.readouterr()
     assert main(["compile", str(composition), "-o", str(compiled)]) == 0
     capsys.readouterr()
@@ -684,6 +703,7 @@ def test_modified_claim_boundary_is_a_proposal(tmp_path: Path, capsys) -> None:
             [
                 "compose",
                 str(requirement),
+                *NO_PREFLIGHT,
                 "--facility",
                 str(proposed_facility),
                 "-o",
@@ -813,3 +833,192 @@ def test_index_carries_everything_needed_to_avoid_a_hold(capsys):
     operation = json.loads(capsys.readouterr().out)["operations"][0]
     provider = operation["providers"][0]
     assert {"policy", "cost", "duration", "validity_envelope"} <= set(provider)
+
+
+def test_compose_fails_closed_without_a_preflight_receipt(tmp_path: Path, capsys) -> None:
+    """A new campaign has no composition without a frozen starting state. The error
+    names the preflight verb as the next command; the waiver needs a recorded reason."""
+
+    requirement = write_reference_requirement(tmp_path / "requirement.yaml")
+    composition = tmp_path / "composition.json"
+
+    assert main(["compose", str(requirement), "-o", str(composition)]) == 2
+    error = capsys.readouterr().err
+    assert "compose requires a READY preflight receipt" in error
+    assert f"Example: dynamical compose {requirement} --preflight preflight.json" in error
+    assert f"Next: dynamical preflight mapping.json --requirement {requirement}" in error
+    assert not composition.exists()
+
+    assert main(["compose", str(requirement)]) == 2
+    assert "Next: dynamical preflight" in capsys.readouterr().err
+
+    assert main(["compose", str(requirement), "--no-preflight", "-o", str(composition)]) == 2
+    assert "--no-preflight requires --reason" in capsys.readouterr().err
+    assert not composition.exists()
+
+    assert main(["compose", str(requirement), "--reason", "why", "-o", str(composition)]) == 2
+    assert "--reason is accepted only with --no-preflight" in capsys.readouterr().err
+
+    receipt = tmp_path / "preflight.json"
+    receipt.write_text("{}", encoding="utf-8")
+    assert (
+        main(
+            [
+                "compose",
+                str(requirement),
+                "--preflight",
+                str(receipt),
+                *NO_PREFLIGHT,
+                "-o",
+                str(composition),
+            ]
+        )
+        == 2
+    )
+    assert "cannot be combined" in capsys.readouterr().err
+
+    assert main(["compose", "--schema", *NO_PREFLIGHT]) == 2
+    assert "Example: dynamical compose --schema" in capsys.readouterr().err
+
+    # A wrong document type is reported as such, ahead of the preflight gate.
+    assert main(["compose", str(MANIFEST), "--facility", "sdl1"]) == 2
+    assert "Example: dynamical compile" in capsys.readouterr().err
+
+
+def test_preflight_waiver_is_recorded_in_the_compose_receipt(tmp_path: Path, capsys) -> None:
+    requirement = write_reference_requirement(tmp_path / "requirement.yaml")
+    composition = tmp_path / "composition.json"
+
+    assert main(["compose", str(requirement), *NO_PREFLIGHT, "-o", str(composition)]) == 0
+    receipt = json.loads(capsys.readouterr().out)
+    assert receipt["status"] == "COMPILED"
+    assert receipt["preflight_skipped"] == {"reason": NO_PREFLIGHT[-1]}
+    assert "preflight" not in receipt
+    assert receipt["next_command"] == f"dynamical compile {composition} -o compiled-world"
+    saved = json.loads(composition.read_text(encoding="utf-8"))
+    assert saved["sources"].get("preflight") is None
+
+    assert main(["compose", str(requirement), *NO_PREFLIGHT]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["preflight_skipped"] == {"reason": NO_PREFLIGHT[-1]}
+
+
+def test_receipt_chain_names_the_next_command_at_every_step(
+    tmp_path: Path, capsys, monkeypatch
+) -> None:
+    """From the preflight receipt to the validated replay, every receipt carries the
+    exact next command, and running each one as written completes the campaign."""
+
+    from _fixtures import write_reference_mapping
+
+    monkeypatch.chdir(tmp_path)
+    write_reference_requirement(tmp_path / "requirement.yaml")
+    write_reference_mapping(tmp_path)
+
+    def run(command: str) -> dict:
+        arguments = shlex.split(command)
+        assert arguments[0] == "dynamical"
+        assert main(arguments[1:]) == 0
+        receipt = json.loads(capsys.readouterr().out)
+        # A receipt command is either fully resolved or absent; never a template.
+        for key, value in receipt.items():
+            if key.endswith("_command"):
+                assert "<" not in value and ">" not in value, (key, value)
+        return receipt
+
+    preflight = run(
+        "dynamical preflight mapping.json --requirement requirement.yaml -o preflight.json"
+    )
+    assert preflight["status"] == "READY"
+    composed = run(preflight["next_command"])
+    assert composed["status"] == "COMPILED"
+    assert composed["preflight"]["state_id"] == preflight["state_id"]
+    compiled = run(composed["next_command"])
+    assert compiled["execution_status"] == "ready"
+    simulated = run(compiled["next_command"])
+    assert simulated["mode"] == "simulate"
+    assert simulated["next_command"] == "dynamical validate trace.ndjson --json"
+    validated = run(simulated["next_command"])
+    assert validated["valid"] is True
+    assert validated["next_command"] == "dynamical run trace.ndjson --mode replay -o replay.ndjson"
+    # Without the branch worlds, validate names the restore point as data, not as a
+    # command it cannot complete.
+    assert "branch_command" not in validated
+    events = [json.loads(line) for line in Path("trace.ndjson").read_text().splitlines()]
+    last_observation = [e for e in events if e["event_type"] == "observation"][-1]
+    assert validated["last_observation_event_id"] == last_observation["event_id"]
+    assert validated["world_sha256"] == compiled["world_sha256"]
+    assert validated["core_ir_sha256"] == compiled["core_ir_sha256"]
+    replayed = run(validated["next_command"])
+    assert replayed["mode"] == "replay"
+    assert replayed["next_command"] == "dynamical validate replay.ndjson --json"
+    replay_validated = run(replayed["next_command"])
+    assert replay_validated["valid"] is True
+    assert "next_command" not in replay_validated
+    assert "branch_command" not in replay_validated
+
+    # Validating the intermediate artifacts names their next step too.
+    assert run("dynamical validate composition.json --json")["next_command"] == (
+        "dynamical compile composition.json -o compiled-world"
+    )
+    assert run("dynamical validate compiled-world --json")["next_command"] == (
+        "dynamical run compiled-world -o trace.ndjson"
+    )
+    assert main(["validate", "trace.ndjson"]) == 0
+    text = capsys.readouterr().out
+    assert text.startswith("VALID: trace.ndjson")
+    assert "Next: dynamical run trace.ndjson --mode replay -o replay.ndjson" in text
+
+    # The run receipt printed without -o names validate for the default output.
+    assert main(["run", "compiled-world"]) == 0
+    full_receipt = json.loads(capsys.readouterr().out)
+    assert full_receipt["output"] == str(tmp_path / "run.simulate.ndjson")
+    assert full_receipt["next_command"] == shlex.join(
+        ["dynamical", "validate", str(tmp_path / "run.simulate.ndjson"), "--json"]
+    )
+
+
+def test_branch_command_is_fully_resolved_or_absent(tmp_path: Path, capsys, monkeypatch) -> None:
+    """validate names a branch only when every component is verified, including the
+    restore preflight the named command would perform. The SDL1 reference trace
+    records custody without complete sample state, so it is not a restore source:
+    the answer is an exit-2 error with restore's reason, never a template."""
+
+    monkeypatch.chdir(tmp_path)
+    requirement = write_reference_requirement(tmp_path / "requirement.yaml")
+    assert main(["compose", str(requirement), *NO_PREFLIGHT, "-o", "composition.json"]) == 0
+    capsys.readouterr()
+    for world in ("parent-world", "child-world"):
+        assert main(["compile", "composition.json", "-o", world]) == 0
+        capsys.readouterr()
+    assert main(["run", "parent-world", "-o", "parent.ndjson"]) == 0
+    capsys.readouterr()
+
+    # One flag without the other never emits a partial branch.
+    assert main(["validate", "parent.ndjson", "--json", "--compiled-world", "parent-world"]) == 2
+    error = capsys.readouterr().err
+    assert "must appear together" in error
+    assert "Example: dynamical validate parent.ndjson --json --compiled-world" in error
+
+    branch_args = ["validate", "parent.ndjson", "--json", "--compiled-world", "parent-world"]
+    assert main([*branch_args, "--child-world", "absent-world"]) == 2
+    assert "child world is not a compiled world: absent-world" in capsys.readouterr().err
+
+    assert main(["compile", str(MANIFEST), "--target", "openusd", "-o", "other-world"]) == 0
+    capsys.readouterr()
+    assert main([*branch_args[:-1], "other-world", "--child-world", "child-world"]) == 2
+    assert "compiled world does not match the trace: other-world" in capsys.readouterr().err
+
+    # Every cheap check passes, and restore's own preflight still refuses this
+    # trace; the receipt carries the refusal, not a command that would fail.
+    assert main([*branch_args, "--child-world", "child-world"]) == 2
+    error = capsys.readouterr().err
+    assert "branch from parent.ndjson at " in error
+    assert "custody without complete sample state" in error
+
+    assert main(["run", "parent.ndjson", "--mode", "replay", "-o", "replay.ndjson"]) == 0
+    capsys.readouterr()
+    for artifact in ("replay.ndjson", "composition.json", "parent-world"):
+        args = ["validate", artifact, "--json", "--compiled-world", "parent-world"]
+        assert main([*args, "--child-world", "child-world"]) == 2
+        assert "apply to a valid simulate trace" in capsys.readouterr().err

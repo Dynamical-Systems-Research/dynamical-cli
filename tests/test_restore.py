@@ -4,11 +4,13 @@ import contextlib
 import hashlib
 import io
 import json
+import shlex
 from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
 import yaml
+from _fixtures import NO_PREFLIGHT
 from test_campaign_contract import _transfer_contract
 
 import dynamical.restore as restore_module
@@ -182,7 +184,17 @@ def _compile_requirement(root: Path, name: str, value: dict[str, object]) -> tup
     world = root / f"{name}-world"
     requirement.write_text(yaml.safe_dump(value, sort_keys=False), encoding="utf-8")
     assert (
-        _invoke(["compose", str(requirement), "--facility", "fastcat", "-o", str(composition)])[0]
+        _invoke(
+            [
+                "compose",
+                str(requirement),
+                "--facility",
+                "fastcat",
+                *NO_PREFLIGHT,
+                "-o",
+                str(composition),
+            ]
+        )[0]
         == 0
     )
     assert _invoke(["compile", str(composition), "-o", str(world)])[0] == 0
@@ -372,8 +384,12 @@ def test_dry_run_never_writes_and_preserves_a_matching_output(
     assert code == 0 and receipt["status"] == "ready"
     assert receipt["execution_status"] == "not_executed"
     assert not output.exists()
+    # The dry-run receipt names the executed form of the same restore.
+    executed = shlex.split(receipt["next_command"])
+    assert executed[0] == "dynamical"
+    assert executed[1:] == _restore_args(restore_lab, restore_lab.control_world, output)
 
-    assert _invoke(_restore_args(restore_lab, restore_lab.control_world, output))[0] == 0
+    assert _invoke(executed[1:])[0] == 0
     before = output.read_bytes()
     code, stdout, _ = _invoke(dry_args)
     assert code == 0 and json.loads(stdout)["expected_run_id"].startswith("simulate-")
@@ -794,3 +810,78 @@ def test_restore_argument_shape_errors(restore_lab: RestoreLab, args: list[str])
     }
     code, _, stderr = _invoke([replacements.get(item, item) for item in args])
     assert code == 2 and "Example: dynamical run child-world" in stderr
+
+
+def test_validate_names_a_verified_branch_command(restore_lab: RestoreLab, tmp_path: Path) -> None:
+    """With both worlds supplied, validate runs the restore preflight itself and
+    names the exact dry-run that branches at the parent's last observation. The
+    named command runs as written, and its receipt names the executed restore."""
+
+    events = [json.loads(line) for line in restore_lab.parent_trace.read_text().splitlines()]
+    last_observation = [e for e in events if e["event_type"] == "observation"][-1]["event_id"]
+    branch_args = [
+        "validate",
+        str(restore_lab.parent_trace),
+        "--compiled-world",
+        str(restore_lab.parent_world),
+        "--child-world",
+        str(restore_lab.control_world),
+    ]
+    code, stdout, _ = _invoke([*branch_args, "--json"])
+    assert code == 0
+    report = json.loads(stdout)
+    assert report["last_observation_event_id"] == last_observation
+    branch = report["branch_command"]
+    assert "<" not in branch and ">" not in branch
+    expected = [
+        "run",
+        str(restore_lab.control_world),
+        "--restore-from",
+        str(restore_lab.parent_trace),
+        "--restore-world",
+        str(restore_lab.parent_world),
+        "--restore-at-event",
+        last_observation,
+    ]
+    assert shlex.split(branch) == ["dynamical", *expected, "--dry-run"]
+
+    code, stdout, _ = _invoke(branch_args)
+    assert code == 0 and f"Branch: {branch}" in stdout
+
+    code, stdout, _ = _invoke(shlex.split(branch)[1:])
+    assert code == 0
+    dry_run = json.loads(stdout)
+    assert dry_run["status"] == "ready"
+    assert shlex.split(dry_run["next_command"]) == ["dynamical", *expected, "-o", "child.ndjson"]
+
+    output = tmp_path / "branch-child.ndjson"
+    code, stdout, _ = _invoke([*expected, "-o", str(output)])
+    assert code == 0
+    assert json.loads(stdout)["restored_at_event"] == last_observation
+
+    # A world the trace did not run against, and a restored child as a source, are
+    # refused rather than named.
+    code, _, stderr = _invoke(
+        [
+            "validate",
+            str(restore_lab.parent_trace),
+            "--json",
+            "--compiled-world",
+            str(restore_lab.control_world),
+            "--child-world",
+            str(restore_lab.control_world),
+        ]
+    )
+    assert code == 2 and "compiled world does not match the trace" in stderr
+    code, _, stderr = _invoke(
+        [
+            "validate",
+            str(output),
+            "--json",
+            "--compiled-world",
+            str(restore_lab.control_world),
+            "--child-world",
+            str(restore_lab.control_world),
+        ]
+    )
+    assert code == 2 and "restored child trace cannot be a restore source" in stderr
