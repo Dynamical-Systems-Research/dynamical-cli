@@ -95,8 +95,15 @@ only when the user explicitly waives the frozen starting state; the receipt
 records the omission.
 
 Do not rerun preflight for a direct interface operation or an unchanged
-continuation, replay, or branch. Run it again when the sample, process,
-instrument, calibration, model, facility, or evidence cutoff changes.
+continuation, replay, or branch. Within an admitted campaign, ordinary reviewed
+evidence releases and revisions to the investigator's scientific model append
+new evidence cutoffs and decision snapshots; preserve the frozen campaign root
+and runtime rather than restarting preflight for each such update.
+Run preflight again when a change alters the admitted sample/process domain,
+instrument, calibration, provider/world model, facility or starting evidence
+basis. Distinguish that change to the experimental environment from the agent
+updating its own explanation within the existing environment. An unchanged
+replay retains its original inputs and cutoff.
 
 ## Inspect and operate the installed interface
 
@@ -189,8 +196,11 @@ For every experiment:
 1. Give each arm immutable inputs and a private output directory and process.
 2. Compose, compile, run, and validate it with the same Dynamical version and
    installed authority bundle.
-3. Use an output as evidence only after its command exits and
-   `dynamical validate` passes.
+3. For compiled virtual runs, use an output as evidence only after its command
+   exits and `dynamical validate` passes. For physical returns, use the campaign's
+   existing review/release path; separately valid partial observations may be
+   released with their actual stage, provenance and limitations before the full
+   delivery or operation is complete.
 4. Compare only validated results. Check derived rankings and intervals
    mechanically before writing the report.
 5. Preserve the arm, receipts, validation results, and available hashes.
@@ -238,8 +248,12 @@ Preserve each arm with one of these statuses:
 - `invalid`: an artifact exists but validation failed.
 - `failed`: execution ended before it produced a valid artifact.
 
-Record `HOLD`, invalid, and failed arms, but do not use them as scientific
-evidence. Preserve every `HOLD` receipt. If the receipt names a saved output,
+Record `HOLD`, invalid, and failed arms; do not treat them as validated completed
+results. An interrupted physical operation can still contain separately valid,
+reviewed observations or an attributed failure observation. Keep those records
+and their restricted interpretation distinct from the operation's status; never
+infer successful completion or a final specimen state from the intended request.
+Preserve every `HOLD` receipt. If the receipt names a saved output,
 validate that output with `dynamical validate` and preserve the validation
 result. Do not pass the command receipt itself to `dynamical validate`. If
 `HOLD` identifies an incomplete requirement, author a corrected requirement
