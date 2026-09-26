@@ -12,8 +12,9 @@
 </p>
 
 Dynamical CLI is an open-source interface for scientific investigations across
-simulation and physical experiments. Agents combine models, data and instrument
-workflows to plan experiments, interpret results and decide what to test next.
+simulation and physical experiments. Agents use models, data and instrument
+workflows to investigate a scientific question or engineering requirement,
+interpret results and decide what to test next.
 
 Dynamical preserves campaign inputs, execution traces and results for inspection,
 replay, evaluation and training. Connected facilities control physical execution
@@ -66,14 +67,15 @@ and [campaign template](https://github.com/Dynamical-Systems-Research/dynamical-
 > for each candidate. Explain the evidence, uncertainty and what result from
 > the proposed physical measurement would change the decision.
 
-The agent returns the campaign record, a recommendation and its limits, and a
+Ask for the campaign record, a recommendation with its limits, and a
 proposed physical experiment or a reason to stop. `HOLD` means required evidence
 or authority is missing. FastCat supplies predictions within a fixed composition
 table; this example does not run physical hardware.
 
 For your own investigation, provide the question or engineering requirement,
-relevant models or data, available instruments and resource limits. The agent
-chooses what evidence to seek and revises the investigation as results arrive.
+relevant models or data, available instruments and resource limits. Ask the agent
+to identify what remains uncertain, choose a test that distinguishes the relevant
+possibilities and use the result to guide its next decision.
 
 ## Use the CLI directly
 
